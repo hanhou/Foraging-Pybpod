@@ -97,7 +97,7 @@ def load_and_parse_a_csv_file(csvfilename):
         d={}
         exec('variables = ' + df['MSG'][variableidx+1].values[0], d)
         for varname in d['variables'].keys():
-            if isinstance(d['variables'][varname], (list,)):
+            if isinstance(d['variables'][varname], (list,tuple)):
                 templist = list()
                 for idx in range(0,len(df)):
                     templist.append(d['variables'][varname])
