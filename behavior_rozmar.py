@@ -45,7 +45,10 @@ def load_and_parse_a_csv_file(csvfilename):
         df['PC-TIME']=df['PC-TIME'].apply(lambda x : datetime.strptime(x,'%Y-%m-%d %H:%M:%S.%f')) # converting string time to datetime
     except ValueError: # sometimes pybpod don't write out the whole number...
         badidx = df['PC-TIME'].str.find('.')==-1
-        df['PC-TIME'][badidx] = [df['PC-TIME'][badidx]+'.000000']
+        if len(df['PC-TIME'][badidx]) == 1:
+            df['PC-TIME'][badidx] = df['PC-TIME'][badidx]+'.000000'
+        else:
+            df['PC-TIME'][badidx] = [df['PC-TIME'][badidx]+'.000000']
         df['PC-TIME']=df['PC-TIME'].apply(lambda x : datetime.strptime(x,'%Y-%m-%d %H:%M:%S.%f')) # converting string time to datetime
     tempstr = df['+INFO'][df['MSG']=='CREATOR-NAME'].values[0]
     experimenter = tempstr[2:tempstr[2:].find('"')+2] #+2
@@ -119,17 +122,8 @@ def load_and_parse_a_csv_file(csvfilename):
         df['reward_p_R'] = np.nan
         for blocknum in df['Block_number'].unique():
             if not np.isnan(blocknum):
-                
-# =============================================================================
-#                                                 df['reward_p_L'][df['Block_number'] == blocknum] = probs_l[int(blocknum-1)] 
-#                                                 df['reward_p_R'][df['Block_number'] == blocknum] = probs_r[int(blocknum-1)] 
-#                                                 
-# =============================================================================
                 df.loc[df['Block_number'] == blocknum, 'reward_p_L'] = probs_l[int(blocknum-1)]
                 df.loc[df['Block_number'] == blocknum, 'reward_p_R'] = probs_r[int(blocknum-1)]
-                                        
-                                        
-    
     return df
 
 def loadcsvdata(bigtable=pd.DataFrame(),
