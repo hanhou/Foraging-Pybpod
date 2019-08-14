@@ -142,49 +142,68 @@ class App(QDialog):
             self.handles['motor_COMport_edit'].setText(variables['comport_motor'])
             
     def zaber_refresh(self):
-        with zaber_serial.BinarySerial(variables['comport_motor']) as ser:
-            Forward_Backward_device = zaber_serial.BinaryDevice(ser,1)
-            Left_Right_device = zaber_serial.BinaryDevice(ser,2)
-            pos_Forward_Backward = Forward_Backward_device.get_position()
-            pos_Left_Right = Left_Right_device.get_position()
-            
-            getspeed_cmd = zaber_serial.BinaryCommand(1,53,42)
-            ser.write(getspeed_cmd)
-            speed1 = ser.read()
-            getspeed_cmd = zaber_serial.BinaryCommand(2,53,42)
-            ser.write(getspeed_cmd)
-            speed2 = ser.read()
-            
-            getacc_cmd = zaber_serial.BinaryCommand(1,53,43)
-            ser.write(getacc_cmd)
-            acc1 = ser.read()
-            getacc_cmd = zaber_serial.BinaryCommand(2,53,43)
-            ser.write(getacc_cmd)
-            acc2 = ser.read()
-            
-            self.handles['motor_COMport_edit'].setText(variables['comport_motor'])
-           
-            
-        self.handles['motor_RC_edit'].setText(str(pos_Forward_Backward))
-        self.handles['motor_LAT_edit'].setText(str(pos_Left_Right))
-        self.handles['motor_RC_speed_edit'].setText(str(speed1.data))
-        self.handles['motor_LAT_speed_edit'].setText(str(speed2.data))
-        self.handles['motor_RC_acceleration_edit'].setText(str(acc1.data))
-        self.handles['motor_LAT_acceleration_edit'].setText(str(acc2.data))
+         for zabertry_i in range(0,1000): # when the COMport is occupied, it will try again
+            try:
+                with zaber_serial.BinarySerial(variables['comport_motor']) as ser:
+                    Forward_Backward_device = zaber_serial.BinaryDevice(ser,1)
+                    Left_Right_device = zaber_serial.BinaryDevice(ser,2)
+                    pos_Forward_Backward = Forward_Backward_device.get_position()
+                    pos_Left_Right = Left_Right_device.get_position()
+                    
+                    getspeed_cmd = zaber_serial.BinaryCommand(1,53,42)
+                    ser.write(getspeed_cmd)
+                    speed1 = ser.read()
+                    getspeed_cmd = zaber_serial.BinaryCommand(2,53,42)
+                    ser.write(getspeed_cmd)
+                    speed2 = ser.read()
+                    
+                    getacc_cmd = zaber_serial.BinaryCommand(1,53,43)
+                    ser.write(getacc_cmd)
+                    acc1 = ser.read()
+                    getacc_cmd = zaber_serial.BinaryCommand(2,53,43)
+                    ser.write(getacc_cmd)
+                    acc2 = ser.read()
+                    
+                    self.handles['motor_COMport_edit'].setText(variables['comport_motor'])
+                   
+                    
+                self.handles['motor_RC_edit'].setText(str(pos_Forward_Backward))
+                self.handles['motor_LAT_edit'].setText(str(pos_Left_Right))
+                self.handles['motor_RC_speed_edit'].setText(str(speed1.data))
+                self.handles['motor_LAT_speed_edit'].setText(str(speed2.data))
+                self.handles['motor_RC_acceleration_edit'].setText(str(acc1.data))
+                self.handles['motor_LAT_acceleration_edit'].setText(str(acc2.data))
+                break
+            except zaber_serial.binaryserial.serial.SerialException:
+                    print('can''t access Zaber ' + str(zabertry_i))
+                    time.sleep(.01)
     def zaber_move_Lat(self):
         if 	self.handles['motor_LAT_edit'].text().isnumeric:
-            with zaber_serial.BinarySerial(variables['comport_motor']) as ser:
-                moveabs_cmd = zaber_serial.BinaryCommand(2,20,int(self.handles['motor_LAT_edit'].text()))
-                ser.write(moveabs_cmd)
-                time.sleep(variables['waittime'])
+            for zabertry_i in range(0,1000): # when the COMport is occupied, it will try again
+                try:
+                    with zaber_serial.BinarySerial(variables['comport_motor']) as ser:
+                        moveabs_cmd = zaber_serial.BinaryCommand(2,20,int(self.handles['motor_LAT_edit'].text()))
+                        ser.write(moveabs_cmd)
+                        time.sleep(variables['waittime'])
+                    break
+                except zaber_serial.binaryserial.serial.SerialException:
+                    print('can''t access Zaber ' + str(zabertry_i))
+                    time.sleep(.01)
         self.zaber_refresh()
+                
 		
     def zaber_move_RC(self):
         if 	self.handles['motor_RC_edit'].text().isnumeric:
-            with zaber_serial.BinarySerial(variables['comport_motor']) as ser:
-                moveabs_cmd = zaber_serial.BinaryCommand(1,20,int(self.handles['motor_RC_edit'].text()))
-                ser.write(moveabs_cmd)
-                time.sleep(variables['waittime'])
+            for zabertry_i in range(0,1000): # when the COMport is occupied, it will try again
+                try:
+                    with zaber_serial.BinarySerial(variables['comport_motor']) as ser:
+                        moveabs_cmd = zaber_serial.BinaryCommand(1,20,int(self.handles['motor_RC_edit'].text()))
+                        ser.write(moveabs_cmd)
+                        time.sleep(variables['waittime'])
+                    break
+                except zaber_serial.binaryserial.serial.SerialException:
+                    print('can''t access Zaber ' + str(zabertry_i))
+                    time.sleep(.01)
         self.zaber_refresh()
         
     def zaber_set_speed(self,ch):
@@ -193,11 +212,16 @@ class App(QDialog):
                 data = int(self.handles['motor_RC_speed_edit'].text())
             elif ch == 2:
                 data = int(self.handles['motor_LAT_speed_edit'].text())
-                
-            with zaber_serial.BinarySerial(variables['comport_motor']) as ser:
-                setspeed_cmd = zaber_serial.BinaryCommand(ch,42,data)
-                ser.write(setspeed_cmd)
-                time.sleep(variables['waittime'])
+            for zabertry_i in range(0,1000): # when the COMport is occupied, it will try again
+                try:    
+                    with zaber_serial.BinarySerial(variables['comport_motor']) as ser:
+                        setspeed_cmd = zaber_serial.BinaryCommand(ch,42,data)
+                        ser.write(setspeed_cmd)
+                        time.sleep(variables['waittime'])
+                    break
+                except zaber_serial.binaryserial.serial.SerialException:
+                    print('can''t access Zaber ' + str(zabertry_i))
+                    time.sleep(.01)
         self.zaber_refresh()
         
     def zaber_set_acceleration(self,ch):
@@ -206,43 +230,72 @@ class App(QDialog):
                 data = int(self.handles['motor_RC_acceleration_edit'].text())
             elif ch == 2:
                 data = int(self.handles['motor_LAT_acceleration_edit'].text())
-                
-            with zaber_serial.BinarySerial(variables['comport_motor']) as ser:
-                setacc_cmd = zaber_serial.BinaryCommand(ch,43,data)
-                ser.write(setacc_cmd)
-                time.sleep(variables['waittime'])
+            for zabertry_i in range(0,1000): # when the COMport is occupied, it will try again
+                try:     
+                    with zaber_serial.BinarySerial(variables['comport_motor']) as ser:
+                        setacc_cmd = zaber_serial.BinaryCommand(ch,43,data)
+                        ser.write(setacc_cmd)
+                        time.sleep(variables['waittime'])
+                    break
+                except zaber_serial.binaryserial.serial.SerialException:
+                    print('can''t access Zaber ' + str(zabertry_i))
+                    time.sleep(.01)
         self.zaber_refresh()
         
     def zaber_move_forward(self):
         if 	self.handles['motor_step_edit'].text().isnumeric:
-            with zaber_serial.BinarySerial(variables['comport_motor']) as ser:
-                moverel_cmd = zaber_serial.BinaryCommand(1,21,-1*int(self.handles['motor_step_edit'].text()))
-                ser.write(moverel_cmd)
-                time.sleep(variables['waittime'])
+            for zabertry_i in range(0,1000): # when the COMport is occupied, it will try again
+                try:
+                    with zaber_serial.BinarySerial(variables['comport_motor']) as ser:
+                        moverel_cmd = zaber_serial.BinaryCommand(1,21,-1*int(self.handles['motor_step_edit'].text()))
+                        ser.write(moverel_cmd)
+                        time.sleep(variables['waittime'])
+                    break
+                except zaber_serial.binaryserial.serial.SerialException:
+                    print('can''t access Zaber ' + str(zabertry_i))
+                    time.sleep(.01)
         self.zaber_refresh()
         print('forward')
     def zaber_move_back(self):
         if 	self.handles['motor_step_edit'].text().isnumeric:
-            with zaber_serial.BinarySerial(variables['comport_motor']) as ser:
-                moverel_cmd = zaber_serial.BinaryCommand(1,21,int(self.handles['motor_step_edit'].text()))
-                ser.write(moverel_cmd)
-                time.sleep(variables['waittime'])
+            for zabertry_i in range(0,1000): # when the COMport is occupied, it will try again
+                try:
+                    with zaber_serial.BinarySerial(variables['comport_motor']) as ser:
+                        moverel_cmd = zaber_serial.BinaryCommand(1,21,int(self.handles['motor_step_edit'].text()))
+                        ser.write(moverel_cmd)
+                        time.sleep(variables['waittime'])
+                    break
+                except zaber_serial.binaryserial.serial.SerialException:
+                    print('can''t access Zaber ' + str(zabertry_i))
+                    time.sleep(.01)
         self.zaber_refresh()
         print('back')
     def zaber_move_left(self):
         if 	self.handles['motor_step_edit'].text().isnumeric:
-            with zaber_serial.BinarySerial(variables['comport_motor']) as ser:
-                moverel_cmd = zaber_serial.BinaryCommand(2,21,-1*int(self.handles['motor_step_edit'].text()))
-                ser.write(moverel_cmd)
-                time.sleep(variables['waittime'])
+            for zabertry_i in range(0,1000): # when the COMport is occupied, it will try again
+                try:
+                    with zaber_serial.BinarySerial(variables['comport_motor']) as ser:
+                        moverel_cmd = zaber_serial.BinaryCommand(2,21,-1*int(self.handles['motor_step_edit'].text()))
+                        ser.write(moverel_cmd)
+                        time.sleep(variables['waittime'])
+                    break
+                except zaber_serial.binaryserial.serial.SerialException:
+                    print('can''t access Zaber ' + str(zabertry_i))
+                    time.sleep(.01)
         self.zaber_refresh()
         print('left')
     def zaber_move_right(self):
         if 	self.handles['motor_step_edit'].text().isnumeric:
-            with zaber_serial.BinarySerial(variables['comport_motor']) as ser:
-                moverel_cmd = zaber_serial.BinaryCommand(2,21,1*int(self.handles['motor_step_edit'].text()))
-                ser.write(moverel_cmd)
-                time.sleep(variables['waittime'])
+            for zabertry_i in range(0,1000): # when the COMport is occupied, it will try again
+                try:
+                    with zaber_serial.BinarySerial(variables['comport_motor']) as ser:
+                        moverel_cmd = zaber_serial.BinaryCommand(2,21,1*int(self.handles['motor_step_edit'].text()))
+                        ser.write(moverel_cmd)
+                        time.sleep(variables['waittime'])
+                    break
+                except zaber_serial.binaryserial.serial.SerialException:
+                    print('can''t access Zaber ' + str(zabertry_i))
+                    time.sleep(.01)
         self.zaber_refresh()
         print('right')
         
