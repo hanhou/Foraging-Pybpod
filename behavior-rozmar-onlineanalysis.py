@@ -1,6 +1,7 @@
 import behavior_rozmar as behavior_rozmar
 import sys
-from PyQt5.QtWidgets import QApplication, QWidget, QPushButton,  QLineEdit, QCheckBox, QHBoxLayout, QGroupBox, QDialog, QVBoxLayout, QGridLayout, QComboBox, QSizePolicy
+import os
+from PyQt5.QtWidgets import QApplication, QWidget, QPushButton,  QLineEdit, QCheckBox, QHBoxLayout, QGroupBox, QDialog, QVBoxLayout, QGridLayout, QComboBox, QSizePolicy, qApp, QLabel
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import pyqtSlot, QTimer
 
@@ -13,9 +14,16 @@ import pandas as pd
 import re
 import time as time
 from datetime import datetime
+import json
 
+print('started')
+paths = ['/home/rozmar/Data/Behavior/Projects','C:\\Users\\labadmin\\Documents\\Pybpod\\Projects']
+for defpath in paths:
+    print(defpath)
+    if os.path.exists(defpath):
+        break
+#defpath = '/home/rozmar/Network/BehaviorRig/Behavroom-Stacked-2/labadmin/Documents/Pybpod/Projects'#'C:\\Users\\labadmin\\Documents\\Pybpod\\Projects'#'/home/rozmar/Network/BehaviorRig/Behavroom-Stacked-2/labadmin/Documents/Pybpod/Projects'#
 
-defpath = '/home/rozmar/Network/BehaviorRig/Behavroom-Stacked-2/labadmin/Documents/Pybpod/Projects'# '/home/rozmar/Data/Behavior/Projects'#'/home/rozmar/Data/Behavior/Projects'#'C:\\Users\\labadmin\\Documents\\Pybpod\\Projects'#'/home/rozmar/Network/BehaviorRig/Behavroom-Stacked-2/labadmin/Documents/Pybpod/Projects'#
 class App(QDialog):
     def __init__(self):
         super().__init__()
@@ -30,24 +38,31 @@ class App(QDialog):
         self.loaddirectorystructure()
         #self.loadthedata()
         self.data = None
+        self.variables = None
         self.initUI()
         
         self.timer  = QTimer(self)
-        self.timer.setInterval(3000)          # Throw event timeout with an interval of 1000 milliseconds
+        self.timer.setInterval(5000)          # Throw event timeout with an interval of 1000 milliseconds
         self.timer.timeout.connect(self.reloadthedata) # each time timer counts a second, call self.blink
+    def set_parameters_app(self):
+        self.parametersetter = App_parametersetter(parent = self)
         
-    def loaddirectorystructure(self):
-        dirstructure, projectnames, experimentnames, setupnames, sessionnames = behavior_rozmar.loaddirstucture(defpath)
+        self.parametersetter.show()
+        
+    def loaddirectorystructure(self,projectnames_needed = None, experimentnames_needed = None,  setupnames_needed=None):
+        dirstructure, projectnames, experimentnames, setupnames, sessionnames = behavior_rozmar.loaddirstucture(defpath,projectnames_needed, experimentnames_needed,  setupnames_needed)
         self.dirstruct = dirstructure
         self.alldirs = dict()
         self.alldirs['projectnames'] = projectnames
         self.alldirs['experimentnames'] = experimentnames
         self.alldirs['setupnames'] = setupnames
-        self.alldirs['sessionnames'] = sessionnames
-        
+        self.alldirs['sessionnames'] = sessionnames        
         print('directory structure reloaded')
-        
     def loadthedata(self):
+        print('loadthedata')
+        self.handles['load_the_data'].setText('Loading...')
+        self.handles['load_the_data'].setStyleSheet('QPushButton {color: red;}')
+        qApp.processEvents()
         selected = dict()
         filterorder = ['project','experiment','setup','session']
         for filternow in filterorder:
@@ -63,6 +78,8 @@ class App(QDialog):
                                                 experimentnames_needed = selected['experiment'],
                                                 setupnames_needed = selected['setup'],
                                                 sessionnames_needed = selected['session'])
+        self.handles['load_the_data'].setText('Load the data')
+        self.handles['load_the_data'].setStyleSheet('QPushButton {color: black;}')
         self.updateUI()
         #print('data reloaded')
         #print(time.perf_counter())
@@ -82,7 +99,12 @@ class App(QDialog):
             self.timer.stop()
             
     def filterthedata(self,lastselected = ' '):
+        if lastselected != ' ':
+            print('filterthedata')
+            print(lastselected)
+            self.updateUI_dirstructure(lastselected)
         filterorder = ['project','experiment','setup','session','subject','experimenter']
+        
         if type(self.data) == pd.DataFrame:
             self.data_now = self.data 
             for filternow in filterorder:
@@ -91,6 +113,7 @@ class App(QDialog):
                     self.data_now = self.data_now[self.data_now[filternow] == filterstring]
             self.handles['axes1'].plot_licks_and_rewards(self.data_now,self.handles)
             self.handles['axes2'].plot_bias(self.data_now,self.handles)
+        
 # =============================================================================
 #         data = self.data 
 #         handlenames = self.handles.keys()
@@ -112,6 +135,7 @@ class App(QDialog):
         windowLayout.addWidget(self.horizontalGroupBox_filter)
         windowLayout.addWidget(self.horizontalGroupBox_plot_settings)
         windowLayout.addWidget(self.horizontalGroupBox_axes)
+        windowLayout.addWidget(self.horizontalGroupBox_variables)
         self.setLayout(windowLayout)
         
         self.show()
@@ -149,6 +173,9 @@ class App(QDialog):
         #self.handles['filter_experimenter'].addItems(self.data['experimenter'].unique())
         self.handles['filter_experimenter'].currentIndexChanged.connect(lambda: self.filterthedata('filter_experimenter'))
         
+        self.handles['loadparams'] = QPushButton('Load parameters')
+        self.handles['loadparams'].clicked.connect(self.load_parameters)
+        
         layout.addWidget(self.handles['filter_project'] ,0,0)
         layout.addWidget(self.handles['filter_experiment'],0,1)
         layout.addWidget(self.handles['filter_setup'],0,2)
@@ -156,6 +183,7 @@ class App(QDialog):
         layout.addWidget(self.handles['load_the_data'],0,4)
         layout.addWidget(self.handles['filter_subject'],0,5)
         layout.addWidget(self.handles['filter_experimenter'],0,6)
+        layout.addWidget(self.handles['loadparams'],0,7)
         self.horizontalGroupBox_filter.setLayout(layout)
         
         self.horizontalGroupBox_axes = QGroupBox("plots")
@@ -183,19 +211,23 @@ class App(QDialog):
         layout_plot_settings.addWidget(self.handles['plot_autorefresh'],0,2)
         self.handles['plot_autorefresh'].stateChanged.connect(self.auto_load_data)
         self.horizontalGroupBox_plot_settings.setLayout(layout_plot_settings)
-    
+        
+        self.horizontalGroupBox_variables = QGroupBox("Variables")
+        
     def updateUI(self): # update the other qcomboboxes as well!!!
+        self.handles['filter_subject'].currentIndexChanged.disconnect()
         currtext = self.handles['filter_subject'].currentText()
         self.handles['filter_subject'].clear()
         self.handles['filter_subject'].addItem('all subjects')
         if type(self.data) == pd.DataFrame:
             self.handles['filter_subject'].addItems(self.data['subject'].unique())
-            
             idx = self.handles['filter_subject'].findText(currtext)
             if idx != -1:
                 self.handles['filter_subject'].setCurrentIndex(idx)
-                
         currtext = self.handles['filter_subject'].currentText()
+        self.handles['filter_subject'].currentIndexChanged.connect(lambda: self.filterthedata('filter_subject'))
+        
+        self.handles['filter_experimenter'].currentIndexChanged.disconnect()
         self.handles['filter_experimenter'].clear()
         self.handles['filter_experimenter'].addItem('all experimenters')
         if type(self.data) == pd.DataFrame:
@@ -203,9 +235,119 @@ class App(QDialog):
             idx = self.handles['filter_experimenter'].findText(currtext)
             if idx != -1:
                 self.handles['filter_experimenter'].setCurrentIndex(idx)
-        
+        self.handles['filter_experimenter'].currentIndexChanged.connect(lambda: self.filterthedata('filter_experimenter'))
+    def updateUI_dirstructure(self, lastselected):
+        project_now = [self.handles['filter_project'].currentText()]
+        experiment_now = [self.handles['filter_experiment'].currentText()]
+        setup_now =[self.handles['filter_setup'].currentText()]
+        #session_now = self.handles['filter_session'].currentText()
+        if project_now[0] == 'all projects':
+            project_now = None
+        if experiment_now[0] == 'all experiments':
+            experiment_now = None
+        if setup_now[0] == 'all setups':
+            setup_now = None
+        self.loaddirectorystructure(project_now, experiment_now,  setup_now)
+        if lastselected == 'filter_project':
+            self.handles['filter_experiment'].currentIndexChanged.disconnect()
+            self.handles['filter_experiment'].clear()
+            self.handles['filter_experiment'].addItem('all experiments')
+            self.handles['filter_experiment'].addItems(self.alldirs['experimentnames'])
+            self.handles['filter_experiment'].currentIndexChanged.connect(lambda: self.filterthedata('filter_experiment'))
+        if lastselected == 'filter_project' or lastselected == 'filter_experiment':
+            self.handles['filter_setup'].currentIndexChanged.disconnect()
+            self.handles['filter_setup'].clear()
+            self.handles['filter_setup'].addItem('all setups')
+            self.handles['filter_setup'].addItems(self.alldirs['setupnames'])
+            self.handles['filter_setup'].currentIndexChanged.connect(lambda: self.filterthedata('filter_setup'))
+        if lastselected == 'filter_project' or lastselected == 'filter_setup':
+            self.handles['filter_session'].currentIndexChanged.disconnect()
+            self.handles['filter_session'].clear()
+            self.handles['filter_session'].addItem('all sessions')
+            self.handles['filter_session'].addItems(self.alldirs['sessionnames'])
+            self.handles['filter_session'].currentIndexChanged.connect(lambda: self.filterthedata('filter_session'))
+    def load_parameters(self):
+        maxcol = 4 # number of columns
+        project_now = self.handles['filter_project'].currentText()
+        experiment_now = self.handles['filter_experiment'].currentText()
+        setup_now = self.handles['filter_setup'].currentText()
+        subject_now = self.handles['filter_subject'].currentText()
+        if project_now != 'all projects' and experiment_now != 'all experiments' and setup_now != 'all setups' and subject_now != 'all subjects':
+            subject_var_file = os.path.join(defpath,project_now,'subjects',subject_now,'variables.json')
+            setup_var_file = os.path.join(defpath,project_now,'experiments',experiment_now,'setups',setup_now,'variables.json')
+            with open(subject_var_file) as json_file:
+                variables_subject = json.load(json_file)
+            with open(setup_var_file) as json_file:
+                variables_setup = json.load(json_file)
+            if self.variables is None:
+                layout = QGridLayout()
+                self.horizontalGroupBox_variables_setup = QGroupBox("Setup: "+setup_now)
+                self.horizontalGroupBox_variables_subject = QGroupBox("Subject: "+subject_now)
+                layout.addWidget(self.horizontalGroupBox_variables_setup ,0,0)
+                layout.addWidget(self.horizontalGroupBox_variables_subject ,1,0)
+                self.horizontalGroupBox_variables.setLayout(layout)
+                layout_setup = QGridLayout()
+                row = 0
+                col = -1
+                self.handles['variables_setup']=dict()
+                self.handles['variables_subject']=dict()
+                for idx,key in enumerate(variables_setup.keys()):
+                    col +=1
+                    if col > maxcol*2:
+                        col = 0
+                        row += 1
+                    layout_setup.addWidget(QLabel(key+':') ,row,col)
+                    col +=1
+                    self.handles['variables_setup'][key] =  QLineEdit(str(variables_setup[key]))
+                    self.handles['variables_setup'][key].returnPressed.connect(self.save_parameters)
+                    layout_setup.addWidget(self.handles['variables_setup'][key] ,row,col)
+                self.horizontalGroupBox_variables_setup.setLayout(layout_setup)
+                layout_subject = QGridLayout()
+                row = 0
+                col = -1
+                for idx,key in enumerate(variables_subject.keys()):
+                    col +=1
+                    if col > maxcol*2:
+                        col = 0
+                        row += 1
+                    layout_subject.addWidget(QLabel(key+':') ,row,col)
+                    col +=1
+                    self.handles['variables_subject'][key] =  QLineEdit(str(variables_subject[key]))
+                    self.handles['variables_subject'][key].returnPressed.connect(self.save_parameters)
+                    layout_subject.addWidget(self.handles['variables_subject'][key] ,row,col)
+                self.horizontalGroupBox_variables_subject.setLayout(layout_subject)
+                self.variables=dict()
+            else:
+                for key in variables_subject.keys():
+                    self.handles['variables_subject'][key].setText(str(variables_subject[key]))
+                for key in variables_setup.keys():
+                    self.handles['variables_setup'][key].setText(str(variables_setup[key]))
+            self.variables['subject'] = variables_subject
+            self.variables['setup'] = variables_setup
+            self.variables['subject_file'] = subject_var_file
+            self.variables['setup_file'] = setup_var_file
+    def save_parameters(self):
+        print('save')
+        for dicttext in ['subject','setup']:
+            for key in self.variables[dicttext].keys():
+                if type(self.variables[dicttext][key]) == bool:
+                    if 'true' in self.handles['variables_'+dicttext][key].text().lower() or '1' in self.handles['variables_'+dicttext][key].text():
+                        self.variables[dicttext][key] = True
+                    else:
+                        self.variables[dicttext][key] = False
+                elif type(self.variables[dicttext][key]) == float:
+                    if self.handles['variables_'+dicttext][key].text().isnumeric:
+                        self.variables[dicttext][key] = float(self.handles['variables_'+dicttext][key].text())
+                elif type(self.variables[dicttext][key]) == int:                   
+                    if self.handles['variables_'+dicttext][key].text().isnumeric:
+                        self.variables[dicttext][key] = int(round(float(self.handles['variables_'+dicttext][key].text())))
+        with open(self.variables['setup_file'], 'w') as outfile:
+            json.dump(self.variables['setup'], outfile)
+        with open(self.variables['subject_file'], 'w') as outfile:
+            json.dump(self.variables['subject'], outfile)
+        self.load_parameters()
+            
 class PlotCanvas(FigureCanvas):
-
     def __init__(self, parent=None, width=5, height=4, dpi=100):
         fig = Figure(figsize=(width, height), dpi=dpi)
         self.axes = fig.add_subplot(111)
