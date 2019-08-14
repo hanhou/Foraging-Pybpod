@@ -3,9 +3,15 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from datetime import datetime
-defpath = 'C:\\Users\\labadmin\\Documents\\Pybpod\\Projects'#'/home/rozmar/Network/BehaviorRig/Behavroom-Stacked-2/labadmin/Documents/Pybpod/Projects'
+import os
+#%%
+paths = ['/home/rozmar/Data/Behavior/Projects','C:\\Users\\labadmin\\Documents\\Pybpod\\Projects']
+for defpath in paths:
+    if os.path.exists(defpath):
+        break
+#defpath = 'C:\\Users\\labadmin\\Documents\\Pybpod\\Projects'#'/home/rozmar/Network/BehaviorRig/Behavroom-Stacked-2/labadmin/Documents/Pybpod/Projects'
 
-def loaddirstucture(projectdir = Path(defpath)):
+def loaddirstucture(projectdir = Path(defpath),projectnames_needed = None, experimentnames_needed = None,  setupnames_needed=None):
     dirstructure = dict()
     projectnames = list()
     experimentnames = list()
@@ -15,23 +21,24 @@ def loaddirstucture(projectdir = Path(defpath)):
         projectdir = Path(projectdir)
         
     for projectname in projectdir.iterdir():
-        if projectname.is_dir():
+        if projectname.is_dir() and (not projectnames_needed or projectname.name in projectnames_needed):
             dirstructure[projectname.name] = dict()
             projectnames.append(projectname.name)
             
             for experimentname in (projectname / 'experiments').iterdir():
-                if experimentname.is_dir(): 
+                if experimentname.is_dir() and (not experimentnames_needed or experimentname.name in experimentnames_needed ): 
                     dirstructure[projectname.name][experimentname.name] = dict()
                     experimentnames.append(experimentname.name)
                     
                     for setupname in (experimentname / 'setups').iterdir():
-                        setupnames.append(setupname.name)
-                        dirstructure[projectname.name][experimentname.name][setupname.name] = list()
-                        
-                        for sessionname in (setupname / 'sessions').iterdir():
-                            if sessionname.is_dir(): 
-                                sessionnames.append(sessionname.name)
-                                dirstructure[projectname.name][experimentname.name][setupname.name].append(sessionname.name)
+                        if setupname.is_dir() and (not setupnames_needed or setupname.name in setupnames_needed ): 
+                            setupnames.append(setupname.name)
+                            dirstructure[projectname.name][experimentname.name][setupname.name] = list()
+                            
+                            for sessionname in (setupname / 'sessions').iterdir():
+                                if sessionname.is_dir(): 
+                                    sessionnames.append(sessionname.name)
+                                    dirstructure[projectname.name][experimentname.name][setupname.name].append(sessionname.name)
     return dirstructure, projectnames, experimentnames, setupnames, sessionnames               
 
 def load_and_parse_a_csv_file(csvfilename):
