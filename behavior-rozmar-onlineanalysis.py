@@ -44,6 +44,31 @@ class App(QDialog):
         self.timer  = QTimer(self)
         self.timer.setInterval(5000)          # Throw event timeout with an interval of 1000 milliseconds
         self.timer.timeout.connect(self.reloadthedata) # each time timer counts a second, call self.blink
+        self.variables_to_display = ['ValveOpenTime_L',
+                                     'ValveOpenTime_R',
+                                     'Trialnumber_in_block',
+                                     'Trialnumber_in_block_SD',
+                                     'Trialnumber_in_block_min',
+                                     'block_start_with_fifty_fifty',
+                                     'block_first_to_right',
+                                     'block_number',
+                                     'difficulty_sum_reward_rate',
+                                     'difficulty_ratio_pair_num',
+                                     'delay',
+                                     'delay_min',
+                                     'delay_max',
+                                     'response_time',
+                                     'iti', 
+                                     'iti_min', # minimum ITI
+                                     'iti_max',
+                                     'increase_ITI_on_ignore_trials',
+                                     'auto_water',
+                                     'auto_water_time_multiplier',
+                                     'auto_water_min_unrewarder_trials_in_a_row',
+                                     'auto_water_min_ignored_trials_in_a_row',
+                                     'auto_train_min_rewarded_trial_num',
+                                     'early_lick_punishment',
+                                     ]
     def set_parameters_app(self):
         self.parametersetter = App_parametersetter(parent = self)
         
@@ -292,35 +317,37 @@ class App(QDialog):
                 self.handles['variables_setup']=dict()
                 self.handles['variables_subject']=dict()
                 for idx,key in enumerate(variables_setup.keys()):
-                    col +=1
-                    if col > maxcol*2:
-                        col = 0
-                        row += 1
-                    layout_setup.addWidget(QLabel(key+':') ,row,col)
-                    col +=1
-                    self.handles['variables_setup'][key] =  QLineEdit(str(variables_setup[key]))
-                    self.handles['variables_setup'][key].returnPressed.connect(self.save_parameters)
-                    layout_setup.addWidget(self.handles['variables_setup'][key] ,row,col)
+                    if key in self.variables_to_display:
+                        col +=1
+                        if col > maxcol*2:
+                            col = 0
+                            row += 1
+                        layout_setup.addWidget(QLabel(key+':') ,row,col)
+                        col +=1
+                        self.handles['variables_setup'][key] =  QLineEdit(str(variables_setup[key]))
+                        self.handles['variables_setup'][key].returnPressed.connect(self.save_parameters)
+                        layout_setup.addWidget(self.handles['variables_setup'][key] ,row,col)
                 self.horizontalGroupBox_variables_setup.setLayout(layout_setup)
                 layout_subject = QGridLayout()
                 row = 0
                 col = -1
                 for idx,key in enumerate(variables_subject.keys()):
-                    col +=1
-                    if col > maxcol*2:
-                        col = 0
-                        row += 1
-                    layout_subject.addWidget(QLabel(key+':') ,row,col)
-                    col +=1
-                    self.handles['variables_subject'][key] =  QLineEdit(str(variables_subject[key]))
-                    self.handles['variables_subject'][key].returnPressed.connect(self.save_parameters)
-                    layout_subject.addWidget(self.handles['variables_subject'][key] ,row,col)
+                    if key in self.variables_to_display:
+                        col +=1
+                        if col > maxcol*2:
+                            col = 0
+                            row += 1
+                        layout_subject.addWidget(QLabel(key+':') ,row,col)
+                        col +=1
+                        self.handles['variables_subject'][key] =  QLineEdit(str(variables_subject[key]))
+                        self.handles['variables_subject'][key].returnPressed.connect(self.save_parameters)
+                        layout_subject.addWidget(self.handles['variables_subject'][key] ,row,col)
                 self.horizontalGroupBox_variables_subject.setLayout(layout_subject)
                 self.variables=dict()
             else:
-                for key in variables_subject.keys():
+                for key in self.handles['variables_subject'].keys():
                     self.handles['variables_subject'][key].setText(str(variables_subject[key]))
-                for key in variables_setup.keys():
+                for key in self.handles['variables_setup'].keys():
                     self.handles['variables_setup'][key].setText(str(variables_setup[key]))
             self.variables['subject'] = variables_subject
             self.variables['setup'] = variables_setup
@@ -329,18 +356,22 @@ class App(QDialog):
     def save_parameters(self):
         print('save')
         for dicttext in ['subject','setup']:
-            for key in self.variables[dicttext].keys():
+            for key in self.handles['variables_'+dicttext].keys(): 
                 if type(self.variables[dicttext][key]) == bool:
                     if 'true' in self.handles['variables_'+dicttext][key].text().lower() or '1' in self.handles['variables_'+dicttext][key].text():
                         self.variables[dicttext][key] = True
                     else:
                         self.variables[dicttext][key] = False
                 elif type(self.variables[dicttext][key]) == float:
-                    if self.handles['variables_'+dicttext][key].text().isnumeric:
+                    try:
                         self.variables[dicttext][key] = float(self.handles['variables_'+dicttext][key].text())
+                    except:
+                        print('not proper value')
                 elif type(self.variables[dicttext][key]) == int:                   
-                    if self.handles['variables_'+dicttext][key].text().isnumeric:
+                    try:
                         self.variables[dicttext][key] = int(round(float(self.handles['variables_'+dicttext][key].text())))
+                    except:
+                        print('not proper value')
         with open(self.variables['setup_file'], 'w') as outfile:
             json.dump(self.variables['setup'], outfile)
         with open(self.variables['subject_file'], 'w') as outfile:
