@@ -19,7 +19,7 @@ import numpy as np
 # setup_name = 'Tower-2' #'Tower-3'#'Tower-2' #
 # experiment_name = 'Foraging - Bari Cohen'#'Delayed foraging' #'Foraging - Bari Cohen'
 # =============================================================================
-
+usedummyzaber = False
 my_bpod = Bpod()
 history = my_bpod.session.history
 experiment_name = 'not defined' 
@@ -37,11 +37,11 @@ print('setup_name: ',setup_name)
 print('experiment_name: ',experiment_name)
 
 
-start_with_fifty_fifty = False
+start_with_fifty_fifty = True
 first_block_to_right = True
 
 reward_ratio_pairs=[[.4,.05],[.3857,.0643],[.3375,.1125]]#,[.225,.225]
-blocknum = 10 # number of blocks
+blocknum = 20 # number of blocks
 if start_with_fifty_fifty:
     p_reward_L=[.225] #list()#[.225] #list()# the first block is set to 50% reward rate
     p_reward_R=[.225] #list()#[.225] #list()# list()#the first block is set to 50% rewa
@@ -59,10 +59,8 @@ for i in range(blocknum): # reward rate pairs are chosen randomly
         p_reward_L.append(reward_ratio_pair[1])
         p_reward_R.append(reward_ratio_pair[0])
 
-if experiment_name == 'Foraging - Bari Cohen':
+if experiment_name == 'Foraging - Bari-Cohen':
     variables = { # Cohen
-            'ValveOpenTime_L' : .031,#.036,#.025,#0.05,#
-            'ValveOpenTime_R' : .035,#.04,#.029,#0.06,#
             'Trialnumber_in_block' : 50,
             'Trialnumber_in_block_SD' : 10,
             'Trialnumber_in_block_min' : 40,
@@ -71,19 +69,11 @@ if experiment_name == 'Foraging - Bari Cohen':
             'baseline_time' : 2, # time needed for mouse not to lick before GO cue
             'baseline_time_min' : 1, # minimum value
             'baseline_time_sd' : 0, # randomization parameter 1
-            'GoCue_ch' : OutputChannel.PWM5,
             'GoCue_time' : 2, # time for the mouse to lick
             'Reward_consume_time' : 1, # time needed without lick  to go to the next trial
-            'WaterPort_L_ch_out' : 7,
-            'WaterPort_L_ch_in' : EventName.Port7In,
-            'WaterPort_R_ch_out' : 8,
-            'WaterPort_R_ch_in' : EventName.Port8In,
-            'Choice_cue_L_ch' : OutputChannel.PWM7,
-            'Choice_cue_R_ch' : OutputChannel.PWM8,
-            'iti_base' : 3., 
+            'iti_base' : 5., 
             'iti_min' : 1., # minimum ITI
-            'iti_sd' : 1., # randomization parameter
-            'comport_motor' : 'COM7',
+            'iti_sd' : 2., # randomization parameter
             'motor_retractiondistance' : 60000,
             'motor_retract_waterport' : True,
             'accumulate_reward': True,
@@ -98,8 +88,6 @@ if experiment_name == 'Foraging - Bari Cohen':
     reward_R_accumulated = True
 elif experiment_name == 'Delayed foraging':
     variables = { # Delayed
-            'ValveOpenTime_L' : .031,#.030,#.025,#0.05,#
-            'ValveOpenTime_R' : .035,#.035,#.029,#0.06,#
             'Trialnumber_in_block' : 50,
             'Trialnumber_in_block_SD' : 10,
             'Trialnumber_in_block_min' : 40,
@@ -108,19 +96,11 @@ elif experiment_name == 'Delayed foraging':
             'baseline_time' : 1.5, # time needed for mouse not to lick before GO cue
             'baseline_time_min' : 1, # minimum value
             'baseline_time_sd' : 1, # randomization parameter 1
-            'GoCue_ch' : OutputChannel.PWM5,
             'GoCue_time' : .5, # time for the mouse to lick
             'Reward_consume_time' : 1, # time needed without lick  to go to the next trial
-            'WaterPort_L_ch_out' : 7,
-            'WaterPort_L_ch_in' : EventName.Port7In,
-            'WaterPort_R_ch_out' : 8,
-            'WaterPort_R_ch_in' : EventName.Port8In,
-            'Choice_cue_L_ch' : OutputChannel.PWM7,
-            'Choice_cue_R_ch' : OutputChannel.PWM8,
-            'iti_base' : 3., 
+            'iti_base' : 5., 
             'iti_min' : 1., # minimum ITI
-            'iti_sd' : 1., # randomization parameter
-            'comport_motor' : 'COM7',
+            'iti_sd' : 2., # randomization parameter
             'motor_retractiondistance' : 60000,
             'motor_retract_waterport' : True,
             'accumulate_reward': True,
@@ -136,20 +116,22 @@ elif experiment_name == 'Delayed foraging':
 
 if setup_name =='Tower-2':
     # for setup: Tower - 2
-    variables['ValveOpenTime_L'] = .037
+    variables['ValveOpenTime_L'] = .038
     variables['ValveOpenTime_R'] = .040
     variables['GoCue_ch'] = OutputChannel.PWM5
-    variables['WaterPort_L_ch_out'] = 7
-    variables['WaterPort_L_ch_in'] = EventName.Port7In
-    variables['WaterPort_R_ch_out'] = 8
-    variables['WaterPort_R_ch_in'] = EventName.Port8In
-    variables['Choice_cue_L_ch'] = OutputChannel.PWM7
-    variables['Choice_cue_R_ch'] = OutputChannel.PWM8
+    variables['WaterPort_L_ch_out'] = 1
+    variables['WaterPort_L_ch_in'] = EventName.Port1In
+    variables['WaterPort_R_ch_out'] = 2
+    variables['WaterPort_R_ch_in'] = EventName.Port2In
+    variables['Choice_cue_L_ch'] = OutputChannel.PWM1
+    variables['Choice_cue_R_ch'] = OutputChannel.PWM2
     variables['comport_motor'] = 'COM7'
+    variables['retract_motor_signal'] = (OutputChannel.PWM7, 255)
+    variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
 elif setup_name == 'Tower-3':
     # for setup: Tower - 3
-    variables['ValveOpenTime_L'] = .035#.029
-    variables['ValveOpenTime_R'] = .035#.029
+    variables['ValveOpenTime_L'] = .040# .035#.029#
+    variables['ValveOpenTime_R'] = .040#.035#.029#
     variables['GoCue_ch'] = OutputChannel.PWM5
     variables['WaterPort_L_ch_out'] = 1
     variables['WaterPort_L_ch_in'] = EventName.Port1In
@@ -158,7 +140,8 @@ elif setup_name == 'Tower-3':
     variables['Choice_cue_L_ch'] = OutputChannel.PWM1
     variables['Choice_cue_R_ch'] = OutputChannel.PWM2
     variables['comport_motor'] = 'COM12'
-
+    variables['retract_motor_signal'] = (OutputChannel.PWM7, 255)
+    variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
 
 # soft codes : 1 - retract RC motor; 2 - protract RC motor
 
@@ -173,43 +156,54 @@ def my_softcode_handler(data):
         print("protracting Zabermotor")
         retract_protract_motor(positiontomove)
 def retract_protract_motor(positiontomove):
-    for zabertry_i in range(0,1000): # when the COMport is occupied, it will try again
-        try:
-            with zaber_serial.BinarySerial(variables['comport_motor']) as ser:
-                moveabs_cmd = zaber_serial.BinaryCommand(1,20,positiontomove)
-                ser.write(moveabs_cmd)
-                break
-        except zaber_serial.binaryserial.serial.SerialException:
-            print('can''t access Zaber ' + str(zabertry_i))
-            time.sleep(.01)
+    if usedummyzaber:
+        print('dummy zaber moving')
+    else:
+        for zabertry_i in range(0,1000): # when the COMport is occupied, it will try again
+            try:
+                with zaber_serial.BinarySerial(variables['comport_motor']) as ser:
+                    moveabs_cmd = zaber_serial.BinaryCommand(1,20,positiontomove)
+                    ser.write(moveabs_cmd)
+                    break
+            except zaber_serial.binaryserial.serial.SerialException:
+                print('can''t access Zaber ' + str(zabertry_i))
+                time.sleep(.01)
 def read_motor_position(comport):
-    for zabertry_i in range(0,1000): # when the COMport is occupied, it will try again
-        try:
-            with zaber_serial.BinarySerial(comport) as ser:
-                Forward_Backward_device = zaber_serial.BinaryDevice(ser,1)
-                Left_Right_device = zaber_serial.BinaryDevice(ser,2)
-                for zabertry_i in range(0,1000): # when the COMport is occupied, it will try again
-                    try:
-                        pos_Forward_Backward = Forward_Backward_device.get_position()
-                        break
-                    except:
-                        print('unexpected zaber reply try again')    
-                
-                for zabertry_i in range(0,1000): # when the COMport is occupied, it will try again
-                    try:
-                        pos_Left_Right = Left_Right_device.get_position()
-                        break
-                    except:
-                        print('unexpected zaber reply try again')    
-                variables_motor = {
-            	'LickPort_Lateral_pos' : pos_Left_Right,
-            	'LickPort_RostroCaudal_pos' : pos_Forward_Backward,
-                }
-                return variables_motor                
-                break
-        except zaber_serial.binaryserial.serial.SerialException:
-            print('can''t access Zaber ' + str(zabertry_i))
-            time.sleep(.01)
+    if usedummyzaber:
+        print('dummy zaber reading position')
+        variables_motor = {
+                	'LickPort_Lateral_pos' : 1,
+                	'LickPort_RostroCaudal_pos' : 1,
+                    }
+        return variables_motor
+    else:
+        for zabertry_i in range(0,1000): # when the COMport is occupied, it will try again
+            try:
+                with zaber_serial.BinarySerial(comport) as ser:
+                    Forward_Backward_device = zaber_serial.BinaryDevice(ser,1)
+                    Left_Right_device = zaber_serial.BinaryDevice(ser,2)
+                    for zabertry_i in range(0,1000): # when the COMport is occupied, it will try again
+                        try:
+                            pos_Forward_Backward = Forward_Backward_device.get_position()
+                            break
+                        except:
+                            print('unexpected zaber reply try again')    
+                    
+                    for zabertry_i in range(0,1000): # when the COMport is occupied, it will try again
+                        try:
+                            pos_Left_Right = Left_Right_device.get_position()
+                            break
+                        except:
+                            print('unexpected zaber reply try again')    
+                    variables_motor = {
+                	'LickPort_Lateral_pos' : pos_Left_Right,
+                	'LickPort_RostroCaudal_pos' : pos_Forward_Backward,
+                    }
+                    return variables_motor                
+                    break
+            except zaber_serial.binaryserial.serial.SerialException:
+                print('can''t access Zaber ' + str(zabertry_i))
+                time.sleep(.01)
 
 
 variables_motor = read_motor_position(variables['comport_motor'])
@@ -237,7 +231,8 @@ for blocki , (p_R , p_L) in enumerate(zip(variables['reward_probabilities_R'], v
         triali += 1
         reward_L = np.random.uniform(0.,1.) < p_L
         reward_R = np.random.uniform(0.,1.) < p_R
-        iti_now = np.random.normal(variables['iti_base']+ignore_trial_num_in_a_row,variables['iti_sd'])
+        iti_now = np.random.normal(variables['iti_base']+ignore_trial_num_in_a_row,variables['iti_sd'])#
+        #iti_now = 0
         if iti_now < variables['iti_min']:
             iti_now = variables['iti_min']    
         baselinetime_now = np.random.normal(variables['baseline_time'],variables['baseline_time_sd'])
@@ -357,12 +352,12 @@ for blocki , (p_R , p_L) in enumerate(zip(variables['reward_probabilities_R'], v
             	state_name='ITI',
             	state_timer=iti_now,
             	state_change_conditions={EventName.Tup: 'End'},
-            	output_actions = [(Bpod.OutputChannels.SoftCode, 1)])
+            	output_actions = [variables['retract_motor_signal']]) #(Bpod.OutputChannels.SoftCode, 1)
             sma.add_state(
                 state_name = 'End',
                 state_timer = 0,
                 state_change_conditions={EventName.Tup: 'exit'},
-                output_actions=[(Bpod.OutputChannels.SoftCode, 2)])
+                output_actions=[variables['protract_motor_signal']]) #(Bpod.OutputChannels.SoftCode, 2)
         else:    
             sma.add_state(
             	state_name='ITI',
