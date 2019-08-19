@@ -178,7 +178,7 @@ class App(QDialog):
                     print('can''t access Zaber ' + str(zabertry_i))
                     time.sleep(.01)
     def zaber_move_Lat(self):
-        if 	self.handles['motor_LAT_edit'].text().isnumeric:
+        if 	self.handles['motor_LAT_edit'].text().isnumeric():
             for zabertry_i in range(0,1000): # when the COMport is occupied, it will try again
                 try:
                     with zaber_serial.BinarySerial(variables['comport_motor']) as ser:
@@ -193,7 +193,7 @@ class App(QDialog):
                 
 		
     def zaber_move_RC(self):
-        if 	self.handles['motor_RC_edit'].text().isnumeric:
+        if 	self.handles['motor_RC_edit'].text().isnumeric():
             for zabertry_i in range(0,1000): # when the COMport is occupied, it will try again
                 try:
                     with zaber_serial.BinarySerial(variables['comport_motor']) as ser:
@@ -207,7 +207,7 @@ class App(QDialog):
         self.zaber_refresh()
         
     def zaber_set_speed(self,ch):
-        if 	self.handles['motor_RC_speed_edit'].text().isnumeric and self.handles['motor_LAT_speed_edit'].text().isnumeric:
+        if 	self.handles['motor_RC_speed_edit'].text().isnumeric and self.handles['motor_LAT_speed_edit'].text().isnumeric():
             if ch == 1:
                 data = int(self.handles['motor_RC_speed_edit'].text())
             elif ch == 2:
@@ -225,7 +225,7 @@ class App(QDialog):
         self.zaber_refresh()
         
     def zaber_set_acceleration(self,ch):
-        if 	self.handles['motor_RC_acceleration_edit'].text().isnumeric and self.handles['motor_LAT_acceleration_edit'].text().isnumeric:
+        if 	self.handles['motor_RC_acceleration_edit'].text().isnumeric and self.handles['motor_LAT_acceleration_edit'].text().isnumeric():
             if ch == 1:
                 data = int(self.handles['motor_RC_acceleration_edit'].text())
             elif ch == 2:
@@ -243,7 +243,7 @@ class App(QDialog):
         self.zaber_refresh()
         
     def zaber_move_forward(self):
-        if 	self.handles['motor_step_edit'].text().isnumeric:
+        if 	self.handles['motor_step_edit'].text().isnumeric():
             for zabertry_i in range(0,1000): # when the COMport is occupied, it will try again
                 try:
                     with zaber_serial.BinarySerial(variables['comport_motor']) as ser:
@@ -257,7 +257,7 @@ class App(QDialog):
         self.zaber_refresh()
         print('forward')
     def zaber_move_back(self):
-        if 	self.handles['motor_step_edit'].text().isnumeric:
+        if 	self.handles['motor_step_edit'].text().isnumeric():
             for zabertry_i in range(0,1000): # when the COMport is occupied, it will try again
                 try:
                     with zaber_serial.BinarySerial(variables['comport_motor']) as ser:
@@ -271,7 +271,7 @@ class App(QDialog):
         self.zaber_refresh()
         print('back')
     def zaber_move_left(self):
-        if 	self.handles['motor_step_edit'].text().isnumeric:
+        if 	self.handles['motor_step_edit'].text().isnumeric():
             for zabertry_i in range(0,1000): # when the COMport is occupied, it will try again
                 try:
                     with zaber_serial.BinarySerial(variables['comport_motor']) as ser:
@@ -285,7 +285,7 @@ class App(QDialog):
         self.zaber_refresh()
         print('left')
     def zaber_move_right(self):
-        if 	self.handles['motor_step_edit'].text().isnumeric:
+        if 	self.handles['motor_step_edit'].text().isnumeric():
             for zabertry_i in range(0,1000): # when the COMport is occupied, it will try again
                 try:
                     with zaber_serial.BinarySerial(variables['comport_motor']) as ser:
