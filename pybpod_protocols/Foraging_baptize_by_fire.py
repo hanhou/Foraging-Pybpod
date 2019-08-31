@@ -174,8 +174,12 @@ else:
     reward_ratio_pairs = reward_ratio_pairs[:variables['difficulty_ratio_pair_num']]
 blocknum = variables['block_number'] # number of blocks
 if start_with_fifty_fifty:
-    p_reward_L=variables['difficulty_sum_reward_rate']/2# the first block is set to 50% reward rate
-    p_reward_R=variables['difficulty_sum_reward_rate']/2#the first block is set to 50% rewa
+    if variables['block_first_to_right']:
+        p_reward_L = [0,1,0,1] #variables['difficulty_sum_reward_rate']/2# the first block is set to 50% reward rate 
+        p_reward_R = [1,0,1,0] #variables['difficulty_sum_reward_rate']/2#the first block is set to 50% rewa 
+    else:
+        p_reward_L = [1,0,1,0] #variables['difficulty_sum_reward_rate']/2# the first block is set to 50% reward rate 
+        p_reward_R = [0,1,0,1] #variables['difficulty_sum_reward_rate']/2#the first block is set to 50% rewa 
 else:
     p_reward_L=list()#[.225] #list()#[.225] #list()# the first block is set to 50% reward rate
     p_reward_R=list()#[.225] #list()#[.225] #list()# list()#the first block is set to 50% reward rate
@@ -260,13 +264,16 @@ else:
 for blocki , (p_R , p_L) in enumerate(zip(variables['reward_probabilities_R'], variables['reward_probabilities_L'])):
     rewarded_trial_num = 0
     unrewarded_trial_num_in_a_row = 0
-    
     triali = -1
-    #for triali in range(variables['Trialnumber_in_block']):  # Main loop
-    trialnum_now = np.random.normal(variables['Trialnumber_in_block'],variables['Trialnumber_in_block_SD'])
-    if trialnum_now < variables['Trialnumber_in_block_min']:
-            trialnum_now = variables['Trialnumber_in_block_min'] 
-    while triali < variables['Trialnumber_in_block'] or rewarded_trial_num < variables['auto_train_min_rewarded_trial_num']:
+    if start_with_fifty_fifty and blocki < 4: # for checking bias in the first 4 short blocks
+        trialnum_now = 2
+        auto_train_min_rewarded_trial_num = 2
+    else: # real blocks
+        trialnum_now = np.random.normal(variables['Trialnumber_in_block'],variables['Trialnumber_in_block_SD'])
+        if trialnum_now < variables['Trialnumber_in_block_min']:
+                trialnum_now = variables['Trialnumber_in_block_min'] 
+        auto_train_min_rewarded_trial_num =  variables['auto_train_min_rewarded_trial_num']
+    while triali < trialnum_now or rewarded_trial_num < auto_train_min_rewarded_trial_num:
         # check if variables changed in json file
         with open(subjectfile) as json_file:
             variables_subject_new = json.load(json_file)
