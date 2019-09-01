@@ -139,7 +139,7 @@ else:
             'Trialnumber_in_block' : 25,
             'Trialnumber_in_block_SD' : 10,
             'Trialnumber_in_block_min' : 20,
-            'block_start_with_fifty_fifty': False,
+            'block_start_with_bias_check': False,
             'block_first_to_right':True,
             'block_number':10,
             'difficulty_sum_reward_rate': 1.,
@@ -163,11 +163,10 @@ else:
             'auto_train_min_rewarded_trial_num': 20,
             'early_lick_punishment': False,
             'ValveOpenTime_L' : .04,
-            'ValveOpenTime_R' : .04
-            
+            'ValveOpenTime_R' : .04      
     }
 #generate reward probabilities
-start_with_fifty_fifty = variables['block_start_with_fifty_fifty']
+start_with_bias_check = variables['block_start_with_bias_check']
 first_block_to_right = variables['block_first_to_right']
 if variables['difficulty_ratio_pair_num']<1:
     reward_ratio_pairs = [[1,1]]
@@ -176,13 +175,14 @@ else:
     reward_ratio_pairs = (np.array(reward_ratio_pairs)/.45*variables['difficulty_sum_reward_rate']).tolist()
     reward_ratio_pairs = reward_ratio_pairs[:variables['difficulty_ratio_pair_num']]
 blocknum = variables['block_number'] # number of blocks
-if start_with_fifty_fifty:
+if start_with_bias_check:
     if variables['block_first_to_right']:
         p_reward_L = [0,1,0,1] #variables['difficulty_sum_reward_rate']/2# the first block is set to 50% reward rate 
         p_reward_R = [1,0,1,0] #variables['difficulty_sum_reward_rate']/2#the first block is set to 50% rewa 
     else:
         p_reward_L = [1,0,1,0] #variables['difficulty_sum_reward_rate']/2# the first block is set to 50% reward rate 
         p_reward_R = [0,1,0,1] #variables['difficulty_sum_reward_rate']/2#the first block is set to 50% rewa 
+    bias_check_blocknum = len(p_reward_L)
 else:
     p_reward_L=list()#[.225] #list()#[.225] #list()# the first block is set to 50% reward rate
     p_reward_R=list()#[.225] #list()#[.225] #list()# list()#the first block is set to 50% reward rate
@@ -264,7 +264,7 @@ for blocki , (p_R , p_L) in enumerate(zip(variables['reward_probabilities_R'], v
     rewarded_trial_num = 0
     unrewarded_trial_num_in_a_row = 0
     triali = -1
-    if start_with_fifty_fifty and blocki < 4: # for checking bias in the first 4 short blocks
+    if start_with_bias_check and blocki < bias_check_blocknum: # for checking bias in the first 4 short blocks
         trialnum_now = 2
         auto_train_min_rewarded_trial_num = 2
         reward_L_accumulated = False
