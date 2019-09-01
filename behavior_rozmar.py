@@ -5,7 +5,7 @@ import pandas as pd
 from datetime import datetime
 import os
 #%%
-paths = ['/home/rozmar/Data/Behavior/Projects','C:\\Users\\labadmin\\Documents\\Pybpod\\Projects']
+paths = ['/home/rozmar/Data/Behavior/Behavior_room/Tower-3','C:\\Users\\labadmin\\Documents\\Pybpod\\Projects']
 for defpath in paths:
     if os.path.exists(defpath):
         break
