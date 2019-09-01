@@ -149,7 +149,7 @@ else:
             'delay' : 1., # time needed for mouse not to lick before GO cue
             'delay_min' : .5, # minimum value
             'delay_max': 3.,
-            'response_time' : 2, # time for the mouse to lick
+            'response_time' : 2., # time for the mouse to lick
             'Reward_consume_time' : 1., # time needed without lick  to go to the next trial
             'iti' : 3., 
             'iti_min' : 1., # minimum ITI
