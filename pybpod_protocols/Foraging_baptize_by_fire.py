@@ -136,6 +136,8 @@ if os.path.exists(subjectfile):
     print('subject variables loaded from Json file')
 else:
     variables = { # Delayed
+            'ValveOpenTime_L' : .04,
+            'ValveOpenTime_R' : .04,
             'Trialnumber_in_block' : 25,
             'Trialnumber_in_block_SD' : 10,
             'Trialnumber_in_block_min' : 20,
@@ -161,9 +163,7 @@ else:
             'auto_water_min_unrewarder_trials_in_a_row': 5,
             'auto_water_min_ignored_trials_in_a_row': 3,
             'auto_train_min_rewarded_trial_num': 20,
-            'early_lick_punishment': False,
-            'ValveOpenTime_L' : .04,
-            'ValveOpenTime_R' : .04      
+            'early_lick_punishment': False      
     }
 #generate reward probabilities
 start_with_bias_check = variables['block_start_with_bias_check']
@@ -229,7 +229,7 @@ else:
         variables['WaterPort_R_ch_in'] = EventName.Port2In
         variables['Choice_cue_L_ch'] = OutputChannel.PWM1
         variables['Choice_cue_R_ch'] = OutputChannel.PWM2
-        variables['comport_motor'] = 'COM12'
+        variables['comport_motor'] = 'COM7'
         variables['retract_motor_signal'] = (OutputChannel.PWM7, 255)
         variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
 variables_setup = variables.copy()
