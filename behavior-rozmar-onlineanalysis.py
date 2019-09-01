@@ -49,7 +49,7 @@ class App(QDialog):
                                      'Trialnumber_in_block',
                                      'Trialnumber_in_block_SD',
                                      'Trialnumber_in_block_min',
-                                     'block_start_with_fifty_fifty',
+                                     'block_start_with_bias_check',
                                      'block_first_to_right',
                                      'block_number',
                                      'difficulty_sum_reward_rate',
