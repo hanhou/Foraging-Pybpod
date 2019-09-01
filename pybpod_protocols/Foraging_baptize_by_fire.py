@@ -162,6 +162,9 @@ else:
             'auto_water_min_ignored_trials_in_a_row': 3,
             'auto_train_min_rewarded_trial_num': 20,
             'early_lick_punishment': False,
+            'ValveOpenTime_L' : .04,
+            'ValveOpenTime_R' : .04
+            
     }
 #generate reward probabilities
 start_with_fifty_fifty = variables['block_start_with_fifty_fifty']
@@ -207,8 +210,6 @@ if os.path.exists(setupfile):
 else:
     if setup_name =='Tower-2':
         # for setup: Tower - 2
-        variables['ValveOpenTime_L'] = .038
-        variables['ValveOpenTime_R'] = .040
         variables['GoCue_ch'] = OutputChannel.PWM5
         variables['WaterPort_L_ch_out'] = 1
         variables['WaterPort_L_ch_in'] = EventName.Port1In
@@ -221,8 +222,6 @@ else:
         variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
     elif setup_name == 'Tower-3':
         # for setup: Tower - 3
-        variables['ValveOpenTime_L'] = .040# .035#.029#
-        variables['ValveOpenTime_R'] = .040#.035#.029#
         variables['GoCue_ch'] = OutputChannel.PWM5
         variables['WaterPort_L_ch_out'] = 1
         variables['WaterPort_L_ch_in'] = EventName.Port1In
@@ -268,6 +267,8 @@ for blocki , (p_R , p_L) in enumerate(zip(variables['reward_probabilities_R'], v
     if start_with_fifty_fifty and blocki < 4: # for checking bias in the first 4 short blocks
         trialnum_now = 2
         auto_train_min_rewarded_trial_num = 2
+        reward_L_accumulated = False
+        reward_R_accumulated = False
     else: # real blocks
         trialnum_now = np.random.normal(variables['Trialnumber_in_block'],variables['Trialnumber_in_block_SD'])
         if trialnum_now < variables['Trialnumber_in_block_min']:
