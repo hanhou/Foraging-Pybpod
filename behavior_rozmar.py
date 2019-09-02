@@ -3,6 +3,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from datetime import datetime
+import time
 import os
 #%%
 paths = ['/home/rozmar/Data/Behavior/Behavior_room/Tower-3','C:\\Users\\labadmin\\Documents\\Pybpod\\Projects']
@@ -76,16 +77,21 @@ def load_and_parse_a_csv_file(csvfilename):
     for i,idxnumnow in enumerate(idxdiff): #zip(np.arange(0:len(idxdiff)),idxdiff):#
         Trialnum  = np.concatenate((Trialnum,np.zeros(idxnumnow)+i),0)
     df['Trial_number_in_session'] = Trialnum
-    # adding trial types
-    indexes = df[df['MSG'] == 'Trialtype:'].index + 1 #+2
-    if len(indexes)>0:
-        if 'Trialtype' not in df.columns:
-            df['Trialtype']=np.NaN
-        trialtypes = df['MSG'][indexes]
-        trialnumbers = df['Trial_number_in_session'][indexes].values
-        for trialtype,trialnum in zip(trialtypes,trialnumbers):
-            #df['Trialtype'][df['Trial_number_in_session'] == trialnum] = trialtype
-            df.loc[df['Trial_number_in_session'] == trialnum, 'Trialtype'] = trialtype
+# =============================================================================
+#     # adding trial types
+#     tic = time.time()
+#     indexes = df[df['MSG'] == 'Trialtype:'].index + 1 #+2
+#     if len(indexes)>0:
+#         if 'Trialtype' not in df.columns:
+#             df['Trialtype']=np.NaN
+#         trialtypes = df['MSG'][indexes]
+#         trialnumbers = df['Trial_number_in_session'][indexes].values
+#         for trialtype,trialnum in zip(trialtypes,trialnumbers):
+#             #df['Trialtype'][df['Trial_number_in_session'] == trialnum] = trialtype
+#             df.loc[df['Trial_number_in_session'] == trialnum, 'Trialtype'] = trialtype
+#     toc = time.time()
+#     print(['trial types:',toc-tic])
+# =============================================================================
     # adding block numbers
     indexes = df[df['MSG'] == 'Blocknumber:'].index + 1 #+2
     if len(indexes)>0:
