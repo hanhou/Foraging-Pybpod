@@ -366,6 +366,18 @@ class App(QDialog):
             self.variables['subject_file'] = subject_var_file
             self.variables['setup_file'] = setup_var_file
     def save_parameters(self):
+        project_now = self.handles['filter_project'].currentText()
+        experiment_now = self.handles['filter_experiment'].currentText()
+        setup_now = self.handles['filter_setup'].currentText()
+        subject_now = self.handles['filter_subject'].currentText()
+        subject_var_file = os.path.join(defpath,project_now,'subjects',subject_now,'variables.json')
+        setup_var_file = os.path.join(defpath,project_now,'experiments',experiment_now,'setups',setup_now,'variables.json')
+        with open(subject_var_file) as json_file:
+            variables_subject = json.load(json_file)
+        with open(setup_var_file) as json_file:
+            variables_setup = json.load(json_file)
+        self.variables['subject'] = variables_subject
+        self.variables['setup'] = variables_setup
         print('save')
         for dicttext in ['subject','setup']:
             for key in self.handles['variables_'+dicttext].keys(): 
