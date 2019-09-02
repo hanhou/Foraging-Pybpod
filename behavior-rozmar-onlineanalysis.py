@@ -357,6 +357,7 @@ class App(QDialog):
                         col +=1
                         self.handles['variables_setup'][key] =  QLineEdit(str(variables_setup[key]))
                         self.handles['variables_setup'][key].returnPressed.connect(self.save_parameters)
+                        self.handles['variables_setup'][key].textChanged.connect(self.check_parameters)
                         layout_setup.addWidget(self.handles['variables_setup'][key] ,row,col)
                 self.horizontalGroupBox_variables_setup.setLayout(layout_setup)
                 layout_subject = QGridLayout()
@@ -372,10 +373,13 @@ class App(QDialog):
                         col +=1
                         self.handles['variables_subject'][key] =  QLineEdit(str(variables_subject[key]))
                         self.handles['variables_subject'][key].returnPressed.connect(self.save_parameters)
+                        self.handles['variables_subject'][key].textChanged.connect(self.check_parameters)
                         layout_subject.addWidget(self.handles['variables_subject'][key] ,row,col)
                 self.horizontalGroupBox_variables_subject.setLayout(layout_subject)
                 self.variables=dict()
             else:
+                self.horizontalGroupBox_variables_setup.setTitle("Setup: "+setup_now)
+                self.horizontalGroupBox_variables_subject.setTitle("Setup: "+setup_now)
                 for key in self.handles['variables_subject'].keys():
                     self.handles['variables_subject'][key].setText(str(variables_subject[key]))
                 for key in self.handles['variables_setup'].keys():
@@ -384,6 +388,45 @@ class App(QDialog):
             self.variables['setup'] = variables_setup
             self.variables['subject_file'] = subject_var_file
             self.variables['setup_file'] = setup_var_file
+    def check_parameters(self):
+        project_now = self.handles['filter_project'].currentText()
+        experiment_now = self.handles['filter_experiment'].currentText()
+        setup_now = self.handles['filter_setup'].currentText()
+        subject_now = self.handles['filter_subject'].currentText()
+        subject_var_file = os.path.join(defpath,project_now,'subjects',subject_now,'variables.json')
+        setup_var_file = os.path.join(defpath,project_now,'experiments',experiment_now,'setups',setup_now,'variables.json')
+        with open(subject_var_file) as json_file:
+            variables_subject = json.load(json_file)
+        with open(setup_var_file) as json_file:
+            variables_setup = json.load(json_file)
+        self.variables['subject'] = variables_subject
+        self.variables['setup'] = variables_setup
+        for dicttext in ['subject','setup']:
+            for key in self.handles['variables_'+dicttext].keys(): 
+                valuenow = None
+                if type(self.variables[dicttext][key]) == bool:
+                    if 'true' in self.handles['variables_'+dicttext][key].text().lower() or '1' in self.handles['variables_'+dicttext][key].text():
+                        valuenow = True
+                    else:
+                        valuenow = False
+                elif type(self.variables[dicttext][key]) == float:
+                    try:
+                        valuenow = float(self.handles['variables_'+dicttext][key].text())
+                    except:
+                        print('not proper value')
+                        valuenow = None
+                elif type(self.variables[dicttext][key]) == int:                   
+                    try:
+                        valuenow = int(round(float(self.handles['variables_'+dicttext][key].text())))
+                    except:
+                        print('not proper value')
+                        valuenow = None
+                if valuenow == self.variables[dicttext][key]:
+                    self.handles['variables_'+dicttext][key].setStyleSheet('QLineEdit {color: black;}')
+                else:
+                    self.handles['variables_'+dicttext][key].setStyleSheet('QLineEdit {color: red;}')
+                    
+        qApp.processEvents()
     def save_parameters(self):
         project_now = self.handles['filter_project'].currentText()
         experiment_now = self.handles['filter_experiment'].currentText()
@@ -420,6 +463,7 @@ class App(QDialog):
         with open(self.variables['subject_file'], 'w') as outfile:
             json.dump(self.variables['subject'], outfile)
         self.load_parameters()
+        self.check_parameters()
             
 class PlotCanvas(FigureCanvas):
     def __init__(self, parent=None, width=5, height=4, dpi=100):
