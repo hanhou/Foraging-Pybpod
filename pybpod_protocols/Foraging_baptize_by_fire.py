@@ -138,9 +138,9 @@ else:
     variables = { # Delayed
             'ValveOpenTime_L' : .04,
             'ValveOpenTime_R' : .04,
-            'Trialnumber_in_block' : 25,
-            'Trialnumber_in_block_SD' : 10,
-            'Trialnumber_in_block_min' : 20,
+            'Trialnumber_in_block' : 15,
+            'Trialnumber_in_block_SD' : 5,
+            'Trialnumber_in_block_min' : 10,
             'block_start_with_bias_check': False,
             'block_first_to_right':True,
             'block_number':10,
@@ -162,7 +162,7 @@ else:
             'auto_water_time_multiplier': 0.75,
             'auto_water_min_unrewarder_trials_in_a_row': 5,
             'auto_water_min_ignored_trials_in_a_row': 3,
-            'auto_train_min_rewarded_trial_num': 20,
+            'auto_train_min_rewarded_trial_num': 10,
             'early_lick_punishment': False      
     }
 #generate reward probabilities
@@ -186,7 +186,8 @@ if start_with_bias_check:
 else:
     p_reward_L=list()#[.225] #list()#[.225] #list()# the first block is set to 50% reward rate
     p_reward_R=list()#[.225] #list()#[.225] #list()# list()#the first block is set to 50% reward rate
-for i in range(blocknum): # reward rate pairs are chosen randomly
+while len(p_reward_L) < blocknum: # reward rate pairs are chosen randomly
+    i = len(p_reward_L) + 1
     ratiopairidx=np.random.choice(range(len(reward_ratio_pairs)))
     reward_ratio_pair=reward_ratio_pairs[ratiopairidx]
     #np.random.shuffle(reward_ratio_pair)
@@ -196,6 +197,10 @@ for i in range(blocknum): # reward rate pairs are chosen randomly
     else:
         p_reward_L.append(reward_ratio_pair[1])
         p_reward_R.append(reward_ratio_pair[0])
+    if i > 2 and p_reward_L[-1] == p_reward_L[-2]: # blocks shouldn't be the same
+        del p_reward_L[-1]
+        del p_reward_R[-1]
+        
 
 variables['reward_probabilities_R']=p_reward_R
 variables['reward_probabilities_L']=p_reward_L
