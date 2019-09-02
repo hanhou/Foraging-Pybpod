@@ -197,7 +197,7 @@ while len(p_reward_L) < blocknum: # reward rate pairs are chosen randomly
     else:
         p_reward_L.append(reward_ratio_pair[1])
         p_reward_R.append(reward_ratio_pair[0])
-    if i > 2 and p_reward_L[-1] == p_reward_L[-2]: # blocks shouldn't be the same
+    if variables['difficulty_ratio_pair_num'] > 0 and i > 2 and p_reward_L[-1] == p_reward_L[-2]: # blocks shouldn't be the same
         del p_reward_L[-1]
         del p_reward_R[-1]
         
