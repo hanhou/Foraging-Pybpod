@@ -69,6 +69,121 @@ class App(QDialog):
                                      'auto_train_min_rewarded_trial_num',
                                      'early_lick_punishment',
                                      ]
+        free_water = {
+                      'Trialnumber_in_block' : 15,
+                      'Trialnumber_in_block_SD': 5,
+                      'Trialnumber_in_block_min': 10,
+                      'block_start_with_bias_check' : False,
+                      'block_first_to_right' : False,
+                      'block_number' : 20,
+                      'difficulty_sum_reward_rate' : 1.,
+                      'difficulty_ratio_pair_num' : 0,
+                      'delay' : 1.,
+                      'delay_min' : .5,
+                      'delay_max': 2.,
+                      'response_time' : 2.,
+                      'iti' : 3., 
+                      'iti_min' : .5, # minimum ITI
+                      'iti_max' : 2.,
+                      'increase_ITI_on_ignore_trials' : False, 
+                      'auto_water' : True,
+                      'auto_water_min_unrewarder_trials_in_a_row' : 5,
+                      'auto_water_min_ignored_trials_in_a_row' : 1,
+                      'auto_train_min_rewarded_trial_num' : 10,
+                      'early_lick_punishment' : False,
+                }
+        baptize = {
+                'Trialnumber_in_block' : 30,
+                'Trialnumber_in_block_SD' : 10,
+                'Trialnumber_in_block_min' : 20,
+                'block_start_with_bias_check' : True,
+                'block_first_to_right' : True,
+                'block_number' : 20,
+                'difficulty_sum_reward_rate' : .8,
+                'difficulty_ratio_pair_num' : 1,
+                'delay' : 1.,
+                'delay_min' : .5,
+                'delay_max' : 2.,
+                'response_time' : 2.,
+                'iti' : 3., 
+                'iti_min' : .5, # minimum ITI
+                'iti_max': 5.,
+                'increase_ITI_on_ignore_trials' : True,
+                'auto_water' : False,
+                'auto_train_min_rewarded_trial_num' : 20,
+                'early_lick_punishment' : False,
+                                     }
+        baptize_low_probability = {
+                'Trialnumber_in_block' : 50,
+                'Trialnumber_in_block_SD' : 10,
+                'Trialnumber_in_block_min' : 40,
+                'block_start_with_bias_check' : True,
+                'block_first_to_right' : True,
+                'block_number' : 20,
+                'difficulty_sum_reward_rate' : .45,
+                'difficulty_ratio_pair_num' : 1,
+                'delay' : 1.,
+                'delay_min' : .5,
+                'delay_max' : 3.,
+                'response_time' : 1.,
+                'iti' : 3., 
+                'iti_min' : .5, # minimum ITI
+                'iti_max': 10.,
+                'increase_ITI_on_ignore_trials' : True,
+                'auto_water' : False,
+                'auto_train_min_rewarded_trial_num' : 30,
+                'early_lick_punishment' : False,
+                                     }
+        baptize_early_lick = {
+                'Trialnumber_in_block' : 50,
+                'Trialnumber_in_block_SD' : 10,
+                'Trialnumber_in_block_min' : 40,
+                'block_start_with_bias_check' : True,
+                'block_first_to_right' : True,
+                'block_number' : 20,
+                'difficulty_sum_reward_rate' : .45,
+                'difficulty_ratio_pair_num' : 1,
+                'delay' : 1.,
+                'delay_min' : .5,
+                'delay_max' : 3.,
+                'response_time' : .5,
+                'iti' : 3., 
+                'iti_min' : .5, # minimum ITI
+                'iti_max': 15.,
+                'increase_ITI_on_ignore_trials' : True,
+                'auto_water' : False,
+                'auto_train_min_rewarded_trial_num' : 30,
+                'early_lick_punishment' : True,
+                                     }
+        full_task = {
+                'Trialnumber_in_block' : 50,
+                'Trialnumber_in_block_SD' : 10,
+                'Trialnumber_in_block_min' : 40,
+                'block_start_with_bias_check' : True,
+                'block_first_to_right' : True,
+                'block_number' : 20,
+                'difficulty_sum_reward_rate' : .45,
+                'difficulty_ratio_pair_num' : 3,
+                'delay' : 1.,
+                'delay_min' : .5,
+                'delay_max' : 3.,
+                'response_time' : .5,
+                'iti' : 3., 
+                'iti_min' : .5, # minimum ITI
+                'iti_max': 15.,
+                'increase_ITI_on_ignore_trials' : True,
+                'auto_water' : False,
+                'auto_train_min_rewarded_trial_num' : 30,
+                'early_lick_punishment' : True,
+                                     }
+        
+        self.preset_variables = dict()
+        self.preset_variables['free_water_0'] = free_water
+        self.preset_variables['baptize_1'] = baptize
+        self.preset_variables['baptize_low_probability_2'] = baptize_low_probability
+        self.preset_variables['baptize_early_lick_3'] = baptize_early_lick
+        self.preset_variables['full_task_4'] = full_task
+        
     def set_parameters_app(self):
         self.parametersetter = App_parametersetter(parent = self)
         
@@ -337,11 +452,23 @@ class App(QDialog):
                 variables_setup = json.load(json_file)
             if self.variables is None:
                 layout = QGridLayout()
+                self.horizontalGroupBox_preset_variables = QGroupBox("Preset variables")
                 self.horizontalGroupBox_variables_setup = QGroupBox("Setup: "+setup_now)
                 self.horizontalGroupBox_variables_subject = QGroupBox("Subject: "+subject_now)
-                layout.addWidget(self.horizontalGroupBox_variables_setup ,0,0)
-                layout.addWidget(self.horizontalGroupBox_variables_subject ,1,0)
+                layout.addWidget(self.horizontalGroupBox_preset_variables ,0,0)
+                layout.addWidget(self.horizontalGroupBox_variables_setup ,1,0)
+                layout.addWidget(self.horizontalGroupBox_variables_subject ,2,0)
                 self.horizontalGroupBox_variables.setLayout(layout)
+                
+                layout_preset = QGridLayout()
+                self.handles['presetbuttons'] = dict()
+                for idx,key in enumerate(self.preset_variables.keys()):
+                    self.handles['presetbuttons'][key] = QPushButton(key)
+                    self.handles['presetbuttons'][key].setFocusPolicy(Qt.NoFocus)
+                    self.handles['presetbuttons'][key].clicked.connect(lambda state, x=key: self.preload_parameters(x))
+                    layout_preset.addWidget(self.handles['presetbuttons'][key] ,0,idx)
+                self.horizontalGroupBox_preset_variables.setLayout(layout_preset)    
+                
                 layout_setup = QGridLayout()
                 row = 0
                 col = -1
@@ -379,7 +506,7 @@ class App(QDialog):
                 self.variables=dict()
             else:
                 self.horizontalGroupBox_variables_setup.setTitle("Setup: "+setup_now)
-                self.horizontalGroupBox_variables_subject.setTitle("Setup: "+setup_now)
+                self.horizontalGroupBox_variables_subject.setTitle("Subject: "+subject_now)
                 for key in self.handles['variables_subject'].keys():
                     self.handles['variables_subject'][key].setText(str(variables_subject[key]))
                 for key in self.handles['variables_setup'].keys():
@@ -425,7 +552,6 @@ class App(QDialog):
                     self.handles['variables_'+dicttext][key].setStyleSheet('QLineEdit {color: black;}')
                 else:
                     self.handles['variables_'+dicttext][key].setStyleSheet('QLineEdit {color: red;}')
-                    
         qApp.processEvents()
     def save_parameters(self):
         project_now = self.handles['filter_project'].currentText()
@@ -463,6 +589,14 @@ class App(QDialog):
         with open(self.variables['subject_file'], 'w') as outfile:
             json.dump(self.variables['subject'], outfile)
         self.load_parameters()
+        self.check_parameters()
+        
+    def preload_parameters(self,key):
+        presetvars = self.preset_variables[key]
+        for dicttext in ['subject','setup']:
+            for key in self.handles['variables_'+dicttext].keys():
+                if key in presetvars.keys():
+                    self.handles['variables_'+dicttext][key].setText(str(presetvars[key]))        
         self.check_parameters()
             
 class PlotCanvas(FigureCanvas):
