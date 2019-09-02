@@ -17,6 +17,7 @@ def loaddirstucture(projectdir = Path(defpath),projectnames_needed = None, exper
     experimentnames = list()
     setupnames = list()
     sessionnames = list()
+    subjectnames = list()
     if type(projectdir) != type(Path()):
         projectdir = Path(projectdir)
         
@@ -24,6 +25,10 @@ def loaddirstucture(projectdir = Path(defpath),projectnames_needed = None, exper
         if projectname.is_dir() and (not projectnames_needed or projectname.name in projectnames_needed):
             dirstructure[projectname.name] = dict()
             projectnames.append(projectname.name)
+            
+            for subjectname in (projectname / 'subjects').iterdir():
+                if subjectname.is_dir() : 
+                    subjectnames.append(subjectname.name)            
             
             for experimentname in (projectname / 'experiments').iterdir():
                 if experimentname.is_dir() and (not experimentnames_needed or experimentname.name in experimentnames_needed ): 
@@ -39,7 +44,7 @@ def loaddirstucture(projectdir = Path(defpath),projectnames_needed = None, exper
                                 if sessionname.is_dir(): 
                                     sessionnames.append(sessionname.name)
                                     dirstructure[projectname.name][experimentname.name][setupname.name].append(sessionname.name)
-    return dirstructure, projectnames, experimentnames, setupnames, sessionnames               
+    return dirstructure, projectnames, experimentnames, setupnames, sessionnames, subjectnames              
 
 def load_and_parse_a_csv_file(csvfilename):
     df = pd.read_csv(csvfilename,delimiter=';',skiprows = 6)
@@ -138,7 +143,8 @@ def loadcsvdata(bigtable=pd.DataFrame(),
                 projectnames_needed = None,
                 experimentnames_needed = None,
                 setupnames_needed = None,
-                sessionnames_needed = None):
+                sessionnames_needed = None,
+                load_only_last_day = False):
     bigtable_orig = bigtable
 #bigtable=pd.DataFrame()
 #projectdir = Path('/home/rozmar/Network/BehaviorRig/Behavroom-Stacked-2/labadmin/Documents/Pybpod/Projects')
@@ -168,8 +174,17 @@ def loadcsvdata(bigtable=pd.DataFrame(),
                             setupnames.append(setupname)
                             # a json file can be opened here
                             sessionnames = list()
+                            
+                            if load_only_last_day:
+                                for sessionname in (setupname / 'sessions').iterdir():
+                                    if sessionname.is_dir() and (not sessionnames_needed or sessionname.name in sessionnames_needed): 
+                                        sessionnames.append(sessionname.name[:8])#only the date
+                                sessionnames = np.sort(sessionnames)
+                                sessiondatetoload = sessionnames[-1]
+                                sessionnames = list()
+                                
                             for sessionname in (setupname / 'sessions').iterdir():
-                                if sessionname.is_dir() and (not sessionnames_needed or sessionname.name in sessionnames_needed): 
+                                if sessionname.is_dir() and (not sessionnames_needed or sessionname.name in sessionnames_needed) and (not load_only_last_day or sessiondatetoload in sessionname.name):
                                     sessionnames.append(sessionname)
                                     csvfilename = (sessionname / (sessionname.name + '.csv'))
                                     if csvfilename.is_file() and sessionname.name not in sessionnamessofar: #there is a .csv file

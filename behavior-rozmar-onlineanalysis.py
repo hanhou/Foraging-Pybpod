@@ -17,7 +17,7 @@ from datetime import datetime
 import json
 
 print('started')
-paths = ['/home/rozmar/Data/Behavior/Projects','C:\\Users\\labadmin\\Documents\\Pybpod\\Projects']
+paths = ['/home/rozmar/Data/Behavior/Behavior_room/Tower-3','C:\\Users\\labadmin\\Documents\\Pybpod\\Projects']
 for defpath in paths:
     print(defpath)
     if os.path.exists(defpath):
@@ -75,13 +75,14 @@ class App(QDialog):
         self.parametersetter.show()
         
     def loaddirectorystructure(self,projectnames_needed = None, experimentnames_needed = None,  setupnames_needed=None):
-        dirstructure, projectnames, experimentnames, setupnames, sessionnames = behavior_rozmar.loaddirstucture(defpath,projectnames_needed, experimentnames_needed,  setupnames_needed)
+        dirstructure, projectnames, experimentnames, setupnames, sessionnames, subjectnames = behavior_rozmar.loaddirstucture(defpath,projectnames_needed, experimentnames_needed,  setupnames_needed)
         self.dirstruct = dirstructure
         self.alldirs = dict()
         self.alldirs['projectnames'] = projectnames
         self.alldirs['experimentnames'] = experimentnames
         self.alldirs['setupnames'] = setupnames
         self.alldirs['sessionnames'] = sessionnames        
+        self.alldirs['subjectnames'] = subjectnames     
         print('directory structure reloaded')
     def loadthedata(self):
         print('loadthedata')
@@ -102,7 +103,8 @@ class App(QDialog):
                                                 projectnames_needed = selected['project'],
                                                 experimentnames_needed = selected['experiment'],
                                                 setupnames_needed = selected['setup'],
-                                                sessionnames_needed = selected['session'])
+                                                sessionnames_needed = selected['session'],
+                                                load_only_last_day = True)
         self.handles['load_the_data'].setText('Load the data')
         self.handles['load_the_data'].setStyleSheet('QPushButton {color: black;}')
         self.updateUI()
@@ -240,19 +242,22 @@ class App(QDialog):
         self.horizontalGroupBox_variables = QGroupBox("Variables")
         
     def updateUI(self): # update the other qcomboboxes as well!!!
-        self.handles['filter_subject'].currentIndexChanged.disconnect()
-        currtext = self.handles['filter_subject'].currentText()
-        self.handles['filter_subject'].clear()
-        self.handles['filter_subject'].addItem('all subjects')
-        if type(self.data) == pd.DataFrame:
-            self.handles['filter_subject'].addItems(self.data['subject'].unique())
-            idx = self.handles['filter_subject'].findText(currtext)
-            if idx != -1:
-                self.handles['filter_subject'].setCurrentIndex(idx)
-        currtext = self.handles['filter_subject'].currentText()
-        self.handles['filter_subject'].currentIndexChanged.connect(lambda: self.filterthedata('filter_subject'))
-        
+# =============================================================================
+#         self.handles['filter_subject'].currentIndexChanged.disconnect()
+#         currtext = self.handles['filter_subject'].currentText()
+#         self.handles['filter_subject'].clear()
+#         self.handles['filter_subject'].addItem('all subjects')
+#         if type(self.data) == pd.DataFrame:
+#             self.handles['filter_subject'].addItems(self.data['subject'].unique())
+#             idx = self.handles['filter_subject'].findText(currtext)
+#             if idx != -1:
+#                 self.handles['filter_subject'].setCurrentIndex(idx)
+#         currtext = self.handles['filter_subject'].currentText()
+#         self.handles['filter_subject'].currentIndexChanged.connect(lambda: self.filterthedata('filter_subject'))
+#         
+# =============================================================================
         self.handles['filter_experimenter'].currentIndexChanged.disconnect()
+        currtext = self.handles['filter_experimenter'].currentText()
         self.handles['filter_experimenter'].clear()
         self.handles['filter_experimenter'].addItem('all experimenters')
         if type(self.data) == pd.DataFrame:
@@ -279,6 +284,13 @@ class App(QDialog):
             self.handles['filter_experiment'].addItem('all experiments')
             self.handles['filter_experiment'].addItems(self.alldirs['experimentnames'])
             self.handles['filter_experiment'].currentIndexChanged.connect(lambda: self.filterthedata('filter_experiment'))
+            
+            self.handles['filter_subject'].currentIndexChanged.disconnect()
+            self.handles['filter_subject'].clear()
+            self.handles['filter_subject'].addItem('all subjects')
+            self.handles['filter_subject'].addItems(self.alldirs['subjectnames'])
+            self.handles['filter_subject'].currentIndexChanged.connect(lambda: self.filterthedata('filter_subject'))
+            
         if lastselected == 'filter_project' or lastselected == 'filter_experiment':
             self.handles['filter_setup'].currentIndexChanged.disconnect()
             self.handles['filter_setup'].clear()
