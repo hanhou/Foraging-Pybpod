@@ -3,7 +3,7 @@ import sys
 import os
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton,  QLineEdit, QCheckBox, QHBoxLayout, QGroupBox, QDialog, QVBoxLayout, QGridLayout, QComboBox, QSizePolicy, qApp, QLabel
 from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import pyqtSlot, QTimer
+from PyQt5.QtCore import pyqtSlot, QTimer, Qt
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
@@ -138,9 +138,20 @@ class App(QDialog):
                 filterstring = str(self.handles['filter_'+filternow].currentText())
                 if not re.findall('all',filterstring):
                     self.data_now = self.data_now[self.data_now[filternow] == filterstring]
-            self.handles['axes1'].plot_licks_and_rewards(self.data_now,self.handles)
-            self.handles['axes2'].plot_bias(self.data_now,self.handles)
-        
+            
+            if len(self.data_now) > 0:
+                endtime = max(self.data_now['PC-TIME'])
+                if  self.handles['plot_timeback'].text().isnumeric():
+                    startime = endtime - pd.to_timedelta(int(self.handles['plot_timeback'].text()),'s')
+                else:
+                    startime = min(self.data_now['PC-TIME'])
+                if  self.handles['plot_timeback_runningwindow'].text().isnumeric(): # determining averaging window size
+                    numberofpoints = int(self.handles['plot_timeback_runningwindow'].text())
+                else:
+                    numberofpoints = 10    
+                self.handles['axes1'].plot_licks_and_rewards(self.data_now,startime,endtime)
+                self.handles['axes2'].plot_bias(self.data_now,startime,endtime,numberofpoints)
+                print('plotting done')
 # =============================================================================
 #         data = self.data 
 #         handlenames = self.handles.keys()
@@ -171,36 +182,44 @@ class App(QDialog):
         self.horizontalGroupBox_filter = QGroupBox("Filter")
         layout = QGridLayout()
         self.handles['filter_project'] = QComboBox(self)
+        self.handles['filter_project'].setFocusPolicy(Qt.NoFocus)
         self.handles['filter_project'].addItem('all projects')
         #print(self.alldirs['projectnames'])
         self.handles['filter_project'].addItems(self.alldirs['projectnames'])
         self.handles['filter_project'].currentIndexChanged.connect(lambda: self.filterthedata('filter_project'))
         self.handles['filter_experiment'] = QComboBox(self)
+        self.handles['filter_experiment'].setFocusPolicy(Qt.NoFocus)
         self.handles['filter_experiment'].addItem('all experiments')
         self.handles['filter_experiment'].addItems(self.alldirs['experimentnames'])
         self.handles['filter_experiment'].currentIndexChanged.connect(lambda: self.filterthedata('filter_experiment'))
         self.handles['filter_setup'] = QComboBox(self)
+        self.handles['filter_setup'].setFocusPolicy(Qt.NoFocus)
         self.handles['filter_setup'].addItem('all setups')
         self.handles['filter_setup'].addItems(self.alldirs['setupnames'])
         self.handles['filter_setup'].currentIndexChanged.connect(lambda: self.filterthedata('filter_setup'))
         self.handles['filter_session'] = QComboBox(self)
+        self.handles['filter_session'].setFocusPolicy(Qt.NoFocus)
         self.handles['filter_session'].addItem('all sessions')
         self.handles['filter_session'].addItems(self.alldirs['sessionnames'])
         self.handles['filter_session'].currentIndexChanged.connect(lambda: self.filterthedata('filter_session'))
         
         self.handles['load_the_data'] = QPushButton('Load the data')
+        self.handles['load_the_data'].setFocusPolicy(Qt.NoFocus)
         self.handles['load_the_data'].clicked.connect(self.loadthedata)
         
         self.handles['filter_subject'] = QComboBox(self)
+        self.handles['filter_subject'].setFocusPolicy(Qt.NoFocus)
         self.handles['filter_subject'].addItem('all subjects')
         #self.handles['filter_subject'].addItems(self.data['subject'].unique())
         self.handles['filter_subject'].currentIndexChanged.connect(lambda: self.filterthedata('filter_subject'))
         self.handles['filter_experimenter'] = QComboBox(self)
+        self.handles['filter_experimenter'].setFocusPolicy(Qt.NoFocus)
         self.handles['filter_experimenter'].addItem('all experimenters')
         #self.handles['filter_experimenter'].addItems(self.data['experimenter'].unique())
         self.handles['filter_experimenter'].currentIndexChanged.connect(lambda: self.filterthedata('filter_experimenter'))
         
         self.handles['loadparams'] = QPushButton('Load parameters')
+        self.handles['loadparams'].setFocusPolicy(Qt.NoFocus)
         self.handles['loadparams'].clicked.connect(self.load_parameters)
         
         layout.addWidget(self.handles['filter_project'] ,0,0)
@@ -453,25 +472,30 @@ class PlotCanvas(FigureCanvas):
         
         return times, idxes, values
     
-    def plot_licks_and_rewards(self,data = [],handles = []):
+    def plot_licks_and_rewards(self,data = [],startime=None,endtime=None):
         self.axes.cla()
         if type(data) == pd.core.frame.DataFrame and len(data) > 0:
             times,idxes, values = self.minethedata(data)
-            if  handles and handles['plot_timeback'].text().isnumeric():
-                alltimes = []
-                for timeskey in times.keys(): # finding endtime
-                   if len(alltimes) > 0:
-                       alltimes.append(times[timeskey])
-                   else:
-                       alltimes = times[timeskey]
-                endtime = max(alltimes)
-                #startime = endtime - int(handles['plot_timeback'].text())*np.timedelta64(1,'s')
-                for timeskey in times.keys():
-                    timediffs = (times[timeskey] - endtime).to_numpy()
-                    neededidx = (timediffs/np.timedelta64(1,'s')+int(handles['plot_timeback'].text()))>0
-                    times[timeskey]= times[timeskey][neededidx]
-                  #  idxes[timeskey]= idxes[timeskey][neededidx]
-                #print(neededidx )
+            for timeskey in times.keys():
+                neededidx = (times[timeskey]>=startime) & (times[timeskey]<=endtime)
+                times[timeskey]= times[timeskey][neededidx]
+# =============================================================================
+#             if  handles and handles['plot_timeback'].text().isnumeric():
+#                 alltimes = []
+#                 for timeskey in times.keys(): # finding endtime
+#                    if len(alltimes) > 0:
+#                        alltimes = pd.concat([alltimes,times[timeskey]])
+#                    else:
+#                        alltimes = times[timeskey]
+#                 endtime = max(alltimes)
+#                 #startime = endtime - int(handles['plot_timeback'].text())*np.timedelta64(1,'s')
+#                 for timeskey in times.keys():
+#                     timediffs = (times[timeskey] - endtime).to_numpy()
+#                     neededidx = (timediffs/np.timedelta64(1,'s')+int(handles['plot_timeback'].text()))>0
+#                     times[timeskey]= times[timeskey][neededidx]
+#                   #  idxes[timeskey]= idxes[timeskey][neededidx]
+#                 #print(neededidx )
+# =============================================================================
             self.axes.cla()
             self.axes.plot(times['trialstart'], np.zeros(len(times['trialstart']))+.5, 'b|', markersize = 150)
             self.axes.plot(times['trialend'], np.zeros(len(times['trialend']))+.5, 'r|', markersize = 150)
@@ -490,20 +514,22 @@ class PlotCanvas(FigureCanvas):
                 #self.axes.set_xlim(startime,endtime)
             self.draw()
             
-    def plot_bias(self,data = [],handles = []):
+    def plot_bias(self,data = [],startime=None,endtime=None,numberofpoints = 10):
         self.axes.cla()
         if type(data) == pd.core.frame.DataFrame and len(data) > 0:
             times,idxes, values = self.minethedata(data)
-            alltimes = []       
-            for timeskey in times.keys(): # finding endtime and starttime
-               if len(alltimes) > 0:
-                   alltimes.append(times[timeskey])
-               else:
-                   alltimes = times[timeskey]
-            startime = min(alltimes) 
-            endtime = max(alltimes)
-            if  handles and handles['plot_timeback'].text().isnumeric():
-                startime = endtime - pd.to_timedelta(int(handles['plot_timeback'].text()),'s')
+# =============================================================================
+#             alltimes = []       
+#             for timeskey in times.keys(): # finding endtime and starttime
+#                if len(alltimes) > 0:
+#                    alltimes = pd.concat([alltimes,times[timeskey]])
+#                else:
+#                    alltimes = times[timeskey]
+#             startime = min(alltimes) 
+#             endtime = max(alltimes)
+#             if  handles and handles['plot_timeback'].text().isnumeric():
+#                 startime = endtime - pd.to_timedelta(int(handles['plot_timeback'].text()),'s')
+# =============================================================================
 # =============================================================================
 #                 print(startime)
 #                 for timeskey in times.keys():
@@ -519,13 +545,10 @@ class PlotCanvas(FigureCanvas):
 #                 startime = min(alltimes) 
 #                 endtime = max(alltimes)    
 # =============================================================================
-            if  handles and handles['plot_timeback_runningwindow'].text().isnumeric(): # determining averaging window size
-                numerofpoints = int(handles['plot_timeback_runningwindow'].text())
-            else:
-                numerofpoints = 10
             
-            steptime = (endtime-startime)/numerofpoints
-            timerange = pd.date_range(start = startime, end = endtime, periods = numerofpoints*10) #freq = 's' *10
+            
+            steptime = (endtime-startime)/numberofpoints
+            timerange = pd.date_range(start = startime, end = endtime, periods = numberofpoints*10) #freq = 's' *10
             #print(startime , endtime)
             lick_left_num = np.zeros(len(timerange))
             lick_right_num  = np.zeros(len(timerange))
@@ -564,4 +587,3 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     ex = App()
     sys.exit(app.exec_())
-
