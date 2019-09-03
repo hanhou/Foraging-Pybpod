@@ -93,13 +93,13 @@ class App(QDialog):
                       'early_lick_punishment' : False,
                 }
         baptize = {
-                'Trialnumber_in_block' : 30,
-                'Trialnumber_in_block_SD' : 10,
-                'Trialnumber_in_block_min' : 20,
+                'Trialnumber_in_block' : 15,
+                'Trialnumber_in_block_SD' : 5,
+                'Trialnumber_in_block_min' : 10,
                 'block_start_with_bias_check' : True,
                 'block_first_to_right' : True,
                 'block_number' : 20,
-                'difficulty_sum_reward_rate' : .8,
+                'difficulty_sum_reward_rate' : 1,
                 'difficulty_ratio_pair_num' : 1,
                 'delay' : 1.,
                 'delay_min' : .5,
@@ -110,8 +110,29 @@ class App(QDialog):
                 'iti_max': 5.,
                 'increase_ITI_on_ignore_trials' : True,
                 'auto_water' : False,
-                'auto_train_min_rewarded_trial_num' : 20,
+                'auto_train_min_rewarded_trial_num' : 10,
                 'early_lick_punishment' : False,
+                                     }
+        baptize_early_lick = {
+                'Trialnumber_in_block' : 15,
+                'Trialnumber_in_block_SD' : 5,
+                'Trialnumber_in_block_min' : 10,
+                'block_start_with_bias_check' : True,
+                'block_first_to_right' : True,
+                'block_number' : 20,
+                'difficulty_sum_reward_rate' : 1,
+                'difficulty_ratio_pair_num' : 1,
+                'delay' : 1.,
+                'delay_min' : .5,
+                'delay_max' : 2.,
+                'response_time' : 1.,
+                'iti' : 3., 
+                'iti_min' : .5, # minimum ITI
+                'iti_max': 15.,
+                'increase_ITI_on_ignore_trials' : True,
+                'auto_water' : False,
+                'auto_train_min_rewarded_trial_num' : 10,
+                'early_lick_punishment' : True,
                                      }
         baptize_low_probability = {
                 'Trialnumber_in_block' : 50,
@@ -125,36 +146,16 @@ class App(QDialog):
                 'delay' : 1.,
                 'delay_min' : .5,
                 'delay_max' : 3.,
-                'response_time' : 1.,
-                'iti' : 3., 
+                'response_time' : .5,
+                'iti' : 3.5, 
                 'iti_min' : .5, # minimum ITI
                 'iti_max': 10.,
                 'increase_ITI_on_ignore_trials' : True,
                 'auto_water' : False,
                 'auto_train_min_rewarded_trial_num' : 30,
-                'early_lick_punishment' : False,
-                                     }
-        baptize_early_lick = {
-                'Trialnumber_in_block' : 50,
-                'Trialnumber_in_block_SD' : 10,
-                'Trialnumber_in_block_min' : 40,
-                'block_start_with_bias_check' : True,
-                'block_first_to_right' : True,
-                'block_number' : 20,
-                'difficulty_sum_reward_rate' : .45,
-                'difficulty_ratio_pair_num' : 1,
-                'delay' : 1.,
-                'delay_min' : .5,
-                'delay_max' : 3.,
-                'response_time' : .5,
-                'iti' : 3., 
-                'iti_min' : .5, # minimum ITI
-                'iti_max': 15.,
-                'increase_ITI_on_ignore_trials' : True,
-                'auto_water' : False,
-                'auto_train_min_rewarded_trial_num' : 30,
                 'early_lick_punishment' : True,
                                      }
+
         full_task = {
                 'Trialnumber_in_block' : 50,
                 'Trialnumber_in_block_SD' : 10,
@@ -168,12 +169,12 @@ class App(QDialog):
                 'delay_min' : .5,
                 'delay_max' : 3.,
                 'response_time' : .5,
-                'iti' : 3., 
+                'iti' : 3.5, 
                 'iti_min' : .5, # minimum ITI
-                'iti_max': 15.,
+                'iti_max': 45.,
                 'increase_ITI_on_ignore_trials' : True,
                 'auto_water' : False,
-                'auto_train_min_rewarded_trial_num' : 30,
+                'auto_train_min_rewarded_trial_num' : 25,
                 'early_lick_punishment' : True,
                                      }
         
@@ -744,9 +745,9 @@ class PlotCanvas(FigureCanvas):
             self.axes.plot(timerange, bias_lick_R, 'k-',label = 'Lick bias')
             self.axes.plot(timerange, bias_reward_R, 'g-',label = 'choice bias')
             idxes = times['p_reward_ratio'] > startime
+            self.axes.plot(times['reward_p_L'][idxes], values['reward_p_L'][idxes], 'r-',label = 'Reward probability Left')
+            self.axes.plot(times['reward_p_R'][idxes], values['reward_p_R'][idxes], 'b-',label = 'Reward probability Right')
             self.axes.plot(times['p_reward_ratio'][idxes], values['p_reward_ratio'][idxes], 'y-',label = 'Reward ratio')
-            self.axes.plot(times['reward_p_L'][idxes], values['reward_p_L'][idxes], 'b-',label = 'Reward probability Left')
-            self.axes.plot(times['reward_p_R'][idxes], values['reward_p_R'][idxes], 'r-',label = 'Reward probability Right')
             
             self.axes.set_ylim(-.1,1.1)
             #self.axes.set_xlim(startime,endtime)
