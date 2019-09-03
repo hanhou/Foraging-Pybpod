@@ -103,9 +103,9 @@ def set_motor_speed():
         for zabertry_i in range(0,1000): # when the COMport is occupied, it will try again
             try:
                 with zaber_serial.BinarySerial(variables['comport_motor']) as ser:
-                    setspeed_cmd = zaber_serial.BinaryCommand(1,42,90000)
+                    setspeed_cmd = zaber_serial.BinaryCommand(1,42,1000000)
                     ser.write(setspeed_cmd)
-                    setacc_cmd = zaber_serial.BinaryCommand(1,43,900)
+                    setacc_cmd = zaber_serial.BinaryCommand(1,43,1000)
                     ser.write(setacc_cmd)
                     break
             except zaber_serial.binaryserial.serial.SerialException:
