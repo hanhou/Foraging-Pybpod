@@ -96,7 +96,22 @@ def read_motor_position(comport):
             except zaber_serial.binaryserial.serial.SerialException:
                 print('can''t access Zaber ' + str(zabertry_i))
                 time.sleep(.01)
-
+def set_motor_speed():
+    if usedummyzaber:
+        print('dummy zaber speed set')
+    else:
+        for zabertry_i in range(0,1000): # when the COMport is occupied, it will try again
+            try:
+                with zaber_serial.BinarySerial(variables['comport_motor']) as ser:
+                    setspeed_cmd = zaber_serial.BinaryCommand(1,42,90000)
+                    ser.write(setspeed_cmd)
+                    setacc_cmd = zaber_serial.BinaryCommand(1,43,900)
+                    ser.write(setacc_cmd)
+                    break
+            except zaber_serial.binaryserial.serial.SerialException:
+                print('can''t access Zaber ' + str(zabertry_i))
+                time.sleep(.01)
+    
 my_bpod = Bpod()
 history = my_bpod.session.history
 experiment_name = 'not defined' 
@@ -187,7 +202,7 @@ else:
     p_reward_L=list()#[.225] #list()#[.225] #list()# the first block is set to 50% reward rate
     p_reward_R=list()#[.225] #list()#[.225] #list()# list()#the first block is set to 50% reward rate
 while len(p_reward_L) < blocknum: # reward rate pairs are chosen randomly
-    i = len(p_reward_L) + 1
+    i = len(p_reward_L)
     ratiopairidx=np.random.choice(range(len(reward_ratio_pairs)))
     reward_ratio_pair=reward_ratio_pairs[ratiopairidx]
     #np.random.shuffle(reward_ratio_pair)
@@ -264,7 +279,9 @@ if variables['accumulate_reward']:
 else:
     reward_L_accumulated = False
     reward_R_accumulated = False
-    
+ 
+set_motor_speed() # the motors should move FAST    
+
 for blocki , (p_R , p_L) in enumerate(zip(variables['reward_probabilities_R'], variables['reward_probabilities_L'])):
     rewarded_trial_num = 0
     unrewarded_trial_num_in_a_row = 0
