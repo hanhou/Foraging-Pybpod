@@ -308,6 +308,7 @@ for blocki , (p_R , p_L) in enumerate(zip(variables['reward_probabilities_R'], v
             variables_setup = variables_setup_new.copy()
             variables_subject = variables_subject_new.copy()
             print('Variables updated:',variables)
+            auto_train_min_rewarded_trial_num =  variables['auto_train_min_rewarded_trial_num']
         
         
         triali += 1
