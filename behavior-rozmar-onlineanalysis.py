@@ -17,7 +17,7 @@ from datetime import datetime
 import json
 
 print('started')
-paths = ['/home/rozmar/Data/Behavior/Behavior_room/Tower-3','C:\\Users\\labadmin\\Documents\\Pybpod\\Projects']
+paths = ['/home/rozmar/Data/Behavior/Behavior_room/Tower-2','C:\\Users\\labadmin\\Documents\\Pybpod\\Projects']
 for defpath in paths:
     print(defpath)
     if os.path.exists(defpath):
@@ -623,7 +623,11 @@ class PlotCanvas(FigureCanvas):
         idxes['choice_L'] = (data['MSG'] == 'Choice_L') & (data['TYPE'] == 'TRANSITION')
         times['choice_L'] = data['PC-TIME'][idxes['choice_L']]
         idxes['reward_L'] = (data['MSG'] == 'Reward_L') & (data['TYPE'] == 'TRANSITION')
-        times['reward_L'] = data['PC-TIME'][idxes['reward_L']]
+        times['reward_L'] = data['PC-TIME'][idxes['reward_L']]        
+        idxes['autowater_L'] = (data['MSG'] == 'Auto_Water_L') & (data['TYPE'] == 'TRANSITION')
+        times['autowater_L'] = data['PC-TIME'][idxes['autowater_L']]        
+        idxes['autowater_R'] = (data['MSG'] == 'Auto_Water_R') & (data['TYPE'] == 'TRANSITION')
+        times['autowater_R'] = data['PC-TIME'][idxes['autowater_R']]
         idxes['lick_R'] = data['var:WaterPort_R_ch_in'] == data['+INFO']
         times['lick_R'] = data['PC-TIME'][idxes['lick_R']]
         idxes['choice_R'] = (data['MSG'] == 'Choice_R') & (data['TYPE'] == 'TRANSITION')
@@ -686,6 +690,8 @@ class PlotCanvas(FigureCanvas):
             self.axes.plot(times['choice_R'], np.zeros(len(times['choice_R']))+.9, 'go',markerfacecolor = (1, 1, 1, 1))
             self.axes.plot(times['reward_L'], np.zeros(len(times['reward_L']))+.2, 'go', markerfacecolor = (0, 1, 0, 1))
             self.axes.plot(times['reward_R'], np.zeros(len(times['reward_R']))+.8, 'go',markerfacecolor = (0, 1, 0, 1))
+            self.axes.plot(times['autowater_L'], np.zeros(len(times['autowater_L']))+.1, 'go', markerfacecolor = (0, 0, 1, 1))
+            self.axes.plot(times['autowater_R'], np.zeros(len(times['autowater_R']))+.9, 'go',markerfacecolor = (0, 0, 1, 1))
             self.axes.set_title('Lick and reward history')
             self.axes.set_yticks([0,1])
             self.axes.set_yticklabels(['Left', 'Right'])
