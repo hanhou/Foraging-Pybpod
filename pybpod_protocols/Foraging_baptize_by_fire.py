@@ -3,6 +3,7 @@ from pybpodapi.state_machine import StateMachine
 from pybpodapi.bpod.hardware.events import EventName
 from pybpodapi.bpod.hardware.output_channels import OutputChannel
 from pybpodapi.com.messaging.trial import Trial
+from datetime import datetime
 import zaber.serial as zaber_serial
 import time
 import json
@@ -275,11 +276,11 @@ else:
  
 set_motor_speed() # the motors should move FAST    
 
-randomseedvalue = int(np.round(np.random.uniform(0.,100.)))
+randomseedvalue = datetime.now().timetuple().tm_yday
 np.random.seed(randomseedvalue)
-random_values_L = np.random.uniform(0.,1.,2000)
-random_values_R = np.random.uniform(0.,1.,2000)
-print('Random seed:' + randomseedvalue)
+random_values_L = np.random.uniform(0.,1.,2000).tolist()
+random_values_R = np.random.uniform(0.,1.,2000).tolist()
+print('Random seed:' + str(randomseedvalue))
 
 for blocki , (p_R , p_L) in enumerate(zip(variables['reward_probabilities_R'], variables['reward_probabilities_L'])):
     rewarded_trial_num = 0
