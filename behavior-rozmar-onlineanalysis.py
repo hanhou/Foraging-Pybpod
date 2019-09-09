@@ -68,6 +68,7 @@ class App(QDialog):
                                      'auto_water_min_ignored_trials_in_a_row',
                                      'auto_train_min_rewarded_trial_num',
                                      'early_lick_punishment',
+                                     'reward_rate_family',
                                      ]
         free_water = {
                       'Trialnumber_in_block' : 15,
