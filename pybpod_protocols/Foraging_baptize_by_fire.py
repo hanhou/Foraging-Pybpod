@@ -172,17 +172,25 @@ else:
             'auto_water_min_unrewarder_trials_in_a_row': 5,
             'auto_water_min_ignored_trials_in_a_row': 3,
             'auto_train_min_rewarded_trial_num': 10,
-            'early_lick_punishment': False      
+            'early_lick_punishment': False,
+            'reward_rate_family': 1,
     }
 #generate reward probabilities
 start_with_bias_check = variables['block_start_with_bias_check']
 first_block_to_right = variables['block_first_to_right']
 if variables['difficulty_ratio_pair_num']<1:
     reward_ratio_pairs = [[1,1]]
-else:    
-    reward_ratio_pairs=[[.4,.05],[.3857,.0643],[.3375,.1125],[.225,.225]]#,
-    reward_ratio_pairs = (np.array(reward_ratio_pairs)/.45*variables['difficulty_sum_reward_rate']).tolist()
+else:   
+    if 'reward_rate_family' not in variables.keys() or variables['reward_rate_family'] <= 1:
+        reward_ratio_pairs=[[.4,.05],[.3857,.0643],[.3375,.1125],[.225,.225]]#,        
+    elif variables['reward_rate_family'] == 2:
+        reward_ratio_pairs=[[8/9,1/9],[6/7,1/7],[3/4,1/4],[2/3,1/3],[.5,.5]]#,        
+    elif variables['reward_rate_family'] >= 3:
+        reward_ratio_pairs=[[1,0],[.9,.1],[.8,.2],[.7,.3],[.6,.4],[.5,.5]]#,
+    reward_ratio_pairs = (np.array(reward_ratio_pairs)/np.sum(reward_ratio_pairs[0])*variables['difficulty_sum_reward_rate']).tolist()
     reward_ratio_pairs = reward_ratio_pairs[:variables['difficulty_ratio_pair_num']]
+        
+        
 blocknum = variables['block_number'] # number of blocks
 if start_with_bias_check:
     if variables['block_first_to_right']:
