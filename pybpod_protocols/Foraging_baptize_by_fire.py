@@ -1,10 +1,3 @@
-# !/usr/bin/python3
-# -*- coding: utf-8 -*-
-
-"""
-A protocol to calibrate the water system. In addition, to contro the lights.
-"""
-
 from pybpodapi.bpod import Bpod
 from pybpodapi.state_machine import StateMachine
 from pybpodapi.bpod.hardware.events import EventName
@@ -282,6 +275,12 @@ else:
  
 set_motor_speed() # the motors should move FAST    
 
+randomseedvalue = int(np.round(np.random.uniform(0.,100.)))
+np.random.seed(randomseedvalue)
+random_values_L = np.random.uniform(0.,1.,2000)
+random_values_R = np.random.uniform(0.,1.,2000)
+print('Random seed:' + randomseedvalue)
+
 for blocki , (p_R , p_L) in enumerate(zip(variables['reward_probabilities_R'], variables['reward_probabilities_L'])):
     rewarded_trial_num = 0
     unrewarded_trial_num_in_a_row = 0
@@ -312,8 +311,8 @@ for blocki , (p_R , p_L) in enumerate(zip(variables['reward_probabilities_R'], v
         
         
         triali += 1
-        reward_L = np.random.uniform(0.,1.) < p_L
-        reward_R = np.random.uniform(0.,1.) < p_R
+        reward_L = random_values_L.pop(0) < p_L #np.random.uniform(0.,1.) < p_L
+        reward_R = random_values_R.pop(0) < p_R # np.random.uniform(0.,1.) < p_R
         iti_now = np.random.exponential(variables['iti'],1) + ignore_trial_num_in_a_row*variables['increase_ITI_on_ignore_trials']*variables['iti']
         #iti_now = 0
         if iti_now < variables['iti_min']:
