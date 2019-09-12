@@ -190,7 +190,7 @@ else:
     reward_ratio_pairs = (np.array(reward_ratio_pairs)/np.sum(reward_ratio_pairs[0])*variables['difficulty_sum_reward_rate']).tolist()
     reward_ratio_pairs = reward_ratio_pairs[:variables['difficulty_ratio_pair_num']]
         
-        
+#%%         Random order of blocks but still equal
 blocknum = variables['block_number'] # number of blocks
 if start_with_bias_check:
     if variables['block_first_to_right']:
@@ -203,22 +203,37 @@ if start_with_bias_check:
 else:
     p_reward_L=list()#[.225] #list()#[.225] #list()# the first block is set to 50% reward rate
     p_reward_R=list()#[.225] #list()#[.225] #list()# list()#the first block is set to 50% reward rate
+#%
+reward_ratio_pairs_bag = list()
 while len(p_reward_L) < blocknum: # reward rate pairs are chosen randomly
-    i = len(p_reward_L)
-    ratiopairidx=np.random.choice(range(len(reward_ratio_pairs)))
-    reward_ratio_pair=reward_ratio_pairs[ratiopairidx]
-    #np.random.shuffle(reward_ratio_pair)
-    if (i % 2) == first_block_to_right:# i == 1 or reward_ratio_pair[0] != p_reward_L[-1]:
-        p_reward_L.append(reward_ratio_pair[0])
-        p_reward_R.append(reward_ratio_pair[1])
-    else:
-        p_reward_L.append(reward_ratio_pair[1])
-        p_reward_R.append(reward_ratio_pair[0])
-    if variables['difficulty_ratio_pair_num'] > 0 and i > 2 and p_reward_L[-1] == p_reward_L[-2]: # blocks shouldn't be the same
-        del p_reward_L[-1]
-        del p_reward_R[-1]
-        
-
+    if len(reward_ratio_pairs_bag) == 0:
+        for pair in reward_ratio_pairs:
+            reward_ratio_pairs_bag.append(pair)
+            reward_ratio_pairs_bag.append(pair[::-1])
+        np.random.shuffle(reward_ratio_pairs_bag)
+    pair_now = reward_ratio_pairs_bag.pop()
+    p_reward_L.append(pair_now[0])
+    p_reward_R.append(pair_now[1])
+  
+# =============================================================================
+#     Periodic blocks
+# while len(p_reward_L) < blocknum: # reward rate pairs are chosen randomly
+#     i = len(p_reward_L)
+#     ratiopairidx=np.random.choice(range(len(reward_ratio_pairs)))
+#     reward_ratio_pair=reward_ratio_pairs[ratiopairidx]
+#     #np.random.shuffle(reward_ratio_pair)
+#     if (i % 2) == first_block_to_right:# i == 1 or reward_ratio_pair[0] != p_reward_L[-1]:
+#         p_reward_L.append(reward_ratio_pair[0])
+#         p_reward_R.append(reward_ratio_pair[1])
+#     else:
+#         p_reward_L.append(reward_ratio_pair[1])
+#         p_reward_R.append(reward_ratio_pair[0])
+#     if variables['difficulty_ratio_pair_num'] > 0 and i > 2 and p_reward_L[-1] == p_reward_L[-2]: # blocks shouldn't be the same
+#         del p_reward_L[-1]
+#         del p_reward_R[-1]
+# 
+# =============================================================================
+#%%
 variables['reward_probabilities_R']=p_reward_R
 variables['reward_probabilities_L']=p_reward_L
 
