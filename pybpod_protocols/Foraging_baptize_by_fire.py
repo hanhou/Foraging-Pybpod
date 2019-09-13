@@ -245,7 +245,19 @@ if os.path.exists(setupfile):
         variables = json.load(json_file)
     print('setup variables loaded from Json file')
 else:
-    if setup_name =='Tower-2':
+    if setup_name =='Tower-1':
+        # for setup: Tower - 1
+        variables['GoCue_ch'] = OutputChannel.PWM5
+        variables['WaterPort_L_ch_out'] = 1
+        variables['WaterPort_L_ch_in'] = EventName.Port1In
+        variables['WaterPort_R_ch_out'] = 2
+        variables['WaterPort_R_ch_in'] = EventName.Port2In
+        variables['Choice_cue_L_ch'] = OutputChannel.PWM1
+        variables['Choice_cue_R_ch'] = OutputChannel.PWM2
+        variables['comport_motor'] = 'COM16'
+        variables['retract_motor_signal'] = (OutputChannel.PWM8, 255)
+        variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
+    elif setup_name =='Tower-2':
         # for setup: Tower - 2
         variables['GoCue_ch'] = OutputChannel.PWM5
         variables['WaterPort_L_ch_out'] = 1
