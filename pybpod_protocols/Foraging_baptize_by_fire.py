@@ -315,7 +315,7 @@ randomseedvalue = datetime.now().timetuple().tm_yday
 np.random.seed(randomseedvalue)
 random_values_L = np.random.uniform(0.,1.,2000).tolist()
 random_values_R = np.random.uniform(0.,1.,2000).tolist()
-print('Random seed:' + str(randomseedvalue))
+print('Random seed:', str(randomseedvalue))
 
 for blocki , (p_R , p_L) in enumerate(zip(variables['reward_probabilities_R'], variables['reward_probabilities_L'])):
     rewarded_trial_num = 0
