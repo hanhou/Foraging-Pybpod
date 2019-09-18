@@ -77,21 +77,21 @@ def load_and_parse_a_csv_file(csvfilename):
     for i,idxnumnow in enumerate(idxdiff): #zip(np.arange(0:len(idxdiff)),idxdiff):#
         Trialnum  = np.concatenate((Trialnum,np.zeros(idxnumnow)+i),0)
     df['Trial_number_in_session'] = Trialnum
-# =============================================================================
-#     # adding trial types
-#     tic = time.time()
-#     indexes = df[df['MSG'] == 'Trialtype:'].index + 1 #+2
-#     if len(indexes)>0:
-#         if 'Trialtype' not in df.columns:
-#             df['Trialtype']=np.NaN
-#         trialtypes = df['MSG'][indexes]
-#         trialnumbers = df['Trial_number_in_session'][indexes].values
-#         for trialtype,trialnum in zip(trialtypes,trialnumbers):
-#             #df['Trialtype'][df['Trial_number_in_session'] == trialnum] = trialtype
-#             df.loc[df['Trial_number_in_session'] == trialnum, 'Trialtype'] = trialtype
-#     toc = time.time()
-#     print(['trial types:',toc-tic])
-# =============================================================================
+    # =============================================================================
+    #     # adding trial types
+    #     tic = time.time()
+    #     indexes = df[df['MSG'] == 'Trialtype:'].index + 1 #+2
+    #     if len(indexes)>0:
+    #         if 'Trialtype' not in df.columns:
+    #             df['Trialtype']=np.NaN
+    #         trialtypes = df['MSG'][indexes]
+    #         trialnumbers = df['Trial_number_in_session'][indexes].values
+    #         for trialtype,trialnum in zip(trialtypes,trialnumbers):
+    #             #df['Trialtype'][df['Trial_number_in_session'] == trialnum] = trialtype
+    #             df.loc[df['Trial_number_in_session'] == trialnum, 'Trialtype'] = trialtype
+    #     toc = time.time()
+    #     print(['trial types:',toc-tic])
+    # =============================================================================
     # adding block numbers
     indexes = df[df['MSG'] == 'Blocknumber:'].index + 1 #+2
     if len(indexes)>0:
@@ -125,6 +125,29 @@ def load_and_parse_a_csv_file(csvfilename):
                 df['var:'+varname]=templist
             else:
                 df['var:'+varname] = d['variables'][varname]
+    # updating variables
+    variableidxs = (df[df['MSG'] == 'Variables updated:']).index.to_numpy()
+    for variableidx in variableidxs:
+        d={}
+        exec('variables = ' + df['MSG'][variableidx+1], d)
+        for varname in d['variables'].keys():
+            if isinstance(d['variables'][varname], (list,tuple)):
+                templist = list()
+                idxs = list()
+                for idx in range(variableidx,len(df)):
+                    idxs.append(idx)
+                    templist.append(d['variables'][varname])
+                df['var:'+varname][variableidx:]=templist.copy()
+# =============================================================================
+#                 print(len(templist))
+#                 print(len(idxs))
+#                 print(templist)
+#                 df.loc[idxs, 'var:'+varname] = templist
+# =============================================================================
+            else:
+                #df['var:'+varname][variableidx:] = d['variables'][varname]
+                df.loc[range(variableidx,len(df)), 'var:'+varname] = d['variables'][varname]
+    
     # saving motor variables (if any)
     variableidx = (df[df['MSG'] == 'LickportMotors:']).index.to_numpy()
     if len(variableidx)>0:
