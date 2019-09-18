@@ -200,20 +200,21 @@ if start_with_bias_check:
         p_reward_L = [1,0,1,0] #variables['difficulty_sum_reward_rate']/2# the first block is set to 50% reward rate 
         p_reward_R = [0,1,0,1] #variables['difficulty_sum_reward_rate']/2#the first block is set to 50% rewa 
     bias_check_blocknum = len(p_reward_L)
+    bias_check_auto_train_min_rewarded_trial_num = 2# autotrain
 else:
     p_reward_L=list()#[.225] #list()#[.225] #list()# the first block is set to 50% reward rate
     p_reward_R=list()#[.225] #list()#[.225] #list()# list()#the first block is set to 50% reward rate
 #%
-reward_ratio_pairs_bag = list()
-while len(p_reward_L) < blocknum: # reward rate pairs are chosen randomly
-    if len(reward_ratio_pairs_bag) == 0:
-        for pair in reward_ratio_pairs:
-            reward_ratio_pairs_bag.append(pair)
-            reward_ratio_pairs_bag.append(pair[::-1])
-        np.random.shuffle(reward_ratio_pairs_bag)
-    pair_now = reward_ratio_pairs_bag.pop()
-    p_reward_L.append(pair_now[0])
-    p_reward_R.append(pair_now[1])
+    reward_ratio_pairs_bag = list()
+    while len(p_reward_L) < blocknum: # reward rate pairs are chosen randomly
+        if len(reward_ratio_pairs_bag) == 0:
+            for pair in reward_ratio_pairs:
+                reward_ratio_pairs_bag.append(pair)
+                reward_ratio_pairs_bag.append(pair[::-1])
+            np.random.shuffle(reward_ratio_pairs_bag)
+        pair_now = reward_ratio_pairs_bag.pop()
+        p_reward_L.append(pair_now[0])
+        p_reward_R.append(pair_now[1])
   
 # =============================================================================
 #     Periodic blocks
@@ -323,7 +324,7 @@ for blocki , (p_R , p_L) in enumerate(zip(variables['reward_probabilities_R'], v
     triali = -1
     if start_with_bias_check and blocki < bias_check_blocknum: # for checking bias in the first 4 short blocks
         trialnum_now = 2
-        auto_train_min_rewarded_trial_num = 2
+        auto_train_min_rewarded_trial_num = bias_check_auto_train_min_rewarded_trial_num
         reward_L_accumulated = False
         reward_R_accumulated = False
     else: # real blocks
@@ -344,6 +345,10 @@ for blocki , (p_R , p_L) in enumerate(zip(variables['reward_probabilities_R'], v
             variables_subject = variables_subject_new.copy()
             print('Variables updated:',variables)
             auto_train_min_rewarded_trial_num =  variables['auto_train_min_rewarded_trial_num']
+             if start_with_bias_check and blocki < bias_check_blocknum: # for checking bias in the first 4 short blocks
+                auto_train_min_rewarded_trial_num = bias_check_auto_train_min_rewarded_trial_num
+                reward_L_accumulated = False
+                reward_R_accumulated = False
         
         
         triali += 1
