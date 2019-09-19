@@ -345,7 +345,7 @@ for blocki , (p_R , p_L) in enumerate(zip(variables['reward_probabilities_R'], v
             variables_subject = variables_subject_new.copy()
             print('Variables updated:',variables)
             auto_train_min_rewarded_trial_num =  variables['auto_train_min_rewarded_trial_num']
-             if start_with_bias_check and blocki < bias_check_blocknum: # for checking bias in the first 4 short blocks
+            if start_with_bias_check and blocki < bias_check_blocknum: # for checking bias in the first 4 short blocks
                 auto_train_min_rewarded_trial_num = bias_check_auto_train_min_rewarded_trial_num
                 reward_L_accumulated = False
                 reward_R_accumulated = False
