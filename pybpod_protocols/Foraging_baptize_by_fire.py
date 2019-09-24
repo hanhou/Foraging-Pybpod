@@ -148,8 +148,8 @@ else:
             'ValveOpenTime_L' : .04,
             'ValveOpenTime_R' : .04,
             'Trialnumber_in_block' : 15,
-            'Trialnumber_in_block_SD' : 5,
-            'Trialnumber_in_block_min' : 10,
+            'Trialnumber_in_block_max' : 50,
+            'Trialnumber_in_block_min' : 20,
             'block_start_with_bias_check': False,
             'block_first_to_right':True,
             'block_number':10,
@@ -322,16 +322,12 @@ for blocki , (p_R , p_L) in enumerate(zip(variables['reward_probabilities_R'], v
     rewarded_trial_num = 0
     unrewarded_trial_num_in_a_row = 0
     triali = -1
-    if start_with_bias_check and blocki < bias_check_blocknum: # for checking bias in the first 4 short blocks
-        trialnum_now = 2
-        auto_train_min_rewarded_trial_num = bias_check_auto_train_min_rewarded_trial_num
-        reward_L_accumulated = False
-        reward_R_accumulated = False
-    else: # real blocks
-        trialnum_now = np.random.normal(variables['Trialnumber_in_block'],variables['Trialnumber_in_block_SD'])
-        if trialnum_now < variables['Trialnumber_in_block_min']:
-                trialnum_now = variables['Trialnumber_in_block_min'] 
-        auto_train_min_rewarded_trial_num =  variables['auto_train_min_rewarded_trial_num']
+    
+    
+    trialnum_now = np.random.exponential(variables['Trialnumber_in_block'],1)+variables['Trialnumber_in_block_min']
+    if trialnum_now > variables['Trialnumber_in_block_max']:
+            trialnum_now = variables['Trialnumber_in_block_max'] 
+    auto_train_min_rewarded_trial_num =  variables['auto_train_min_rewarded_trial_num']
     while triali < trialnum_now or rewarded_trial_num < auto_train_min_rewarded_trial_num:
         # check if variables changed in json file
         with open(subjectfile) as json_file:
@@ -345,11 +341,6 @@ for blocki , (p_R , p_L) in enumerate(zip(variables['reward_probabilities_R'], v
             variables_subject = variables_subject_new.copy()
             print('Variables updated:',variables)
             auto_train_min_rewarded_trial_num =  variables['auto_train_min_rewarded_trial_num']
-            if start_with_bias_check and blocki < bias_check_blocknum: # for checking bias in the first 4 short blocks
-                auto_train_min_rewarded_trial_num = bias_check_auto_train_min_rewarded_trial_num
-                reward_L_accumulated = False
-                reward_R_accumulated = False
-        
         
         triali += 1
         reward_L = random_values_L.pop(0) < p_L #np.random.uniform(0.,1.) < p_L
@@ -360,11 +351,21 @@ for blocki , (p_R , p_L) in enumerate(zip(variables['reward_probabilities_R'], v
             iti_now = variables['iti_min']    
         if iti_now > variables['iti_max']:
             iti_now = variables['iti_max']    
+            
+            
         baselinetime_now =  np.random.exponential(variables['delay'],1)# np.random.normal(variables['delay'],variables['delay_rate'])
         if baselinetime_now < variables['delay_min']:
             baselinetime_now = variables['delay_min']   
         if baselinetime_now > variables['delay_max']:
             baselinetime_now = variables['delay_max']
+            
+        if start_with_bias_check and blocki < bias_check_blocknum: # for checking bias in the first 4 short blocks
+            trialnum_now = 2
+            auto_train_min_rewarded_trial_num = bias_check_auto_train_min_rewarded_trial_num
+            reward_L_accumulated = False
+            reward_R_accumulated = False
+            iti_now = 2
+            
         sma = StateMachine(my_bpod)
         if variables['early_lick_punishment']:
             sma.add_state(
