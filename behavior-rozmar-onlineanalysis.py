@@ -47,7 +47,7 @@ class App(QDialog):
         self.variables_to_display = ['ValveOpenTime_L',
                                      'ValveOpenTime_R',
                                      'Trialnumber_in_block',
-                                     'Trialnumber_in_block_SD',
+                                     'Trialnumber_in_block_max',
                                      'Trialnumber_in_block_min',
                                      'block_start_with_bias_check',
                                      'block_first_to_right',
