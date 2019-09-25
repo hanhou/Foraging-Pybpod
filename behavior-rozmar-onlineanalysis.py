@@ -269,6 +269,8 @@ class App(QDialog):
                 self.handles['axes1'].plot_licks_and_rewards(self.data_now,startime,endtime)
                 self.handles['axes2'].plot_bias(self.data_now,startime,endtime,numberofpoints)
                 print('plotting done')
+        if lastselected == 'filter_subject'  :
+            self.load_parameters()
 # =============================================================================
 #         data = self.data 
 #         handlenames = self.handles.keys()
