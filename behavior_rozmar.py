@@ -101,7 +101,11 @@ def load_and_parse_a_csv_file(csvfilename):
         trialnumbers = df['Trial_number_in_session'][indexes].values
         for blocknumber,trialnum in zip(blocknumbers,trialnumbers):
             #df['Block_number'][df['Trial_number_in_session'] == trialnum] = int(blocknumber)
-            df.loc[df['Trial_number_in_session'] == trialnum, 'Block_number'] = int(blocknumber)
+            try:
+                df.loc[df['Trial_number_in_session'] == trialnum, 'Block_number'] = int(blocknumber)
+            except:
+                df.loc[df['Trial_number_in_session'] == trialnum, 'Block_number'] = np.nan
+                
     # adding trial numbers -  the variable names are crappy.. sorry
     indexes = df[df['MSG'] == 'Trialnumber:'].index + 1 #+2
     if len(indexes)>0:
@@ -111,7 +115,10 @@ def load_and_parse_a_csv_file(csvfilename):
         trialnumbers = df['Trial_number_in_session'][indexes].values
         for blocknumber,trialnum in zip(blocknumbers,trialnumbers):
             #df['Trial_number'][df['Trial_number_in_session'] == trialnum] = int(blocknumber)
-            df.loc[df['Trial_number_in_session'] == trialnum, 'Trial_number'] = int(blocknumber)
+            try:
+                df.loc[df['Trial_number_in_session'] == trialnum, 'Trial_number'] = int(blocknumber)
+            except:
+                df.loc[df['Trial_number_in_session'] == trialnum, 'Block_number'] = np.nan
     # saving variables (if any)
     variableidx = (df[df['MSG'] == 'Variables:']).index.to_numpy()
     if len(variableidx)>0:
