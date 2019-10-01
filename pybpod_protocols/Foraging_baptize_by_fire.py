@@ -360,11 +360,13 @@ for blocki , (p_R , p_L) in enumerate(zip(variables['reward_probabilities_R'], v
             baselinetime_now = variables['delay_max']
             
         if start_with_bias_check and blocki < bias_check_blocknum: # for checking bias in the first 4 short blocks
-            trialnum_now = 2
+            trialnum_now = 1
             auto_train_min_rewarded_trial_num = bias_check_auto_train_min_rewarded_trial_num
             reward_L_accumulated = False
             reward_R_accumulated = False
-            iti_now = 2
+            iti_now = 1
+            baselinetime_now = 1
+            
             
         sma = StateMachine(my_bpod)
         if variables['early_lick_punishment']:
