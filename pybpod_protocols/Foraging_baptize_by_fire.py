@@ -13,6 +13,19 @@ import os, sys
 
 usedummyzaber = False # for testing without motor movement - only for debugging
 
+
+def notify_experimenter(metadata,path):
+    filepath = os.path.join(path,'notifications.json')
+    metadata['datetime'] = datetime.now()
+    if os.path.exists(filepath):
+        with open(filepath) as json_file:
+            notificationssofar = json.load(json_file)
+    else:
+        notificationssofar = list()
+    notificationssofar.append(metadata)
+    with open(filepath, 'w') as outfile:
+        json.dump(notificationssofar, outfile)
+
 def splitthepath(path):
     allparts = []
     while 1:
@@ -111,11 +124,15 @@ history = my_bpod.session.history
 experiment_name = 'not defined' 
 setup_name = 'not defined' 
 subject_name = 'not defined' 
+experimenter_name = 'not defined'
 for histnow in history:
     if hasattr(histnow, 'infoname'):
         if histnow.infoname ==  'SUBJECT-NAME':
             subject_name = histnow.infovalue
             subject_name = subject_name[2:subject_name[2:].find("'")+2]
+        elif histnow.infoname ==  'CREATOR-NAME':
+            experimenter_name = histnow.infovalue
+            experimenter_name = experimenter_name[2:experimenter_name[2:].find('"')+2]
         elif histnow.infoname == 'SETUP-NAME':
             setup_name = histnow.infovalue
         elif histnow.infoname ==  'EXPERIMENT-NAME':
@@ -129,6 +146,8 @@ path = my_bpod.session._path
 pathlist = splitthepath(path)
 pathnow = ''
 for dirnow in pathlist:
+    if dirnow == 'Projects':
+        rootdir = dirnow()
     if dirnow == 'experiments':
         projectdir = pathnow
         subjectdir = os.path.join(projectdir,'subjects',subject_name)
@@ -541,7 +560,18 @@ for blocki , (p_R , p_L) in enumerate(zip(variables['reward_probabilities_R'], v
         
         print('LickportMotors:',variables_motor)
            
-    
+        if ignore_trial_num_in_a_row > 10:
+            break
+    if ignore_trial_num_in_a_row > 10:
+        print('too many ignores')
+        metadata = dict()
+        metadata['experiment_name'] = experiment_name
+        metadata['setup_name'] = setup_name
+        metadata['subject_name'] = subject_name
+        metadata['experimenter_name'] = experimenter_name        
+        metadata['reason'] = '10 ignores in a row'
+        notify_experimenter(metadata,os.path.join(rootdir,'Notifications'))
+        break
     
 my_bpod.close()
 
