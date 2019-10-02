@@ -16,7 +16,7 @@ usedummyzaber = False # for testing without motor movement - only for debugging
 
 def notify_experimenter(metadata,path):
     filepath = os.path.join(path,'notifications.json')
-    metadata['datetime'] = datetime.now()
+    metadata['datetime'] = datetime.now().strftime("%Y/%m/%d, %H:%M:%S")
     if os.path.exists(filepath):
         with open(filepath) as json_file:
             notificationssofar = json.load(json_file)
@@ -147,7 +147,7 @@ pathlist = splitthepath(path)
 pathnow = ''
 for dirnow in pathlist:
     if dirnow == 'Projects':
-        rootdir = dirnow()
+        rootdir = pathnow
     if dirnow == 'experiments':
         projectdir = pathnow
         subjectdir = os.path.join(projectdir,'subjects',subject_name)
