@@ -383,7 +383,7 @@ for blocki , (p_R , p_L) in enumerate(zip(variables['reward_probabilities_R'], v
             auto_train_min_rewarded_trial_num = bias_check_auto_train_min_rewarded_trial_num
             reward_L_accumulated = False
             reward_R_accumulated = False
-            iti_now = 1
+            iti_now = 2
             baselinetime_now = 1
             
             
