@@ -29,7 +29,7 @@ def generate_block_structure(n_trials_base=80,n_trials_sd=10,blocknum = 10, rewa
     return p_reward_L, p_reward_R, n_trials
 
 
-def run_task(p_reward_L,p_reward_R,n_trials,unchosen_rewards_to_keep = 1,subject = 'clever mouse',min_rewardnum = 20, filter_tau_fast = 7,filter_tau_slow = 20, filter_tau_slow_amplitude = 0, plot = True):
+def run_task(p_reward_L,p_reward_R,n_trials,unchosen_rewards_to_keep = 1,subject = 'clever mouse',min_rewardnum = 20, filter_tau_fast = 7,filter_tau_slow = 20, filter_tau_slow_amplitude = 0,filter_constant = 0,softmax_temperature = np.nan, differential = False,plot = True):
     '''
     p_reward_L, p_reward_R : list of reward probabilities in each block for left and right
     n_trials: number of trials in each block
@@ -57,24 +57,59 @@ def run_task(p_reward_L,p_reward_R,n_trials,unchosen_rewards_to_keep = 1,subject
                 choice=np.random.choice(['left','right']) # this will be given by the model
                 history_rewardrate_dynamic=np.append(history_rewardrate_dynamic,[np.NaN])
             else:
-                x=np.arange(len(history_choice),0,-1)
-                yfast=np.exp(-x/filter_tau_fast)
+                x=np.arange(len(history_choice)-1,-1,-1)
+                yfast=np.exp(-x/filter_tau_fast)+filter_constant
                 yslow=np.exp(-x/filter_tau_slow)*filter_tau_slow_amplitude
                 y=yfast + yslow
+                #y = y/y[-1]+filter_constant
+                
+                #y = y/sum(y)
                 history_reward_local=history_reward*y
                 history_choice_local=history_choice
                 
-                rewardrate_left=np.sum(history_reward_local[history_choice_local==0])
-                rewardrate_right=np.sum(history_reward_local[history_choice_local==1])
-                rewardrate_dynamic=(rewardrate_right)/(rewardrate_right+rewardrate_left)
-                history_rewardrate_dynamic=np.append(history_rewardrate_dynamic,[rewardrate_dynamic])
-                
-                if subject == 'random':
+                rewardrate_left=np.sum(history_reward_local[history_choice_local==0][-min_rewardnum:])
+                rewardrate_right=np.sum(history_reward_local[history_choice_local==1][-min_rewardnum:])
+                #print(rewardrate_right+rewardrate_left)
+                if rewardrate_right+rewardrate_left == 0:
                     rewardrate_dynamic = .5
-                if np.random.uniform(0,1) < rewardrate_dynamic:
-                    choice='right'
                 else:
-                    choice='left'
+                    rewardrate_dynamic=(rewardrate_right)/(rewardrate_right+rewardrate_left)
+                history_rewardrate_dynamic=np.append(history_rewardrate_dynamic,[rewardrate_dynamic])
+                if subject == 'win_stay-loose_switch':
+                    if history_reward[-1] and history_choice_local[-1] == 0: # there was a reward
+                        choice='left'
+                    elif history_reward[-1] and history_choice_local[-1] == 1: # there was a reward
+                        choice='right'
+                    elif history_reward[-1] == False and history_choice_local[-1] == 0: # there was a reward
+                        choice='right'
+                    elif history_reward[-1] == False and history_choice_local[-1] == 1: # there was a reward
+                        choice='left'    
+                elif subject == 'win_stay-loose_random':
+                    if history_reward[-1] and history_choice_local[-1] == 0: # there was a reward
+                        choice='left'
+                    elif history_reward[-1] and history_choice_local[-1] == 1: # there was a reward
+                        choice='right'
+                    else:
+                        rewardrate_dynamic = .5                   
+                        if np.random.uniform(0,1) < rewardrate_dynamic:
+                            choice='right'
+                        else:
+                            choice='left' 
+                else:
+                    if subject == 'random':
+                        rewardrate_dynamic = .5
+                    elif not np.isnan(softmax_temperature):
+                        if differential:
+                            rewardrate_dynamic = rewardrate_right-rewardrate_left
+                            rewardrate_dynamic = 1/(1+np.exp(-softmax_temperature*(rewardrate_dynamic)))
+                        else:
+                            rewardrate_dynamic = 1/(1+np.exp(-softmax_temperature*(rewardrate_dynamic-.5)))
+                    if np.random.uniform(0,1) < rewardrate_dynamic:
+                        choice='right'
+                    else:
+                        choice='left'
+                    
+                
                 if subject == 'perfect': # this one knows the probabilities and the accumulated reward
                     if p_reward_R_now > p_reward_L_now:
                         if accumulated_rewards_R > accumulated_rewards_L: # go for the right
@@ -123,13 +158,15 @@ def run_task(p_reward_L,p_reward_R,n_trials,unchosen_rewards_to_keep = 1,subject
         # constant reward rate
         ax1.plot(history_choicenum,history_rewardrate_constant,color='yellow')
         #ax1.plot(history_choicenum,history_rewardrate_constant_actual,color='red')
-        ax1.plot(history_choicenum,history_rewardrate_dynamic,color='green')   
+        #ax1.plot(history_choicenum,history_rewardrate_dynamic,color='green')   
         ax1.plot(moving_average(history_choice,10),color='black')
-        
+        ax1.set_yticks([0,1])
+        ax1.set_yticklabels(['Left','Right'])
         plt.xlabel('choice #')
         
         ax2=fig.add_axes([1.3,0,1,1])
         ax2.plot(range(-50,0),yfast[-50:],range(-50,0),yslow[-50:],range(-50,0),y[-50:])
+        
         plt.xlabel('choice #')
         plt.ylabel('relative value')
         
@@ -164,6 +201,8 @@ def run_task(p_reward_L,p_reward_R,n_trials,unchosen_rewards_to_keep = 1,subject
         ax3=fig.add_axes([0,-1.3,1,1])
         ax3.plot(history_choicenum,history_rewardrate_constant,color='yellow',label = 'expected relative value')
         ax3.plot(history_choicenum,history_rewardrate_constant_actual,color='red',label = 'actual relative value')
+        ax3.set_yticks([0,1])
+        ax3.set_yticklabels(['Left','Right'])
         plt.xlabel('choice #')
         plt.legend()
         plt.ylim(0,1)
@@ -194,4 +233,4 @@ def run_task(p_reward_L,p_reward_R,n_trials,unchosen_rewards_to_keep = 1,subject
         
         
         np.mean(history_reward)
-    return history_reward
+    return history_reward,history_choice
