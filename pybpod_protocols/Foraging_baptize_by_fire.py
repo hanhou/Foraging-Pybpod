@@ -231,9 +231,12 @@ else:
                 reward_ratio_pairs_bag.append(pair)
                 reward_ratio_pairs_bag.append(pair[::-1])
             np.random.shuffle(reward_ratio_pairs_bag)
-        pair_now = reward_ratio_pairs_bag.pop()
-        p_reward_L.append(pair_now[0])
-        p_reward_R.append(pair_now[1])
+        pair_now = reward_ratio_pairs_bag.pop(0)
+        if len(p_reward_L) == 0 or p_reward_L[-1] != pair_now[0]:
+            p_reward_L.append(pair_now[0])
+            p_reward_R.append(pair_now[1])
+        else:
+            reward_ratio_pairs_bag.append(pair_now)
   
 # =============================================================================
 #     Periodic blocks
