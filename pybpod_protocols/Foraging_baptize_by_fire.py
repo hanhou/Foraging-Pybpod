@@ -4,6 +4,7 @@ from pybpodapi.bpod.hardware.events import EventName
 from pybpodapi.bpod.hardware.output_channels import OutputChannel
 from pybpodapi.com.messaging.trial import Trial
 from datetime import datetime
+from itertools import permutations
 import zaber.serial as zaber_serial
 import time
 import json
@@ -166,11 +167,12 @@ else:
     variables = { # Delayed
             'ValveOpenTime_L' : .04,
             'ValveOpenTime_R' : .04,
+            'ValveOpenTime_M' : .04,
             'Trialnumber_in_block' : 15,
             'Trialnumber_in_block_max' : 50,
             'Trialnumber_in_block_min' : 20,
             'block_start_with_bias_check': False,
-            'block_first_to_right':True,
+            #'block_first_to_right':True,
             'block_number':10,
             'difficulty_sum_reward_rate': 1.,
             'difficulty_ratio_pair_num': 0,
@@ -193,36 +195,37 @@ else:
             'auto_train_min_rewarded_trial_num': 10,
             'early_lick_punishment': False,
             'reward_rate_family': 1,
+            'lickport_number':2,
     }
 #generate reward probabilities
 start_with_bias_check = variables['block_start_with_bias_check']
-first_block_to_right = variables['block_first_to_right']
-if variables['difficulty_ratio_pair_num']<1:
-    reward_ratio_pairs = [[1,1]]
-else:   
-    if 'reward_rate_family' not in variables.keys() or variables['reward_rate_family'] <= 1:
-        reward_ratio_pairs=[[.4,.05],[.3857,.0643],[.3375,.1125],[.225,.225]]#,        
-    elif variables['reward_rate_family'] == 2:
-        reward_ratio_pairs=[[8/9,1/9],[6/7,1/7],[3/4,1/4],[2/3,1/3],[.5,.5]]#,        
-    elif variables['reward_rate_family'] >= 3:
-        reward_ratio_pairs=[[1,0],[.9,.1],[.8,.2],[.7,.3],[.6,.4],[.5,.5]]#,
-    reward_ratio_pairs = (np.array(reward_ratio_pairs)/np.sum(reward_ratio_pairs[0])*variables['difficulty_sum_reward_rate']).tolist()
-    reward_ratio_pairs = reward_ratio_pairs[:variables['difficulty_ratio_pair_num']]
-        
-#%%         Random order of blocks but still equal
-blocknum = variables['block_number'] # number of blocks
-if start_with_bias_check:
-    if variables['block_first_to_right']:
-        p_reward_L = [0,1,0,1] #variables['difficulty_sum_reward_rate']/2# the first block is set to 50% reward rate 
-        p_reward_R = [1,0,1,0] #variables['difficulty_sum_reward_rate']/2#the first block is set to 50% rewa 
+#first_block_to_right = variables['block_first_to_right']
+if 'lickport_number' not in variables.keys() or variables['lickport_number'] == 2:
+    if variables['difficulty_ratio_pair_num']<1:
+        reward_ratio_pairs = [[1,1]]
+    else:   
+        if 'reward_rate_family' not in variables.keys() or variables['reward_rate_family'] <= 1:
+            reward_ratio_pairs=[[.4,.05],[.3857,.0643],[.3375,.1125],[.225,.225]]#,        
+        elif variables['reward_rate_family'] == 2:
+            reward_ratio_pairs=[[8/9,1/9],[6/7,1/7],[3/4,1/4],[2/3,1/3],[.5,.5]]#,        
+        elif variables['reward_rate_family'] >= 3:
+            reward_ratio_pairs=[[1,0],[.9,.1],[.8,.2],[.7,.3],[.6,.4],[.5,.5]]#,
+        reward_ratio_pairs = (np.array(reward_ratio_pairs)/np.sum(reward_ratio_pairs[0])*variables['difficulty_sum_reward_rate']).tolist()
+        reward_ratio_pairs = reward_ratio_pairs[:variables['difficulty_ratio_pair_num']]
+
+    blocknum = variables['block_number'] # number of blocks
+    if start_with_bias_check:
+        if variables['block_first_to_right']:
+            p_reward_L = [0,1,0,1] #variables['difficulty_sum_reward_rate']/2# the first block is set to 50% reward rate 
+            p_reward_R = [1,0,1,0] #variables['difficulty_sum_reward_rate']/2#the first block is set to 50% rewa 
+        else:
+            p_reward_L = [1,0,1,0] #variables['difficulty_sum_reward_rate']/2# the first block is set to 50% reward rate 
+            p_reward_R = [0,1,0,1] #variables['difficulty_sum_reward_rate']/2#the first block is set to 50% rewa 
+        bias_check_blocknum = len(p_reward_L)
+        bias_check_auto_train_min_rewarded_trial_num = 2# autotrain
     else:
-        p_reward_L = [1,0,1,0] #variables['difficulty_sum_reward_rate']/2# the first block is set to 50% reward rate 
-        p_reward_R = [0,1,0,1] #variables['difficulty_sum_reward_rate']/2#the first block is set to 50% rewa 
-    bias_check_blocknum = len(p_reward_L)
-    bias_check_auto_train_min_rewarded_trial_num = 2# autotrain
-else:
-    p_reward_L=list()#[.225] #list()#[.225] #list()# the first block is set to 50% reward rate
-    p_reward_R=list()#[.225] #list()#[.225] #list()# list()#the first block is set to 50% reward rate
+        p_reward_L=list()#[.225] #list()#[.225] #list()# the first block is set to 50% reward rate
+        p_reward_R=list()#[.225] #list()#[.225] #list()# list()#the first block is set to 50% reward rate
 #%
     reward_ratio_pairs_bag = list()
     while len(p_reward_L) < blocknum: # reward rate pairs are chosen randomly
@@ -237,7 +240,50 @@ else:
             p_reward_R.append(pair_now[1])
         else:
             reward_ratio_pairs_bag.append(pair_now)
-  
+    
+    p_reward_M=list(np.zeros(len(p_reward_L))) # 
+else:
+    if variables['difficulty_ratio_pair_num']<1:
+        reward_ratio_pairs = [[1,1,1]]
+    else:
+        if 'reward_rate_family' not in variables.keys() or variables['reward_rate_family'] <= 1:
+            reward_ratio_pairs = [[6/10,3/10,1/10],[3/6,2/6,1/6],[1/3,1/3,1/3]]
+        else:
+            reward_ratio_pairs = [[1,0,0],[6/10,3/10,1/10],[3/6,2/6,1/6],[1/3,1/3,1/3]]
+        reward_ratio_pairs = (np.array(reward_ratio_pairs)/np.sum(reward_ratio_pairs[0])*variables['difficulty_sum_reward_rate']).tolist()
+        reward_ratio_pairs = reward_ratio_pairs[:variables['difficulty_ratio_pair_num']]
+        
+    blocknum = variables['block_number'] # number of blocks
+    if start_with_bias_check:
+        if variables['block_first_to_right']:
+            p_reward_L = [0,1,0,0,1,0] #variables['difficulty_sum_reward_rate']/2# the first block is set to 50% reward rate 
+            p_reward_R = [1,0,0,1,0,0] #variables['difficulty_sum_reward_rate']/2#the first block is set to 50% rewa 
+            p_reward_M = [0,0,1,0,0,1] #variables['difficulty_sum_reward_rate']/2#the first block is set to 50% rewa 
+        else:
+            p_reward_L = [1,0,0,1,0,0] #variables['difficulty_sum_reward_rate']/2# the first block is set to 50% reward rate 
+            p_reward_R = [0,0,1,0,0,1] #variables['difficulty_sum_reward_rate']/2#the first block is set to 50% rewa 
+            p_reward_M = [0,1,0,0,1,0] #variables['difficulty_sum_reward_rate']/2#the first block is set to 50% rewa 
+        bias_check_blocknum = len(p_reward_L)
+        bias_check_auto_train_min_rewarded_trial_num = 2# autotrain
+    else:
+        p_reward_L=list()#[.225] #list()#[.225] #list()# the first block is set to 50% reward rate
+        p_reward_R=list()#[.225] #list()#[.225] #list()# list()#the first block is set to 50% reward rate
+        p_reward_M=list()
+    
+        reward_ratio_pairs_bag = list()
+        while len(p_reward_L) < blocknum: # reward rate pairs are chosen randomly
+            if len(reward_ratio_pairs_bag) == 0:
+                for pair in reward_ratio_pairs:
+                    reward_ratio_pairs_bag.extend(np.unique(list(permutations(pair)),axis = 0))
+                np.random.shuffle(reward_ratio_pairs_bag)
+            pair_now = reward_ratio_pairs_bag.pop(0)
+            if len(p_reward_L) == 0 or p_reward_L[-1] != pair_now[0]:
+                p_reward_L.append(pair_now[0])
+                p_reward_R.append(pair_now[1])
+                p_reward_M.append(pair_now[2])
+            else:
+                reward_ratio_pairs_bag.append(pair_now)
+
 # =============================================================================
 #     Periodic blocks
 # while len(p_reward_L) < blocknum: # reward rate pairs are chosen randomly
@@ -259,6 +305,7 @@ else:
 #%%
 variables['reward_probabilities_R']=p_reward_R
 variables['reward_probabilities_L']=p_reward_L
+variables['reward_probabilities_M']=p_reward_M
 
 variables_subject = variables.copy()
 variables = dict()
@@ -275,8 +322,12 @@ else:
         variables['WaterPort_L_ch_in'] = EventName.Port1In
         variables['WaterPort_R_ch_out'] = 2
         variables['WaterPort_R_ch_in'] = EventName.Port2In
-        variables['Choice_cue_L_ch'] = OutputChannel.PWM1
-        variables['Choice_cue_R_ch'] = OutputChannel.PWM2
+        variables['WaterPort_M_ch_out'] = 3
+        variables['WaterPort_M_ch_in'] = EventName.Port3In
+# =============================================================================
+#         variables['Choice_cue_L_ch'] = OutputChannel.PWM1
+#         variables['Choice_cue_R_ch'] = OutputChannel.PWM2
+# =============================================================================
         variables['comport_motor'] = 'COM16'
         variables['retract_motor_signal'] = (OutputChannel.PWM8, 255)
         variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
@@ -287,8 +338,12 @@ else:
         variables['WaterPort_L_ch_in'] = EventName.Port1In
         variables['WaterPort_R_ch_out'] = 2
         variables['WaterPort_R_ch_in'] = EventName.Port2In
-        variables['Choice_cue_L_ch'] = OutputChannel.PWM1
-        variables['Choice_cue_R_ch'] = OutputChannel.PWM2
+        variables['WaterPort_M_ch_out'] = 3
+        variables['WaterPort_M_ch_in'] = EventName.Port3In
+# =============================================================================
+#         variables['Choice_cue_L_ch'] = OutputChannel.PWM1
+#         variables['Choice_cue_R_ch'] = OutputChannel.PWM2
+# =============================================================================
         variables['comport_motor'] = 'COM7'
         variables['retract_motor_signal'] = (OutputChannel.PWM7, 255)
         variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
@@ -299,10 +354,30 @@ else:
         variables['WaterPort_L_ch_in'] = EventName.Port1In
         variables['WaterPort_R_ch_out'] = 2
         variables['WaterPort_R_ch_in'] = EventName.Port2In
-        variables['Choice_cue_L_ch'] = OutputChannel.PWM1
-        variables['Choice_cue_R_ch'] = OutputChannel.PWM2
+        variables['WaterPort_M_ch_out'] = 3
+        variables['WaterPort_M_ch_in'] = EventName.Port3In
+# =============================================================================
+#         variables['Choice_cue_L_ch'] = OutputChannel.PWM1
+#         variables['Choice_cue_R_ch'] = OutputChannel.PWM2
+# =============================================================================
         variables['comport_motor'] = 'COM7'
         variables['retract_motor_signal'] = (OutputChannel.PWM7, 255)
+        variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
+    elif setup_name == 'Voltage-1p-rig':
+        # for setup: Tower - 3
+        variables['GoCue_ch'] = OutputChannel.PWM5
+        variables['WaterPort_L_ch_out'] = 1
+        variables['WaterPort_L_ch_in'] = EventName.Port1In
+        variables['WaterPort_R_ch_out'] = 2
+        variables['WaterPort_R_ch_in'] = EventName.Port2In
+        variables['WaterPort_M_ch_out'] = 3
+        variables['WaterPort_M_ch_in'] = EventName.Port3In
+# =============================================================================
+#         variables['Choice_cue_L_ch'] = OutputChannel.PWM1
+#         variables['Choice_cue_R_ch'] = OutputChannel.PWM2
+# =============================================================================
+        variables['comport_motor'] = 'COM5'
+        variables['retract_motor_signal'] = (OutputChannel.SoftCode, 1)
         variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
 variables_setup = variables.copy()
 variables_motor = read_motor_position(variables['comport_motor'])
@@ -328,9 +403,11 @@ ignore_trial_num_in_a_row = 0
 if variables['accumulate_reward']:
     reward_L_accumulated = True
     reward_R_accumulated = True
+    reward_M_accumulated = True
 else:
     reward_L_accumulated = False
     reward_R_accumulated = False
+    reward_M_accumulated = False
  
 set_motor_speed() # the motors should move FAST    
 
@@ -338,9 +415,10 @@ randomseedvalue = datetime.now().timetuple().tm_yday
 np.random.seed(randomseedvalue)
 random_values_L = np.random.uniform(0.,1.,2000).tolist()
 random_values_R = np.random.uniform(0.,1.,2000).tolist()
+random_values_M = np.random.uniform(0.,1.,2000).tolist()
 print('Random seed:', str(randomseedvalue))
 
-for blocki , (p_R , p_L) in enumerate(zip(variables['reward_probabilities_R'], variables['reward_probabilities_L'])):
+for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R'], variables['reward_probabilities_L'],variables['reward_probabilities_M'])):
     rewarded_trial_num = 0
     unrewarded_trial_num_in_a_row = 0
     triali = -1
@@ -350,7 +428,7 @@ for blocki , (p_R , p_L) in enumerate(zip(variables['reward_probabilities_R'], v
     if trialnum_now > variables['Trialnumber_in_block_max']:
             trialnum_now = variables['Trialnumber_in_block_max'] 
     auto_train_min_rewarded_trial_num =  variables['auto_train_min_rewarded_trial_num']
-    while triali < trialnum_now or rewarded_trial_num < auto_train_min_rewarded_trial_num:
+    while triali < trialnum_now - 1 or rewarded_trial_num < auto_train_min_rewarded_trial_num:
         # check if variables changed in json file
         with open(subjectfile) as json_file:
             variables_subject_new = json.load(json_file)
@@ -367,6 +445,7 @@ for blocki , (p_R , p_L) in enumerate(zip(variables['reward_probabilities_R'], v
         triali += 1
         reward_L = random_values_L.pop(0) < p_L #np.random.uniform(0.,1.) < p_L
         reward_R = random_values_R.pop(0) < p_R # np.random.uniform(0.,1.) < p_R
+        reward_M = random_values_M.pop(0) < p_M # np.random.uniform(0.,1.) < p_R
         iti_now = np.random.exponential(variables['iti'],1) + ignore_trial_num_in_a_row*variables['increase_ITI_on_ignore_trials']*variables['iti']
         #iti_now = 0
         if iti_now < variables['iti_min']:
@@ -386,6 +465,7 @@ for blocki , (p_R , p_L) in enumerate(zip(variables['reward_probabilities_R'], v
             auto_train_min_rewarded_trial_num = bias_check_auto_train_min_rewarded_trial_num
             reward_L_accumulated = False
             reward_R_accumulated = False
+            reward_M_accumulated = False
             iti_now = 2
             baselinetime_now = 1
             
@@ -439,6 +519,18 @@ for blocki , (p_R , p_L) in enumerate(zip(variables['reward_probabilities_R'], v
                 	state_timer=0,
                 	state_change_conditions={EventName.Tup: 'GoCue_real'},
                 	output_actions = [])
+            if reward_M or reward_M_accumulated:
+                sma.add_state(
+                	state_name='Auto_Water_M',
+                	state_timer=variables['ValveOpenTime_M']*variables['auto_water_time_multiplier'],
+                	state_change_conditions={EventName.Tup: 'GoCue_real'},
+                	output_actions = [('Valve',variables['WaterPort_M_ch_out'])])
+            else:
+                sma.add_state(
+                	state_name='Auto_Water_M',
+                	state_timer=0,
+                	state_change_conditions={EventName.Tup: 'GoCue_real'},
+                	output_actions = [])
             sma.add_state(
             	state_name='GoCue_real',
             	state_timer=variables['response_time'],
@@ -448,32 +540,44 @@ for blocki , (p_R , p_L) in enumerate(zip(variables['reward_probabilities_R'], v
             sma.add_state(
             	state_name='GoCue',
             	state_timer=variables['response_time'],
-            	state_change_conditions={variables['WaterPort_L_ch_in']: 'Choice_L', variables['WaterPort_R_ch_in']: 'Choice_R', EventName.Tup: 'ITI'},
+            	state_change_conditions={variables['WaterPort_L_ch_in']: 'Choice_L', variables['WaterPort_R_ch_in']: 'Choice_R', variables['WaterPort_M_ch_in']: 'Choice_M', EventName.Tup: 'ITI'},
             	output_actions = [(variables['GoCue_ch'],255)])
         if reward_L or reward_L_accumulated:
             sma.add_state(
             	state_name='Choice_L',
             	state_timer=0,
             	state_change_conditions={EventName.Tup: 'Reward_L'},
-            	output_actions = [(variables['Choice_cue_L_ch'],255)])
+            	output_actions = [])#(variables['Choice_cue_L_ch'],255)
         else:
             sma.add_state(
             	state_name='Choice_L',
             	state_timer=0,
             	state_change_conditions={EventName.Tup: 'NO_Reward'},
-            	output_actions = [(variables['Choice_cue_L_ch'],255)])
+            	output_actions = []) #(variables['Choice_cue_L_ch'],255)
         if reward_R or reward_R_accumulated:
             sma.add_state(
             	state_name='Choice_R',
             	state_timer=0,
             	state_change_conditions={EventName.Tup: 'Reward_R'},
-            	output_actions = [(variables['Choice_cue_R_ch'],255)])
+            	output_actions = [])#(variables['Choice_cue_R_ch'],255)
         else:
             sma.add_state(
             	state_name='Choice_R',
             	state_timer=0,
             	state_change_conditions={EventName.Tup: 'NO_Reward'},
-            	output_actions = [(variables['Choice_cue_R_ch'],255)])
+            	output_actions = [])#(variables['Choice_cue_R_ch'],255)
+        if reward_M or reward_M_accumulated:
+            sma.add_state(
+            	state_name='Choice_M',
+            	state_timer=0,
+            	state_change_conditions={EventName.Tup: 'Reward_M'},
+            	output_actions = [])#(variables['Choice_cue_R_ch'],255)
+        else:
+            sma.add_state(
+            	state_name='Choice_M',
+            	state_timer=0,
+            	state_change_conditions={EventName.Tup: 'NO_Reward'},
+            	output_actions = [])#(variables['Choice_cue_R_ch'],255)
         sma.add_state(
         	state_name='Reward_L',
         	state_timer=variables['ValveOpenTime_L'],
@@ -485,6 +589,11 @@ for blocki , (p_R , p_L) in enumerate(zip(variables['reward_probabilities_R'], v
         	state_change_conditions={EventName.Tup: 'Consume_reward'},
         	output_actions = [('Valve',variables['WaterPort_R_ch_out'])])
         sma.add_state(
+        	state_name='Reward_M',
+        	state_timer=variables['ValveOpenTime_M'],
+        	state_change_conditions={EventName.Tup: 'Consume_reward'},
+        	output_actions = [('Valve',variables['WaterPort_M_ch_out'])])
+        sma.add_state(
         	state_name='NO_Reward',
         	state_timer=0,
         	state_change_conditions={EventName.Tup: 'ITI'},
@@ -492,7 +601,7 @@ for blocki , (p_R , p_L) in enumerate(zip(variables['reward_probabilities_R'], v
         sma.add_state(
         	state_name='Consume_reward',
         	state_timer=variables['Reward_consume_time'],
-        	state_change_conditions={variables['WaterPort_L_ch_in']: 'Consume_reward_return',variables['WaterPort_R_ch_in']: 'Consume_reward_return',EventName.Tup: 'ITI'},
+        	state_change_conditions={variables['WaterPort_L_ch_in']: 'Consume_reward_return',variables['WaterPort_R_ch_in']: 'Consume_reward_return',variables['WaterPort_M_ch_in']: 'Consume_reward_return',EventName.Tup: 'ITI'},
         	output_actions = [])
         sma.add_state(
         	state_name='Consume_reward_return',
@@ -529,16 +638,18 @@ for blocki , (p_R , p_L) in enumerate(zip(variables['reward_probabilities_R'], v
         trialdata = my_bpod.session.current_trial.export()
         reward_L_consumed = not np.isnan(trialdata['States timestamps']['Reward_L'][0][0])
         reward_R_consumed = not np.isnan(trialdata['States timestamps']['Reward_R'][0][0])
+        reward_M_consumed = not np.isnan(trialdata['States timestamps']['Reward_M'][0][0])
         L_chosen = not np.isnan(trialdata['States timestamps']['Choice_L'][0][0])
         R_chosen = not np.isnan(trialdata['States timestamps']['Choice_R'][0][0])
+        M_chosen = not np.isnan(trialdata['States timestamps']['Choice_M'][0][0])
         
-        if reward_L_consumed or reward_R_consumed:
+        if reward_L_consumed or reward_R_consumed or reward_M_consumed:
             rewarded_trial_num += 1
             unrewarded_trial_num_in_a_row = 0
         else:
             unrewarded_trial_num_in_a_row += 1
             
-        if L_chosen or R_chosen:
+        if L_chosen or R_chosen or M_chosen:
             ignore_trial_num_in_a_row  = 0
         else:
             ignore_trial_num_in_a_row += 1
@@ -552,12 +663,17 @@ for blocki , (p_R , p_L) in enumerate(zip(variables['reward_probabilities_R'], v
                 reward_R_accumulated = False
             elif reward_R and not reward_R_consumed:
                 reward_R_accumulated = True
+            if reward_M_consumed:
+                reward_M_accumulated = False
+            elif reward_M and not reward_M_consumed:
+                reward_M_accumulated = True
         
         print('Blocknumber:', blocki + 1)
         print('Trialnumber:', triali + 1)
         print('Trialtype:', 'free choice')
         print('reward_L_accumulated:',reward_L_accumulated)
         print('reward_R_accumulated:',reward_R_accumulated)
+        print('reward_M_accumulated:',reward_M_accumulated)
         
         variables_motor = read_motor_position(variables['comport_motor'])
         
