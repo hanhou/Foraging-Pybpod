@@ -195,7 +195,7 @@ else:
             'auto_train_min_rewarded_trial_num': 10,
             'early_lick_punishment': False,
             'reward_rate_family': 1,
-            'lickport_number':2,
+            'lickport_number':3.,
     }
 #generate reward probabilities
 start_with_bias_check = variables['block_start_with_bias_check']
@@ -235,7 +235,7 @@ if 'lickport_number' not in variables.keys() or variables['lickport_number'] == 
                 reward_ratio_pairs_bag.append(pair[::-1])
             np.random.shuffle(reward_ratio_pairs_bag)
         pair_now = reward_ratio_pairs_bag.pop(0)
-        if len(p_reward_L) == 0 or p_reward_L[-1] != pair_now[0]:
+        if len(p_reward_L) == 0 or p_reward_L[-1] != pair_now[0] or pair_now[0] == pair_now[1]:
             p_reward_L.append(pair_now[0])
             p_reward_R.append(pair_now[1])
         else:
@@ -244,12 +244,12 @@ if 'lickport_number' not in variables.keys() or variables['lickport_number'] == 
     p_reward_M=list(np.zeros(len(p_reward_L))) # 
 else:
     if variables['difficulty_ratio_pair_num']<1:
-        reward_ratio_pairs = [[1,1,1]]
+        reward_ratio_pairs = [[1.,1.,1.]]
     else:
         if 'reward_rate_family' not in variables.keys() or variables['reward_rate_family'] <= 1:
             reward_ratio_pairs = [[6/10,3/10,1/10],[3/6,2/6,1/6],[1/3,1/3,1/3]]
         else:
-            reward_ratio_pairs = [[1,0,0],[6/10,3/10,1/10],[3/6,2/6,1/6],[1/3,1/3,1/3]]
+            reward_ratio_pairs = [[1.,0.,0.],[6/10,3/10,1/10],[3/6,2/6,1/6],[1/3,1/3,1/3]]
         reward_ratio_pairs = (np.array(reward_ratio_pairs)/np.sum(reward_ratio_pairs[0])*variables['difficulty_sum_reward_rate']).tolist()
         reward_ratio_pairs = reward_ratio_pairs[:variables['difficulty_ratio_pair_num']]
         
@@ -277,7 +277,7 @@ else:
                     reward_ratio_pairs_bag.extend(np.unique(list(permutations(pair)),axis = 0))
                 np.random.shuffle(reward_ratio_pairs_bag)
             pair_now = reward_ratio_pairs_bag.pop(0)
-            if len(p_reward_L) == 0 or p_reward_L[-1] != pair_now[0]:
+            if len(p_reward_L) == 0 or pair_now[0] == pair_now[1] or ( p_reward_L[-1] != pair_now[0] and p_reward_R[-1] != pair_now[1]):
                 p_reward_L.append(pair_now[0])
                 p_reward_R.append(pair_now[1])
                 p_reward_M.append(pair_now[2])
@@ -306,7 +306,7 @@ else:
 variables['reward_probabilities_R']=p_reward_R
 variables['reward_probabilities_L']=p_reward_L
 variables['reward_probabilities_M']=p_reward_M
-
+print(variables)
 variables_subject = variables.copy()
 variables = dict()
 setupfile = os.path.join(setuppath,'variables.json')
@@ -511,13 +511,13 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                 sma.add_state(
                 	state_name='Auto_Water_R',
                 	state_timer=variables['ValveOpenTime_R']*variables['auto_water_time_multiplier'],
-                	state_change_conditions={EventName.Tup: 'GoCue_real'},
+                	state_change_conditions={EventName.Tup: 'Auto_Water_M'},
                 	output_actions = [('Valve',variables['WaterPort_R_ch_out'])])
             else:
                 sma.add_state(
                 	state_name='Auto_Water_R',
                 	state_timer=0,
-                	state_change_conditions={EventName.Tup: 'GoCue_real'},
+                	state_change_conditions={EventName.Tup: 'Auto_Water_M'},
                 	output_actions = [])
             if reward_M or reward_M_accumulated:
                 sma.add_state(
