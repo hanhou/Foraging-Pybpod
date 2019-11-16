@@ -17,7 +17,7 @@ from datetime import datetime
 import json
 
 print('started')
-paths = ['/home/rozmar/Data/Behavior/Behavior_room/Tower-2','C:\\Users\\labadmin\\Documents\\Pybpod\\Projects']
+paths = ['/home/rozmar/Data/Behavior/Behavior_rigs/Tower-1','C:\\Users\\labadmin\\Documents\\Pybpod\\Projects']
 for defpath in paths:
     print(defpath)
     if os.path.exists(defpath):
@@ -46,6 +46,7 @@ class App(QDialog):
         self.timer.timeout.connect(self.reloadthedata) # each time timer counts a second, call self.blink
         self.variables_to_display = ['ValveOpenTime_L',
                                      'ValveOpenTime_R',
+                                     'ValveOpenTime_M',
                                      'Trialnumber_in_block',
                                      'Trialnumber_in_block_max',
                                      'Trialnumber_in_block_min',
@@ -69,6 +70,7 @@ class App(QDialog):
                                      'auto_train_min_rewarded_trial_num',
                                      'early_lick_punishment',
                                      'reward_rate_family',
+                                     'lickport_number',
                                      ]
         free_water = {
                       'Trialnumber_in_block' : 15,
@@ -627,9 +629,9 @@ class PlotCanvas(FigureCanvas):
         times['choice_L'] = data['PC-TIME'][idxes['choice_L']]
         idxes['reward_L'] = (data['MSG'] == 'Reward_L') & (data['TYPE'] == 'TRANSITION')
         times['reward_L'] = data['PC-TIME'][idxes['reward_L']]        
-        idxes['autowater_L'] = (data['MSG'] == 'Auto_Water_L') & (data['TYPE'] == 'TRANSITION')
+        idxes['autowater_L'] = (data['MSG'] == 'Auto_Water_L') & (data['TYPE'] == 'STATE')
         times['autowater_L'] = data['PC-TIME'][idxes['autowater_L']]        
-        idxes['autowater_R'] = (data['MSG'] == 'Auto_Water_R') & (data['TYPE'] == 'TRANSITION')
+        idxes['autowater_R'] = (data['MSG'] == 'Auto_Water_R') & (data['TYPE'] == 'STATE')
         times['autowater_R'] = data['PC-TIME'][idxes['autowater_R']]
         idxes['lick_R'] = data['var:WaterPort_R_ch_in'] == data['+INFO']
         times['lick_R'] = data['PC-TIME'][idxes['lick_R']]
@@ -637,6 +639,14 @@ class PlotCanvas(FigureCanvas):
         times['choice_R'] = data['PC-TIME'][idxes['choice_R']]
         idxes['reward_R'] = (data['MSG'] == 'Reward_R') & (data['TYPE'] == 'TRANSITION')
         times['reward_R'] = data['PC-TIME'][idxes['reward_R']]
+        idxes['lick_M'] = data['var:WaterPort_M_ch_in'] == data['+INFO']
+        times['lick_M'] = data['PC-TIME'][idxes['lick_M']]
+        idxes['choice_M'] = (data['MSG'] == 'Choice_M') & (data['TYPE'] == 'TRANSITION')
+        times['choice_M'] = data['PC-TIME'][idxes['choice_M']]
+        idxes['reward_M'] = (data['MSG'] == 'Reward_M') & (data['TYPE'] == 'TRANSITION')
+        times['reward_M'] = data['PC-TIME'][idxes['reward_M']]        
+        idxes['autowater_M'] = (data['MSG'] == 'Auto_Water_M') & (data['TYPE'] == 'STATE')
+        times['autowater_M'] = data['PC-TIME'][idxes['autowater_M']]                
         idxes['trialstart'] = data['TYPE'] == 'TRIAL'
         times['trialstart'] = data['PC-TIME'][idxes['trialstart']]
         idxes['trialend'] = data['TYPE'] == 'END-TRIAL'
@@ -652,10 +662,17 @@ class PlotCanvas(FigureCanvas):
         times['reward_p_R'] = data['PC-TIME'][idxes['reward_p_R']]
         values['reward_p_R'] = data['reward_p_R'][idxes['reward_p_R']]
         
+        idxes['reward_p_M'] = idxes['GoCue']
+        times['reward_p_M'] = data['PC-TIME'][idxes['reward_p_M']]
+        values['reward_p_M'] = data['reward_p_M'][idxes['reward_p_M']]
+        
         idxes['p_reward_ratio'] = idxes['GoCue']
         times['p_reward_ratio'] = times['reward_p_R']
         values['p_reward_ratio'] = values['reward_p_R'] / (values['reward_p_R']+ values['reward_p_L'])
-        
+        if len(values['reward_p_M'])>0:
+            values['p_reward_ratio_R'] = values['reward_p_R'] / (values['reward_p_R']+ values['reward_p_L'] + values['reward_p_M'])
+            values['p_reward_ratio_M'] = values['reward_p_M'] / (values['reward_p_R']+ values['reward_p_L'] + values['reward_p_M'])
+            values['p_reward_ratio_L'] = values['reward_p_L'] / (values['reward_p_R']+ values['reward_p_L'] + values['reward_p_M'])
         return times, idxes, values
     
     def plot_licks_and_rewards(self,data = [],startime=None,endtime=None):
@@ -688,13 +705,17 @@ class PlotCanvas(FigureCanvas):
             self.axes.plot(times['GoCue'], np.zeros(len(times['GoCue']))+.5, 'g|', markersize = 100)
             
             self.axes.plot(times['lick_L'], np.zeros(len(times['lick_L'])), 'k|')
+            self.axes.plot(times['lick_M'], np.zeros(len(times['lick_M']))+.5, 'k|')
             self.axes.plot(times['lick_R'], np.zeros(len(times['lick_R']))+1, 'k|')
             self.axes.plot(times['choice_L'], np.zeros(len(times['choice_L']))+.1, 'go', markerfacecolor = (1, 1, 1, 1))
             self.axes.plot(times['choice_R'], np.zeros(len(times['choice_R']))+.9, 'go',markerfacecolor = (1, 1, 1, 1))
             self.axes.plot(times['reward_L'], np.zeros(len(times['reward_L']))+.2, 'go', markerfacecolor = (0, 1, 0, 1))
-            self.axes.plot(times['reward_R'], np.zeros(len(times['reward_R']))+.8, 'go',markerfacecolor = (0, 1, 0, 1))
+            self.axes.plot(times['reward_R'], np.zeros(len(times['reward_R']))+.8, 'go',markerfacecolor = (0, 1, 0, 1))            
+            self.axes.plot(times['choice_M'], np.zeros(len(times['choice_M']))+.45, 'go',markerfacecolor = (1, 1, 1, 1))
+            self.axes.plot(times['reward_M'], np.zeros(len(times['reward_M']))+.55, 'go', markerfacecolor = (0, 1, 0, 1))
             self.axes.plot(times['autowater_L'], np.zeros(len(times['autowater_L']))+.1, 'go', markerfacecolor = (0, 0, 1, 1))
             self.axes.plot(times['autowater_R'], np.zeros(len(times['autowater_R']))+.9, 'go',markerfacecolor = (0, 0, 1, 1))
+            self.axes.plot(times['autowater_M'], np.zeros(len(times['autowater_M']))+.45, 'go',markerfacecolor = (0, 0, 1, 1))
             self.axes.set_title('Lick and reward history')
             self.axes.set_yticks([0,1])
             self.axes.set_yticklabels(['Left', 'Right'])
@@ -740,22 +761,31 @@ class PlotCanvas(FigureCanvas):
             #print(startime , endtime)
             lick_left_num = np.zeros(len(timerange))
             lick_right_num  = np.zeros(len(timerange))
+            lick_middle_num  = np.zeros(len(timerange))
             reward_left_num = np.zeros(len(timerange))
             reward_right_num = np.zeros(len(timerange))
+            reward_middle_num = np.zeros(len(timerange))
             for idx,timenow in enumerate(timerange):
                 lick_left_num[idx] = sum((timenow+steptime > times['lick_L']) & (timenow-steptime<times['lick_L']))
                 lick_right_num[idx] = sum((timenow+steptime > times['lick_R']) & (timenow-steptime<times['lick_R']))
+                lick_middle_num[idx] = sum((timenow+steptime > times['lick_M']) & (timenow-steptime<times['lick_M']))
                 reward_left_num[idx] = sum((timenow+steptime > times['choice_L']) & (timenow-steptime<times['choice_L']))
                 reward_right_num[idx] = sum((timenow+steptime > times['choice_R']) & (timenow-steptime<times['choice_R']))
+                reward_middle_num[idx] = sum((timenow+steptime > times['choice_M']) & (timenow-steptime<times['choice_M']))
 
-            bias_lick_R = lick_right_num/(lick_right_num+lick_left_num)
-            bias_reward_R = reward_right_num/(reward_right_num+reward_left_num)
+            #bias_lick_R = lick_right_num/(lick_right_num+lick_left_num)
+            #bias_reward_R = reward_right_num/(reward_right_num+reward_left_num)
+            bias_reward_R_1 = reward_left_num/(reward_right_num+reward_left_num+reward_middle_num)
+            bias_reward_R_2 = (reward_left_num+reward_middle_num)/(reward_right_num+reward_left_num+reward_middle_num)
             self.axes.cla()
-            self.axes.plot(timerange, bias_lick_R, 'k-',label = 'Lick bias')
-            self.axes.plot(timerange, bias_reward_R, 'g-',label = 'choice bias')
+            #self.axes.plot(timerange, bias_lick_R, 'k-',label = 'Lick bias')
+            #self.axes.plot(timerange, bias_reward_R, 'g-',label = 'choice bias')
+            self.axes.plot(timerange, bias_reward_R_1, 'g-',label = 'choice bias')
+            self.axes.plot(timerange, bias_reward_R_2, 'g-',label = 'choice bias')
             idxes = times['p_reward_ratio'] > startime
             self.axes.plot(times['reward_p_L'][idxes], values['reward_p_L'][idxes], 'r-',label = 'Reward probability Left')
             self.axes.plot(times['reward_p_R'][idxes], values['reward_p_R'][idxes], 'b-',label = 'Reward probability Right')
+            self.axes.plot(times['reward_p_M'][idxes], values['reward_p_M'][idxes], 'm-',label = 'Reward probability Middle')
             self.axes.plot(times['p_reward_ratio'][idxes], values['p_reward_ratio'][idxes], 'y-',label = 'Reward ratio')
             
             self.axes.set_ylim(-.1,1.1)

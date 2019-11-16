@@ -168,10 +168,15 @@ def load_and_parse_a_csv_file(csvfilename):
         probs_r = df['var:reward_probabilities_R'][0]
         df['reward_p_L'] = np.nan
         df['reward_p_R'] = np.nan
+        if ('var:reward_probabilities_M' in df.columns) and ('Block_number' in df.columns):
+            probs_m = df['var:reward_probabilities_M'][0]
+            df['reward_p_M'] = np.nan
         for blocknum in df['Block_number'].unique():
             if not np.isnan(blocknum):
                 df.loc[df['Block_number'] == blocknum, 'reward_p_L'] = probs_l[int(blocknum-1)]
                 df.loc[df['Block_number'] == blocknum, 'reward_p_R'] = probs_r[int(blocknum-1)]
+                if ('var:reward_probabilities_M' in df.columns) and ('Block_number' in df.columns):
+                    df.loc[df['Block_number'] == blocknum, 'reward_p_M'] = probs_m[int(blocknum-1)]
     return df
 
 def loadcsvdata(bigtable=pd.DataFrame(),
