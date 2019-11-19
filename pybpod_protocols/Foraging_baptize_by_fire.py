@@ -273,11 +273,13 @@ else:
         reward_ratio_pairs_bag = list()
         while len(p_reward_L) < blocknum: # reward rate pairs are chosen randomly
             if len(reward_ratio_pairs_bag) == 0:
+                #%
                 for pair in reward_ratio_pairs:
                     reward_ratio_pairs_bag.extend(np.unique(list(permutations(pair)),axis = 0))
                 np.random.shuffle(reward_ratio_pairs_bag)
+                #%
             pair_now = reward_ratio_pairs_bag.pop(0)
-            if len(p_reward_L) == 0 or pair_now[0] == pair_now[1] or ( p_reward_L[-1] != pair_now[0] and p_reward_R[-1] != pair_now[1]):
+            if len(p_reward_L) == 0 or pair_now[0] == pair_now[1] or not( p_reward_L[-1] == pair_now[0] and p_reward_R[-1] == pair_now[1] and p_reward_M[-1] == pair_now[2]):
                 p_reward_L.append(pair_now[0])
                 p_reward_R.append(pair_now[1])
                 p_reward_M.append(pair_now[2])
@@ -302,7 +304,6 @@ else:
 #         del p_reward_R[-1]
 # 
 # =============================================================================
-#%%
 variables['reward_probabilities_R']=p_reward_R
 variables['reward_probabilities_L']=p_reward_L
 variables['reward_probabilities_M']=p_reward_M
@@ -534,7 +535,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             sma.add_state(
             	state_name='GoCue_real',
             	state_timer=variables['response_time'],
-            	state_change_conditions={variables['WaterPort_L_ch_in']: 'Choice_L', variables['WaterPort_R_ch_in']: 'Choice_R', EventName.Tup: 'ITI'},
+            	state_change_conditions={variables['WaterPort_L_ch_in']: 'Choice_L', variables['WaterPort_R_ch_in']: 'Choice_R', variables['WaterPort_M_ch_in']: 'Choice_M', EventName.Tup: 'ITI'},
             	output_actions = [(variables['GoCue_ch'],255)])
         else:
             sma.add_state(
@@ -642,13 +643,11 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         L_chosen = not np.isnan(trialdata['States timestamps']['Choice_L'][0][0])
         R_chosen = not np.isnan(trialdata['States timestamps']['Choice_R'][0][0])
         M_chosen = not np.isnan(trialdata['States timestamps']['Choice_M'][0][0])
-        
         if reward_L_consumed or reward_R_consumed or reward_M_consumed:
             rewarded_trial_num += 1
             unrewarded_trial_num_in_a_row = 0
         else:
-            unrewarded_trial_num_in_a_row += 1
-            
+            unrewarded_trial_num_in_a_row += 1  
         if L_chosen or R_chosen or M_chosen:
             ignore_trial_num_in_a_row  = 0
         else:
