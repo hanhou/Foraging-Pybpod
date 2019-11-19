@@ -51,7 +51,6 @@ class App(QDialog):
                                      'Trialnumber_in_block_max',
                                      'Trialnumber_in_block_min',
                                      'block_start_with_bias_check',
-                                     'block_first_to_right',
                                      'block_number',
                                      'difficulty_sum_reward_rate',
                                      'difficulty_ratio_pair_num',
@@ -73,120 +72,91 @@ class App(QDialog):
                                      'lickport_number',
                                      ]
         free_water = {
-                      'Trialnumber_in_block' : 15,
-                      'Trialnumber_in_block_SD': 5,
-                      'Trialnumber_in_block_min': 10,
-                      'block_start_with_bias_check' : False,
-                      'block_first_to_right' : False,
-                      'block_number' : 20,
-                      'difficulty_sum_reward_rate' : 1.,
                       'difficulty_ratio_pair_num' : 0,
-                      'delay' : 1.,
-                      'delay_min' : .5,
-                      'delay_max': 2.,
                       'response_time' : 2.,
-                      'iti' : 3., 
-                      'iti_min' : .5, # minimum ITI
-                      'iti_max' : 2.,
                       'increase_ITI_on_ignore_trials' : False, 
+                      'block_start_with_bias_check' : False,
                       'auto_water' : True,
-                      'auto_water_min_unrewarder_trials_in_a_row' : 5,
+                      'auto_water_min_unrewarder_trials_in_a_row' : 3,
                       'auto_water_min_ignored_trials_in_a_row' : 1,
-                      'auto_train_min_rewarded_trial_num' : 10,
                       'early_lick_punishment' : False,
-                }
-        baptize = {
-                'Trialnumber_in_block' : 15,
-                'Trialnumber_in_block_SD' : 5,
-                'Trialnumber_in_block_min' : 10,
-                'block_start_with_bias_check' : True,
-                'block_first_to_right' : True,
-                'block_number' : 20,
+                      }
+        pretraining = {
+                'Trialnumber_in_block' : 1,
+                'Trialnumber_in_block_min' : 0,
+                'Trialnumber_in_block_max' : 0,
+                'block_start_with_bias_check' : False,
+                'block_number' : 500,
                 'difficulty_sum_reward_rate' : 1,
                 'difficulty_ratio_pair_num' : 1,
-                'delay' : 1.,
-                'delay_min' : .5,
-                'delay_max' : 2.,
+                'reward_rate_family' : 3,
                 'response_time' : 2.,
-                'iti' : 3., 
-                'iti_min' : .5, # minimum ITI
-                'iti_max': 5.,
-                'increase_ITI_on_ignore_trials' : True,
-                'auto_water' : False,
-                'auto_train_min_rewarded_trial_num' : 10,
+                'auto_train_min_rewarded_trial_num' : 4,
                 'early_lick_punishment' : False,
-                                     }
-        baptize_early_lick = {
-                'Trialnumber_in_block' : 15,
-                'Trialnumber_in_block_SD' : 5,
-                'Trialnumber_in_block_min' : 10,
-                'block_start_with_bias_check' : True,
-                'block_first_to_right' : True,
-                'block_number' : 20,
+                }
+        pretraining_early_lick = {
+                'Trialnumber_in_block' : 1,
+                'Trialnumber_in_block_min' : 0,
+                'Trialnumber_in_block_max' : 0,
+                'block_start_with_bias_check' : False,
+                'block_number' : 500,
                 'difficulty_sum_reward_rate' : 1,
                 'difficulty_ratio_pair_num' : 1,
-                'delay' : 1.,
+                'delay' : 1,
                 'delay_min' : .5,
-                'delay_max' : 2.,
+                'delay_max' : 3.,
+                'reward_rate_family' : 3,
                 'response_time' : 1.,
-                'iti' : 3., 
-                'iti_min' : .5, # minimum ITI
-                'iti_max': 15.,
-                'increase_ITI_on_ignore_trials' : True,
-                'auto_water' : False,
-                'auto_train_min_rewarded_trial_num' : 10,
+                'auto_train_min_rewarded_trial_num' : 4,
                 'early_lick_punishment' : True,
-                                     }
-        baptize_low_probability = {
-                'Trialnumber_in_block' : 50,
-                'Trialnumber_in_block_SD' : 10,
-                'Trialnumber_in_block_min' : 40,
+                }
+        full_task_2_lickport = {
+                'Trialnumber_in_block' : 30,
+                'Trialnumber_in_block_min' : 50,
+                'Trialnumber_in_block_max' : 200,
                 'block_start_with_bias_check' : True,
-                'block_first_to_right' : True,
-                'block_number' : 20,
+                'block_number' : 100,
                 'difficulty_sum_reward_rate' : .45,
-                'difficulty_ratio_pair_num' : 1,
-                'delay' : 1.,
+                'difficulty_ratio_pair_num' : 3,
+                'reward_rate_family' : 1,
+                'delay' : 1,
                 'delay_min' : .5,
                 'delay_max' : 3.,
                 'response_time' : .5,
-                'iti' : 3.5, 
+                'iti' : 3, 
                 'iti_min' : .5, # minimum ITI
                 'iti_max': 10.,
                 'increase_ITI_on_ignore_trials' : True,
                 'auto_water' : False,
-                'auto_train_min_rewarded_trial_num' : 30,
                 'early_lick_punishment' : True,
                                      }
-
-        full_task = {
-                'Trialnumber_in_block' : 50,
-                'Trialnumber_in_block_SD' : 10,
-                'Trialnumber_in_block_min' : 40,
+        full_task_3_lickport = {
+                'Trialnumber_in_block' : 30,
+                'Trialnumber_in_block_min' : 80,
+                'Trialnumber_in_block_max' : 200,
                 'block_start_with_bias_check' : True,
-                'block_first_to_right' : True,
-                'block_number' : 20,
-                'difficulty_sum_reward_rate' : .45,
-                'difficulty_ratio_pair_num' : 3,
-                'delay' : 1.,
+                'block_number' : 100,
+                'difficulty_sum_reward_rate' : .75,
+                'difficulty_ratio_pair_num' : 1,
+                'reward_rate_family' : 1,
+                'delay' : 1,
                 'delay_min' : .5,
                 'delay_max' : 3.,
                 'response_time' : .5,
-                'iti' : 3.5, 
+                'iti' : 3, 
                 'iti_min' : .5, # minimum ITI
-                'iti_max': 45.,
+                'iti_max': 10.,
                 'increase_ITI_on_ignore_trials' : True,
                 'auto_water' : False,
-                'auto_train_min_rewarded_trial_num' : 25,
                 'early_lick_punishment' : True,
                                      }
         
         self.preset_variables = dict()
-        self.preset_variables['free_water_0'] = free_water
-        self.preset_variables['baptize_1'] = baptize
-        self.preset_variables['baptize_low_probability_2'] = baptize_low_probability
-        self.preset_variables['baptize_early_lick_3'] = baptize_early_lick
-        self.preset_variables['full_task_4'] = full_task
+        self.preset_variables['0 - free water'] = free_water
+        self.preset_variables['1 - pretraining'] = pretraining
+        self.preset_variables['2 - pretraining + early lick punishment'] = pretraining_early_lick
+        self.preset_variables['3 - full task (2 lickports)'] = full_task_2_lickport
+        self.preset_variables['4 - full task (3 lickports)'] = full_task_3_lickport
         
     def set_parameters_app(self):
         self.parametersetter = App_parametersetter(parent = self)
