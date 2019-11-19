@@ -201,6 +201,7 @@ else:
 start_with_bias_check = variables['block_start_with_bias_check']
 #first_block_to_right = variables['block_first_to_right']
 if 'lickport_number' not in variables.keys() or variables['lickport_number'] == 2:
+    lickportnum = 2
     if variables['difficulty_ratio_pair_num']<1:
         reward_ratio_pairs = [[1,1]]
     else:   
@@ -243,6 +244,7 @@ if 'lickport_number' not in variables.keys() or variables['lickport_number'] == 
     
     p_reward_M=list(np.zeros(len(p_reward_L))) # 
 else:
+    lickportnum = 3
     if variables['difficulty_ratio_pair_num']<1:
         reward_ratio_pairs = [[1.,1.,1.]]
     else:
@@ -404,7 +406,10 @@ ignore_trial_num_in_a_row = 0
 if variables['accumulate_reward']:
     reward_L_accumulated = True
     reward_R_accumulated = True
-    reward_M_accumulated = True
+    if lickportnum == 3:
+        reward_M_accumulated = True
+    else:
+        reward_M_accumulated = False
 else:
     reward_L_accumulated = False
     reward_R_accumulated = False
