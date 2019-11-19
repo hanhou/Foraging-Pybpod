@@ -447,17 +447,13 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         reward_L = random_values_L.pop(0) < p_L #np.random.uniform(0.,1.) < p_L
         reward_R = random_values_R.pop(0) < p_R # np.random.uniform(0.,1.) < p_R
         reward_M = random_values_M.pop(0) < p_M # np.random.uniform(0.,1.) < p_R
-        iti_now = np.random.exponential(variables['iti'],1) + ignore_trial_num_in_a_row*variables['increase_ITI_on_ignore_trials']*variables['iti']
+        iti_now = np.random.exponential(variables['iti'],1) + variables['iti_min'] + ignore_trial_num_in_a_row*variables['increase_ITI_on_ignore_trials']*variables['iti']
         #iti_now = 0
-        if iti_now < variables['iti_min']:
-            iti_now = variables['iti_min']    
         if iti_now > variables['iti_max']:
             iti_now = variables['iti_max']    
             
             
-        baselinetime_now =  np.random.exponential(variables['delay'],1)# np.random.normal(variables['delay'],variables['delay_rate'])
-        if baselinetime_now < variables['delay_min']:
-            baselinetime_now = variables['delay_min']   
+        baselinetime_now =  np.random.exponential(variables['delay'],1)+variables['delay_min']# np.random.normal(variables['delay'],variables['delay_rate'])  
         if baselinetime_now > variables['delay_max']:
             baselinetime_now = variables['delay_max']
             
@@ -476,7 +472,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             sma.add_state(
                 state_name='Start',
                 state_timer=baselinetime_now,
-                state_change_conditions={variables['WaterPort_L_ch_in']: 'BackToBaseline', variables['WaterPort_R_ch_in']: 'BackToBaseline',EventName.Tup: 'GoCue'},
+                state_change_conditions={variables['WaterPort_L_ch_in']: 'BackToBaseline', variables['WaterPort_R_ch_in']: 'BackToBaseline',variables['WaterPort_M_ch_in']: 'BackToBaseline',EventName.Tup: 'GoCue'},
                 output_actions = [])
         else:
             sma.add_state(
@@ -486,7 +482,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                 output_actions = [])
         sma.add_state(
         	state_name='BackToBaseline',
-        	state_timer=0.001,
+        	state_timer=2,
         	state_change_conditions={EventName.Tup: 'Start'},
         	output_actions = [])
         # autowater comes here!!
