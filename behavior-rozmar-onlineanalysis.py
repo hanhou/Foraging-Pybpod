@@ -682,13 +682,14 @@ class PlotCanvas(FigureCanvas):
             self.axes.plot(times['choice_R'], np.zeros(len(times['choice_R']))+.9, 'go',markerfacecolor = (1, 1, 1, 1))
             self.axes.plot(times['reward_L'], np.zeros(len(times['reward_L']))+.2, 'go', markerfacecolor = (0, 1, 0, 1))
             self.axes.plot(times['reward_R'], np.zeros(len(times['reward_R']))+.8, 'go',markerfacecolor = (0, 1, 0, 1))  
-            self.axes.plot(times['autowater_L'], np.zeros(len(times['autowater_L']))+.1, 'go', markerfacecolor = (0, 0, 1, 1))
-            self.axes.plot(times['autowater_R'], np.zeros(len(times['autowater_R']))+.9, 'go',markerfacecolor = (0, 0, 1, 1))
+            self.axes.plot(times['autowater_L'], np.zeros(len(times['autowater_L']))+.7, 'go', markerfacecolor = (0, 0, 1, 1))
+            #self.axes.plot(times['autowater_L'], np.zeros(len(times['autowater_L']))+.1, 'go', markerfacecolor = (0, 0, 1, 1))
+            #self.axes.plot(times['autowater_R'], np.zeros(len(times['autowater_R']))+.9, 'go',markerfacecolor = (0, 0, 1, 1))
             if 'lick_M' in times.keys():
                 self.axes.plot(times['lick_M'], np.zeros(len(times['lick_M']))+.5, 'k|')
                 self.axes.plot(times['choice_M'], np.zeros(len(times['choice_M']))+.45, 'go',markerfacecolor = (1, 1, 1, 1))
                 self.axes.plot(times['reward_M'], np.zeros(len(times['reward_M']))+.55, 'go', markerfacecolor = (0, 1, 0, 1))
-                self.axes.plot(times['autowater_M'], np.zeros(len(times['autowater_M']))+.45, 'go',markerfacecolor = (0, 0, 1, 1))
+                #self.axes.plot(times['autowater_M'], np.zeros(len(times['autowater_M']))+.45, 'go',markerfacecolor = (0, 0, 1, 1))
             self.axes.set_title('Lick and reward history')
             self.axes.set_yticks([0,1])
             self.axes.set_yticklabels(['Left', 'Right'])
@@ -753,18 +754,27 @@ class PlotCanvas(FigureCanvas):
             
             self.axes.cla()
             if 'lick_M' in times.keys():
-                bias_reward_R_1 = reward_left_num/(reward_right_num+reward_left_num+reward_middle_num)
-                bias_reward_R_2 = (reward_left_num+reward_middle_num)/(reward_right_num+reward_left_num+reward_middle_num)
+                idxes = times['p_reward_ratio'] > startime
+                golden_reward_R_1 = values['reward_p_L'][idxes]/(values['reward_p_L'][idxes]+values['reward_p_R'][idxes]+values['reward_p_M'][idxes])
+                golden_reward_R_2 = (values['reward_p_L'][idxes]+values['reward_p_M'][idxes])/(values['reward_p_L'][idxes]+values['reward_p_R'][idxes]+values['reward_p_M'][idxes])
+                reward_sum_num = reward_right_num+reward_left_num+reward_middle_num
                 
                 #self.axes.plot(timerange, bias_lick_R, 'k-',label = 'Lick bias')
                 #self.axes.plot(timerange, bias_reward_R, 'g-',label = 'choice bias')
-                self.axes.plot(timerange, bias_reward_R_1, 'g-',label = 'choice bias')
-                self.axes.plot(timerange, bias_reward_R_2, 'g-',label = 'choice bias')
-                idxes = times['p_reward_ratio'] > startime
+                self.axes.stackplot(timerange,  reward_left_num/reward_sum_num ,  reward_middle_num/reward_sum_num ,  reward_right_num/reward_sum_num ,colors=['r','g','b'], alpha=0.4 )
+                #self.axes.plot(timerange, bias_reward_R_1, 'g-',label = 'choice bias')
+                #self.axes.plot(timerange, bias_reward_R_2, 'g-',label = 'choice bias')
+                
+                
                 self.axes.plot(times['reward_p_L'][idxes], values['reward_p_L'][idxes], 'r-',label = 'Reward probability Left')
                 self.axes.plot(times['reward_p_R'][idxes], values['reward_p_R'][idxes], 'b-',label = 'Reward probability Right')
-                self.axes.plot(times['reward_p_M'][idxes], values['reward_p_M'][idxes], 'm-',label = 'Reward probability Middle')
+                self.axes.plot(times['reward_p_M'][idxes], values['reward_p_M'][idxes], 'g-',label = 'Reward probability Middle')
+                self.axes.plot(times['p_reward_ratio'][idxes], golden_reward_R_1, 'y-',label = 'Reward ratio')
+                self.axes.plot(times['p_reward_ratio'][idxes], golden_reward_R_2, 'y-',label = 'Reward ratio')
                 #self.axes.plot(times['p_reward_ratio'][idxes], values['p_reward_ratio'][idxes], 'y-',label = 'Reward ratio')
+                self.axes.set_ylim(0,1)
+                vals = self.axes.get_yticks()
+                self.axes.set_yticklabels(['{:,.0%}'.format(x) for x in vals])
             else:
                 bias_lick_R = lick_right_num/(lick_right_num+lick_left_num)
                 bias_reward_R = reward_right_num/(reward_right_num+reward_left_num)
@@ -774,10 +784,11 @@ class PlotCanvas(FigureCanvas):
                 self.axes.plot(times['reward_p_L'][idxes], values['reward_p_L'][idxes], 'r-',label = 'Reward probability Left')
                 self.axes.plot(times['reward_p_R'][idxes], values['reward_p_R'][idxes], 'b-',label = 'Reward probability Right')
                 self.axes.plot(times['p_reward_ratio'][idxes], values['p_reward_ratio'][idxes], 'y-',label = 'Reward ratio')
-            self.axes.set_ylim(-.1,1.1)
+                self.axes.set_yticks([0,1])
+                self.axes.set_yticklabels(['Left', 'Right'])
+                self.axes.set_ylim(-.1,1.1)
             #self.axes.set_xlim(startime,endtime)
-            self.axes.set_yticks([0,1])
-            self.axes.set_yticklabels(['Left', 'Right'])
+            
             #self.axes.legend()
 # =============================================================================
 #             self.axes.plot(timerange, lick_left_num, 'b-')
