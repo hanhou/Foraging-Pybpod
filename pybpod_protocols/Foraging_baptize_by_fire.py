@@ -223,19 +223,19 @@ if 'lickport_number' not in variables.keys() or variables['lickport_number'] == 
         p_reward_L=list()#[.225] #list()#[.225] #list()# the first block is set to 50% reward rate
         p_reward_R=list()#[.225] #list()#[.225] #list()# list()#the first block is set to 50% reward rate
 #%
-    reward_ratio_pairs_bag = list()
-    while len(p_reward_L) < blocknum: # reward rate pairs are chosen randomly
-        if len(reward_ratio_pairs_bag) == 0:
-            for pair in reward_ratio_pairs:
-                reward_ratio_pairs_bag.append(pair)
-                reward_ratio_pairs_bag.append(pair[::-1])
-            np.random.shuffle(reward_ratio_pairs_bag)
-        pair_now = reward_ratio_pairs_bag.pop(0)
-        if len(p_reward_L) == 0 or p_reward_L[-1] != pair_now[0] or pair_now[0] == pair_now[1]:
-            p_reward_L.append(pair_now[0])
-            p_reward_R.append(pair_now[1])
-        else:
-            reward_ratio_pairs_bag.append(pair_now)
+        reward_ratio_pairs_bag = list()
+        while len(p_reward_L) < blocknum: # reward rate pairs are chosen randomly
+            if len(reward_ratio_pairs_bag) == 0:
+                for pair in reward_ratio_pairs:
+                    reward_ratio_pairs_bag.append(pair)
+                    reward_ratio_pairs_bag.append(pair[::-1])
+                np.random.shuffle(reward_ratio_pairs_bag)
+            pair_now = reward_ratio_pairs_bag.pop(0)
+            if len(p_reward_L) == 0 or p_reward_L[-1] != pair_now[0] or pair_now[0] == pair_now[1]:
+                p_reward_L.append(pair_now[0])
+                p_reward_R.append(pair_now[1])
+            else:
+                reward_ratio_pairs_bag.append(pair_now)
     
     p_reward_M=list(np.zeros(len(p_reward_L))) # 
 else:
