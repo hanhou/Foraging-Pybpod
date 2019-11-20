@@ -13,7 +13,7 @@ import numpy as np
 import os, sys 
 
 usedummyzaber = False # for testing without motor movement - only for debugging
-
+bias_check_auto_train_min_rewarded_trial_num = 2
 
 def notify_experimenter(metadata,path):
     filepath = os.path.join(path,'notifications.json')
@@ -216,14 +216,9 @@ if 'lickport_number' not in variables.keys() or variables['lickport_number'] == 
 
     blocknum = variables['block_number'] # number of blocks
     if start_with_bias_check:
-        if variables['block_first_to_right']:
-            p_reward_L = [0,1,0,1] #variables['difficulty_sum_reward_rate']/2# the first block is set to 50% reward rate 
-            p_reward_R = [1,0,1,0] #variables['difficulty_sum_reward_rate']/2#the first block is set to 50% rewa 
-        else:
-            p_reward_L = [1,0,1,0] #variables['difficulty_sum_reward_rate']/2# the first block is set to 50% reward rate 
-            p_reward_R = [0,1,0,1] #variables['difficulty_sum_reward_rate']/2#the first block is set to 50% rewa 
+        p_reward_L = [0,1,0,1] #variables['difficulty_sum_reward_rate']/2# the first block is set to 50% reward rate 
+        p_reward_R = [1,0,1,0] #variables['difficulty_sum_reward_rate']/2#the first block is set to 50% rewa 
         bias_check_blocknum = len(p_reward_L)
-        bias_check_auto_train_min_rewarded_trial_num = 2# autotrain
     else:
         p_reward_L=list()#[.225] #list()#[.225] #list()# the first block is set to 50% reward rate
         p_reward_R=list()#[.225] #list()#[.225] #list()# list()#the first block is set to 50% reward rate
@@ -257,16 +252,10 @@ else:
         
     blocknum = variables['block_number'] # number of blocks
     if start_with_bias_check:
-        if variables['block_first_to_right']:
-            p_reward_L = [0,1,0,0,1,0] #variables['difficulty_sum_reward_rate']/2# the first block is set to 50% reward rate 
-            p_reward_R = [1,0,0,1,0,0] #variables['difficulty_sum_reward_rate']/2#the first block is set to 50% rewa 
-            p_reward_M = [0,0,1,0,0,1] #variables['difficulty_sum_reward_rate']/2#the first block is set to 50% rewa 
-        else:
-            p_reward_L = [1,0,0,1,0,0] #variables['difficulty_sum_reward_rate']/2# the first block is set to 50% reward rate 
-            p_reward_R = [0,0,1,0,0,1] #variables['difficulty_sum_reward_rate']/2#the first block is set to 50% rewa 
-            p_reward_M = [0,1,0,0,1,0] #variables['difficulty_sum_reward_rate']/2#the first block is set to 50% rewa 
-        bias_check_blocknum = len(p_reward_L)
-        bias_check_auto_train_min_rewarded_trial_num = 2# autotrain
+        p_reward_L = [0,1,0,0,1,0] #variables['difficulty_sum_reward_rate']/2# the first block is set to 50% reward rate 
+        p_reward_R = [1,0,0,1,0,0] #variables['difficulty_sum_reward_rate']/2#the first block is set to 50% rewa 
+        p_reward_M = [0,0,1,0,0,1] #variables['difficulty_sum_reward_rate']/2#the first block is set to 50% rewa 
+        bias_check_blocknum = len(p_reward_L)   
     else:
         p_reward_L=list()#[.225] #list()#[.225] #list()# the first block is set to 50% reward rate
         p_reward_R=list()#[.225] #list()#[.225] #list()# list()#the first block is set to 50% reward rate
