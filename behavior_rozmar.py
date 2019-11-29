@@ -380,16 +380,12 @@ def save_pickles_for_online_analysis(projectdir = Path(defpath),projectnames_nee
                                     if doit:
                                         df = load_and_parse_a_csv_file(sessionname/ (sessionname.name+'.csv'))
                                         variables = dict()
-# =============================================================================
-#                                         try:
-# =============================================================================
-                                        variables['times'], variables['idxes'], variables['values'] = minethedata(df)  
-                                        variables['experimenter'] = df['experimenter'][0]
-                                        variables['subject'] = df['subject'][0]
-# =============================================================================
-#                                         except:
-#                                             variables = dict()
-# =============================================================================
+                                        try:
+                                            variables['times'], variables['idxes'], variables['values'] = minethedata(df)  
+                                            variables['experimenter'] = df['experimenter'][0]
+                                            variables['subject'] = df['subject'][0]
+                                        except:
+                                            variables = dict()
                                         with open(setupname_export/ (sessionname.name+'.pkl'), 'wb') as outfile:
                                             pickle.dump(variables, outfile)
                                     else:
@@ -426,24 +422,25 @@ def load_pickles_for_online_analysis(projectdir = Path(defpath),projectnames_nee
                                     print('opening '+ sessionname)
                                     with open(setupname / 'sessions'/ sessionname,'rb') as readfile:
                                         variables_new = pickle.load(readfile)
-                                    if not subjectnames_needed or variables_new['subject'] in subjectnames_needed:
-                                        if len(variables_out.keys()) == 0:
-                                            variables_out['times'] = dict()
-                                            variables_out['times']['alltimes'] = np.asarray([])
-                                            for key in variables_new['times'].keys():
-                                                variables_out['times'][key] = variables_new['times'][key].values
-                                                if len(variables_out['times']['alltimes']) > 0:
+                                    if len(variables_new.keys()) > 0:
+                                        if  not subjectnames_needed or variables_new['subject'] in subjectnames_needed:
+                                            if len(variables_out.keys()) == 0:
+                                                variables_out['times'] = dict()
+                                                variables_out['times']['alltimes'] = np.asarray([])
+                                                for key in variables_new['times'].keys():
+                                                    variables_out['times'][key] = variables_new['times'][key].values
+                                                    if len(variables_out['times']['alltimes']) > 0:
+                                                        variables_out['times']['alltimes'] = np.concatenate((variables_out['times']['alltimes'],variables_new['times'][key].values))
+                                                    else:
+                                                        variables_out['times']['alltimes'] = variables_new['times'][key].values
+                                                variables_out['values'] = dict()
+                                                for key in variables_new['values'].keys():
+                                                    variables_out['values'][key] = variables_new['values'][key].values
+                                            else:
+                                                for key in variables_new['times'].keys():
+                                                    variables_out['times'][key] = np.concatenate((variables_out['times'][key],variables_new['times'][key].values))
                                                     variables_out['times']['alltimes'] = np.concatenate((variables_out['times']['alltimes'],variables_new['times'][key].values))
-                                                else:
-                                                    variables_out['times']['alltimes'] = variables_new['times'][key].values
-                                            variables_out['values'] = dict()
-                                            for key in variables_new['values'].keys():
-                                                variables_out['values'][key] = variables_new['values'][key].values
-                                        else:
-                                            for key in variables_new['times'].keys():
-                                                variables_out['times'][key] = np.concatenate((variables_out['times'][key],variables_new['times'][key].values))
-                                                variables_out['times']['alltimes'] = np.concatenate((variables_out['times']['alltimes'],variables_new['times'][key].values))
-                                            for key in variables_new['values'].keys():
-                                                variables_out['values'][key] = np.concatenate((variables_out['values'][key],variables_new['values'][key].values))
-                                        
+                                                for key in variables_new['values'].keys():
+                                                    variables_out['values'][key] = np.concatenate((variables_out['values'][key],variables_new['values'][key].values))
+                                            
     return variables_out

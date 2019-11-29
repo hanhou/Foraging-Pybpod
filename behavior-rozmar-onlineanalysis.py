@@ -17,7 +17,7 @@ from datetime import datetime
 import json
 
 print('started')
-paths = ['/home/rozmar/Data/Behavior/Behavior_rigs/Tower-1','C:\\Users\\labadmin\\Documents\\Pybpod\\Projects']
+paths = ['/home/rozmar/Data/Behavior/Behavior_rigs/Tower-2','C:\\Users\\labadmin\\Documents\\Pybpod\\Projects']
 for defpath in paths:
     print(defpath)
     if os.path.exists(defpath):
@@ -179,7 +179,7 @@ class App(QDialog):
         self.handles['load_the_data'].setStyleSheet('QPushButton {color: red;}')
         qApp.processEvents()
         selected = dict()
-        filterorder = ['project','experiment','setup','session','subject']
+        filterorder = ['project','experiment','setup','subject']
         for filternow in filterorder:
             filterstring = str(self.handles['filter_'+filternow].currentText())
             if not re.findall('all',filterstring):
@@ -201,6 +201,7 @@ class App(QDialog):
         self.handles['load_the_data'].setText('Load the data')
         self.handles['load_the_data'].setStyleSheet('QPushButton {color: black;}')
         self.updateUI()
+        self.filterthedata()
         #print('data reloaded')
         #print(time.perf_counter())
     
@@ -208,7 +209,7 @@ class App(QDialog):
     def reloadthedata(self):
         #self.data = behavior_rozmar.loadcsvdata(self.data, projectdir = self.dirs['projectdir'])
         self.loadthedata()
-        self.filterthedata()
+        #self.filterthedata()
         print('data reloaded')
         print(time.perf_counter())  
         
@@ -285,11 +286,13 @@ class App(QDialog):
         self.handles['filter_setup'].addItem('all setups')
         self.handles['filter_setup'].addItems(self.alldirs['setupnames'])
         self.handles['filter_setup'].currentIndexChanged.connect(lambda: self.filterthedata('filter_setup'))
-        self.handles['filter_session'] = QComboBox(self)
-        self.handles['filter_session'].setFocusPolicy(Qt.NoFocus)
-        self.handles['filter_session'].addItem('all sessions')
-        self.handles['filter_session'].addItems(self.alldirs['sessionnames'])
-        self.handles['filter_session'].currentIndexChanged.connect(lambda: self.filterthedata('filter_session'))
+# =============================================================================
+#         self.handles['filter_session'] = QComboBox(self)
+#         self.handles['filter_session'].setFocusPolicy(Qt.NoFocus)
+#         self.handles['filter_session'].addItem('all sessions')
+#         self.handles['filter_session'].addItems(self.alldirs['sessionnames'])
+#         self.handles['filter_session'].currentIndexChanged.connect(lambda: self.filterthedata('filter_session'))
+# =============================================================================
         
         self.handles['load_the_data'] = QPushButton('Load the data')
         self.handles['load_the_data'].setFocusPolicy(Qt.NoFocus)
@@ -313,11 +316,11 @@ class App(QDialog):
         layout.addWidget(self.handles['filter_project'] ,0,0)
         layout.addWidget(self.handles['filter_experiment'],0,1)
         layout.addWidget(self.handles['filter_setup'],0,2)
-        layout.addWidget(self.handles['filter_session'],0,3)
+        #layout.addWidget(self.handles['filter_session'],0,3)
+        layout.addWidget(self.handles['filter_subject'],0,3)
         layout.addWidget(self.handles['load_the_data'],0,4)
-        layout.addWidget(self.handles['filter_subject'],0,5)
-        layout.addWidget(self.handles['filter_experimenter'],0,6)
-        layout.addWidget(self.handles['loadparams'],0,7)
+        layout.addWidget(self.handles['filter_experimenter'],0,5)
+        layout.addWidget(self.handles['loadparams'],0,6)
         self.horizontalGroupBox_filter.setLayout(layout)
         
         self.horizontalGroupBox_axes = QGroupBox("plots")
@@ -404,12 +407,14 @@ class App(QDialog):
             self.handles['filter_setup'].addItem('all setups')
             self.handles['filter_setup'].addItems(self.alldirs['setupnames'])
             self.handles['filter_setup'].currentIndexChanged.connect(lambda: self.filterthedata('filter_setup'))
-        if lastselected == 'filter_project' or lastselected == 'filter_setup':
-            self.handles['filter_session'].currentIndexChanged.disconnect()
-            self.handles['filter_session'].clear()
-            self.handles['filter_session'].addItem('all sessions')
-            self.handles['filter_session'].addItems(self.alldirs['sessionnames'])
-            self.handles['filter_session'].currentIndexChanged.connect(lambda: self.filterthedata('filter_session'))
+# =============================================================================
+#         if lastselected == 'filter_project' or lastselected == 'filter_setup':
+#             self.handles['filter_session'].currentIndexChanged.disconnect()
+#             self.handles['filter_session'].clear()
+#             self.handles['filter_session'].addItem('all sessions')
+#             self.handles['filter_session'].addItems(self.alldirs['sessionnames'])
+#             self.handles['filter_session'].currentIndexChanged.connect(lambda: self.filterthedata('filter_session'))
+# =============================================================================
     def load_parameters(self):
         maxcol = 4 # number of columns
         project_now = self.handles['filter_project'].currentText()
