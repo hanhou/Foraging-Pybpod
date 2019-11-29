@@ -5,8 +5,9 @@ import pandas as pd
 from datetime import datetime
 import time
 import os
+import pickle
 #%%
-paths = ['/home/rozmar/Data/Behavior/Behavior_room/Tower-3','C:\\Users\\labadmin\\Documents\\Pybpod\\Projects']
+paths = ['/home/rozmar/Data/Behavior/Behavior_rigs/Tower-3','C:\\Users\\labadmin\\Documents\\Pybpod\\Projects']
 for defpath in paths:
     if os.path.exists(defpath):
         break
@@ -21,7 +22,6 @@ def loaddirstucture(projectdir = Path(defpath),projectnames_needed = None, exper
     subjectnames = list()
     if type(projectdir) != type(Path()):
         projectdir = Path(projectdir)
-        
     for projectname in projectdir.iterdir():
         if projectname.is_dir() and (not projectnames_needed or projectname.name in projectnames_needed):
             dirstructure[projectname.name] = dict()
@@ -250,10 +250,200 @@ def loadcsvdata(bigtable=pd.DataFrame(),
     if type(bigtable_orig) == pd.DataFrame and len(bigtable) != len(bigtable_orig):
         bigtable = bigtable.reset_index(drop=True)                                
     return bigtable
+
+
+
+#%%
+def minethedata(data):
+        idxes = dict()
+        times = dict()
+        values = dict()
+        idxes['lick_L'] = data['var:WaterPort_L_ch_in'] == data['+INFO'].values
+        times['lick_L'] = data['PC-TIME'][idxes['lick_L']]
+        idxes['choice_L'] = (data['MSG'] == 'Choice_L') & (data['TYPE'] == 'TRANSITION')
+        times['choice_L'] = data['PC-TIME'][idxes['choice_L']]
+        idxes['reward_L'] = (data['MSG'] == 'Reward_L') & (data['TYPE'] == 'TRANSITION')
+        times['reward_L'] = data['PC-TIME'][idxes['reward_L']]        
+        idxes['autowater_L'] = (data['MSG'] == 'Auto_Water_L') & (data['TYPE'] == 'TRANSITION')
+        times['autowater_L'] = data['PC-TIME'][idxes['autowater_L']]        
+        idxes['autowater_R'] = (data['MSG'] == 'Auto_Water_R') & (data['TYPE'] == 'TRANSITION')
+        times['autowater_R'] = data['PC-TIME'][idxes['autowater_R']]
+        idxes['lick_R'] = data['var:WaterPort_R_ch_in'] == data['+INFO']
+        times['lick_R'] = data['PC-TIME'][idxes['lick_R']]
+        idxes['choice_R'] = (data['MSG'] == 'Choice_R') & (data['TYPE'] == 'TRANSITION')
+        times['choice_R'] = data['PC-TIME'][idxes['choice_R']]
+        idxes['reward_R'] = (data['MSG'] == 'Reward_R') & (data['TYPE'] == 'TRANSITION')
+        times['reward_R'] = data['PC-TIME'][idxes['reward_R']]
+        if 'var:WaterPort_M_ch_in' in data.keys():
+            idxes['lick_M'] = data['var:WaterPort_M_ch_in'] == data['+INFO']
+            times['lick_M'] = data['PC-TIME'][idxes['lick_M']]
+            idxes['choice_M'] = (data['MSG'] == 'Choice_M') & (data['TYPE'] == 'TRANSITION')
+            times['choice_M'] = data['PC-TIME'][idxes['choice_M']]
+            idxes['reward_M'] = (data['MSG'] == 'Reward_M') & (data['TYPE'] == 'TRANSITION')
+            times['reward_M'] = data['PC-TIME'][idxes['reward_M']]        
+            idxes['autowater_M'] = (data['MSG'] == 'Auto_Water_M') & (data['TYPE'] == 'TRANSITION')
+            times['autowater_M'] = data['PC-TIME'][idxes['autowater_M']]            
+        idxes['trialstart'] = data['TYPE'] == 'TRIAL'
+        times['trialstart'] = data['PC-TIME'][idxes['trialstart']]
+        idxes['trialend'] = data['TYPE'] == 'END-TRIAL'
+        times['trialend'] = data['PC-TIME'][idxes['trialend']]
+        idxes['GoCue'] = (data['MSG'] == 'GoCue') & (data['TYPE'] == 'TRANSITION')
+        times['GoCue'] = data['PC-TIME'][idxes['GoCue']]
+        
+        idxes['reward_p_L'] = idxes['GoCue']
+        times['reward_p_L'] = data['PC-TIME'][idxes['reward_p_L']]
+        values['reward_p_L'] = data['reward_p_L'][idxes['reward_p_L']]
+        
+        idxes['reward_p_R'] = idxes['GoCue']
+        times['reward_p_R'] = data['PC-TIME'][idxes['reward_p_R']]
+        values['reward_p_R'] = data['reward_p_R'][idxes['reward_p_R']]
+        
+        if 'var:WaterPort_M_ch_in' in data.keys():
+            idxes['reward_p_M'] = idxes['GoCue']
+            times['reward_p_M'] = data['PC-TIME'][idxes['reward_p_M']]
+            values['reward_p_M'] = data['reward_p_M'][idxes['reward_p_M']]
+        idxes['p_reward_ratio'] = idxes['GoCue']
+        times['p_reward_ratio'] = times['reward_p_R']
+        values['p_reward_ratio'] = values['reward_p_R'] / (values['reward_p_R']+ values['reward_p_L'])
+        if 'reward_p_M' in values.keys() and len(values['reward_p_M'])>0:
+            values['p_reward_ratio_R'] = values['reward_p_R'] / (values['reward_p_R']+ values['reward_p_L'] + values['reward_p_M'])
+            values['p_reward_ratio_M'] = values['reward_p_M'] / (values['reward_p_R']+ values['reward_p_L'] + values['reward_p_M'])
+            values['p_reward_ratio_L'] = values['reward_p_L'] / (values['reward_p_R']+ values['reward_p_L'] + values['reward_p_M'])
+        return times, idxes, values
 #%%
 #bigtable = loadcsvdata(projectdir = '/home/rozmar/Data/Behavior/Projects')
 
 #%%
 #df = bigtable
 
+def save_pickles_for_online_analysis(projectdir = Path(defpath),projectnames_needed = None, experimentnames_needed = None,  setupnames_needed=None,load_only_last_day = False):
+    dirstructure = dict()
+    projectnames = list()
+    experimentnames = list()
+    setupnames = list()
+    sessionnames = list()
+    #projectdir= defpath
+    if type(projectdir) != type(Path()):
+        projectdir = Path(projectdir)
+    for projectname in projectdir.iterdir():
+        if projectname.is_dir() and (not projectnames_needed or projectname.name in projectnames_needed):
+            dirstructure[projectname.name] = dict()
+            projectnames.append(projectname.name)
+            
+            projectdir_export = projectname/'experiments_exported'
+            if 'experiments_exported' not in os.listdir(projectname):
+                (projectdir_export).mkdir()
+                
+            for experimentname in (projectname / 'experiments').iterdir():
+                if experimentname.is_dir() and (not experimentnames_needed or experimentname.name in experimentnames_needed ): 
+                    dirstructure[projectname.name][experimentname.name] = dict()
+                    experimentnames.append(experimentname.name)
+                    
+                    experimentname_export = projectdir_export/experimentname.name
+                    if experimentname.name not in os.listdir(projectdir_export):
+                        (experimentname_export).mkdir()
+                        experimentname_export = experimentname_export/'setups'
+                        (experimentname_export).mkdir()
+                    else:
+                        experimentname_export = experimentname_export/'setups'
+                    for setupname in (experimentname / 'setups').iterdir():
+                        if setupname.is_dir() and (not setupnames_needed or setupname.name in setupnames_needed ): 
+                            setupnames.append(setupname.name)
+                            dirstructure[projectname.name][experimentname.name][setupname.name] = list()
+                            #%
+                            setupname_export = experimentname_export/setupname.name
+                            if setupname.name not in os.listdir(experimentname_export):
+                                (setupname_export).mkdir()
+                                setupname_export = setupname_export/'sessions'
+                                (setupname_export).mkdir()
+                            else:
+                                setupname_export = setupname_export/'sessions'
+                            
+                            if load_only_last_day:
+                                sessionnames_forsort = list()
+                                for sessionname in (setupname / 'sessions').iterdir():
+                                    if sessionname.is_dir(): 
+                                        sessionnames_forsort.append(sessionname.name[:8])#only the date
+                                sessionnames_forsort = np.sort(sessionnames_forsort)
+                                sessiondatetoload = sessionnames_forsort[-1]
+                            
+                            for sessionname in (setupname / 'sessions').iterdir():
+                                if sessionname.is_dir() and (not load_only_last_day or sessiondatetoload in sessionname.name): 
+                                    sessionnames.append(sessionname.name)
+                                    dirstructure[projectname.name][experimentname.name][setupname.name].append(sessionname.name)
+                                    if not os.path.exists(setupname_export/ (sessionname.name+'.pkl')):
+                                        doit = True
+                                    elif os.stat(setupname_export/ (sessionname.name+'.pkl')).st_mtime < os.stat(sessionname/ (sessionname.name+'.csv')).st_mtime:
+                                        doit = True
+                                    else:
+                                        doit = False
+                                    if doit:
+                                        df = load_and_parse_a_csv_file(sessionname/ (sessionname.name+'.csv'))
+                                        variables = dict()
+# =============================================================================
+#                                         try:
+# =============================================================================
+                                        variables['times'], variables['idxes'], variables['values'] = minethedata(df)  
+                                        variables['experimenter'] = df['experimenter'][0]
+                                        variables['subject'] = df['subject'][0]
+# =============================================================================
+#                                         except:
+#                                             variables = dict()
+# =============================================================================
+                                        with open(setupname_export/ (sessionname.name+'.pkl'), 'wb') as outfile:
+                                            pickle.dump(variables, outfile)
+                                    else:
+                                        print(sessionname.name+' skipped' )
+                                        
+def load_pickles_for_online_analysis(projectdir = Path(defpath),projectnames_needed = None, experimentnames_needed = None,  setupnames_needed=None, subjectnames_needed = None, load_only_last_day = False):
+# =============================================================================
+#     projectdir = Path(defpath)
+#     projectnames_needed = None
+#     experimentnames_needed = ['Foraging_homecage']
+#     setupnames_needed=None
+#     subjectnames_needed = None
+#     load_only_last_day = True   
+# =============================================================================
+        
+    variables_out = dict()
+    if type(projectdir) != type(Path()):
+        projectdir = Path(projectdir)
+    for projectname in projectdir.iterdir():
+        if projectname.is_dir() and (not projectnames_needed or projectname.name in projectnames_needed):    
+            for experimentname in (projectname / 'experiments_exported').iterdir():
+                if experimentname.is_dir() and (not experimentnames_needed or experimentname.name in experimentnames_needed ): 
     
+                    for setupname in (experimentname / 'setups').iterdir():
+                        if setupname.is_dir() and (not setupnames_needed or setupname.name in setupnames_needed ): 
+                            if load_only_last_day:
+                                sessionnames= list()
+                                for sessionname in os.listdir(setupname / 'sessions'):
+                                    sessionnames.append(sessionname[:8])#only the date
+                                sessionnames = np.sort(sessionnames)
+                                sessiondatetoload = sessionnames[-1]
+                            for sessionname in os.listdir(setupname / 'sessions'):
+                                if not load_only_last_day or sessiondatetoload in sessionname: 
+                                    print('opening '+ sessionname)
+                                    with open(setupname / 'sessions'/ sessionname,'rb') as readfile:
+                                        variables_new = pickle.load(readfile)
+                                    if not subjectnames_needed or variables_new['subject'] in subjectnames_needed:
+                                        if len(variables_out.keys()) == 0:
+                                            variables_out['times'] = dict()
+                                            variables_out['times']['alltimes'] = np.asarray([])
+                                            for key in variables_new['times'].keys():
+                                                variables_out['times'][key] = variables_new['times'][key].values
+                                                if len(variables_out['times']['alltimes']) > 0:
+                                                    variables_out['times']['alltimes'] = np.concatenate((variables_out['times']['alltimes'],variables_new['times'][key].values))
+                                                else:
+                                                    variables_out['times']['alltimes'] = variables_new['times'][key].values
+                                            variables_out['values'] = dict()
+                                            for key in variables_new['values'].keys():
+                                                variables_out['values'][key] = variables_new['values'][key].values
+                                        else:
+                                            for key in variables_new['times'].keys():
+                                                variables_out['times'][key] = np.concatenate((variables_out['times'][key],variables_new['times'][key].values))
+                                                variables_out['times']['alltimes'] = np.concatenate((variables_out['times']['alltimes'],variables_new['times'][key].values))
+                                            for key in variables_new['values'].keys():
+                                                variables_out['values'][key] = np.concatenate((variables_out['values'][key],variables_new['values'][key].values))
+                                        
+    return variables_out
