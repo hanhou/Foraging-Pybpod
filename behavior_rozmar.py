@@ -6,6 +6,7 @@ from datetime import datetime
 import time
 import os
 import pickle
+import shutil
 #%%
 paths = ['/home/rozmar/Data/Behavior/Behavior_rigs/Tower-3','C:\\Users\\labadmin\\Documents\\Pybpod\\Projects']
 for defpath in paths:
@@ -388,7 +389,7 @@ def save_pickles_for_online_analysis(projectdir = Path(defpath),projectnames_nee
                                             variables = dict()
                                         with open(setupname_export/ (sessionname.name+'.tmp'), 'wb') as outfile:
                                             pickle.dump(variables, outfile)
-                                        os.rename(setupname_export/ (sessionname.name+'.tmp'),setupname_export/ (sessionname.name+'.pkl'))
+                                        shutil.move(setupname_export/ (sessionname.name+'.tmp'),setupname_export/ (sessionname.name+'.pkl'))
 # =============================================================================
 #                                     else:
 #                                         print(sessionname.name+' skipped' )
