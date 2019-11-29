@@ -15,6 +15,7 @@ import re
 import time as time
 from datetime import datetime
 import json
+import threading
 
 print('started')
 paths = ['/home/rozmar/Data/Behavior/Behavior_rigs/Tower-2','C:\\Users\\labadmin\\Documents\\Pybpod\\Projects']
@@ -44,6 +45,7 @@ class App(QDialog):
         self.timer  = QTimer(self)
         self.timer.setInterval(5000)          # Throw event timeout with an interval of 1000 milliseconds
         self.timer.timeout.connect(self.reloadthedata) # each time timer counts a second, call self.blink
+        self.pickle_write_thread = None
         self.variables_to_display = ['ValveOpenTime_L',
                                      'ValveOpenTime_R',
                                      'ValveOpenTime_M',
@@ -186,12 +188,17 @@ class App(QDialog):
                 selected[filternow] = filterstring
             else:
                 selected[filternow] = None
-
-        behavior_rozmar.save_pickles_for_online_analysis(projectdir = self.dirs['projectdir'],
-                                                projectnames_needed = selected['project'],
-                                                experimentnames_needed = selected['experiment'],
-                                                setupnames_needed = selected['setup'],
-                                                load_only_last_day = True)
+        if self.pickle_write_thread == None or not self.pickle_write_thread.isAlive():
+            self.pickle_write_thread = threading.Thread(target=behavior_rozmar.save_pickles_for_online_analysis, args=(self.dirs['projectdir'], selected['project'], selected['experiment'], selected['setup'], True))
+            self.pickle_write_thread.daemon = True                            # Daemonize thread
+            self.pickle_write_thread.start() 
+# =============================================================================
+#         behavior_rozmar.save_pickles_for_online_analysis(projectdir = self.dirs['projectdir'],
+#                                                 projectnames_needed = selected['project'],
+#                                                 experimentnames_needed = selected['experiment'],
+#                                                 setupnames_needed = selected['setup'],
+#                                                 load_only_last_day = True)
+# =============================================================================
         self.data = behavior_rozmar.load_pickles_for_online_analysis(projectdir = self.dirs['projectdir'],
                                                 projectnames_needed = selected['project'],
                                                 experimentnames_needed = selected['experiment'],

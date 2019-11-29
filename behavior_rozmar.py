@@ -386,10 +386,13 @@ def save_pickles_for_online_analysis(projectdir = Path(defpath),projectnames_nee
                                             variables['subject'] = df['subject'][0]
                                         except:
                                             variables = dict()
-                                        with open(setupname_export/ (sessionname.name+'.pkl'), 'wb') as outfile:
+                                        with open(setupname_export/ (sessionname.name+'.tmp'), 'wb') as outfile:
                                             pickle.dump(variables, outfile)
-                                    else:
-                                        print(sessionname.name+' skipped' )
+                                        os.rename(setupname_export/ (sessionname.name+'.tmp'),setupname_export/ (sessionname.name+'.pkl'))
+# =============================================================================
+#                                     else:
+#                                         print(sessionname.name+' skipped' )
+# =============================================================================
                                         
 def load_pickles_for_online_analysis(projectdir = Path(defpath),projectnames_needed = None, experimentnames_needed = None,  setupnames_needed=None, subjectnames_needed = None, load_only_last_day = False):
 # =============================================================================
@@ -418,8 +421,8 @@ def load_pickles_for_online_analysis(projectdir = Path(defpath),projectnames_nee
                                 sessionnames = np.sort(sessionnames)
                                 sessiondatetoload = sessionnames[-1]
                             for sessionname in os.listdir(setupname / 'sessions'):
-                                if not load_only_last_day or sessiondatetoload in sessionname: 
-                                    print('opening '+ sessionname)
+                                if sessionname[-3:] == 'pkl' and (not load_only_last_day or sessiondatetoload in sessionname): 
+                                    #print('opening '+ sessionname)
                                     with open(setupname / 'sessions'/ sessionname,'rb') as readfile:
                                         variables_new = pickle.load(readfile)
                                     if len(variables_new.keys()) > 0:
