@@ -179,7 +179,7 @@ class App(QDialog):
         self.handles['load_the_data'].setStyleSheet('QPushButton {color: red;}')
         qApp.processEvents()
         selected = dict()
-        filterorder = ['project','experiment','setup','session']
+        filterorder = ['project','experiment','setup','session','subject']
         for filternow in filterorder:
             filterstring = str(self.handles['filter_'+filternow].currentText())
             if not re.findall('all',filterstring):
@@ -187,12 +187,16 @@ class App(QDialog):
             else:
                 selected[filternow] = None
 
-        self.data = behavior_rozmar.loadcsvdata(self.data,
-                                                projectdir = self.dirs['projectdir'],
+        behavior_rozmar.save_pickles_for_online_analysis(projectdir = self.dirs['projectdir'],
                                                 projectnames_needed = selected['project'],
                                                 experimentnames_needed = selected['experiment'],
                                                 setupnames_needed = selected['setup'],
-                                                sessionnames_needed = selected['session'],
+                                                load_only_last_day = True)
+        self.data = behavior_rozmar.load_pickles_for_online_analysis(projectdir = self.dirs['projectdir'],
+                                                projectnames_needed = selected['project'],
+                                                experimentnames_needed = selected['experiment'],
+                                                setupnames_needed = selected['setup'],
+                                                subjectnames_needed = selected['subject'],
                                                 load_only_last_day = True)
         self.handles['load_the_data'].setText('Load the data')
         self.handles['load_the_data'].setStyleSheet('QPushButton {color: black;}')
@@ -219,21 +223,14 @@ class App(QDialog):
             print('filterthedata')
             print(lastselected)
             self.updateUI_dirstructure(lastselected)
-        filterorder = ['project','experiment','setup','session','subject','experimenter']
-        
-        if type(self.data) == pd.DataFrame:
-            self.data_now = self.data 
-            for filternow in filterorder:
-                filterstring = str(self.handles['filter_'+filternow].currentText())
-                if not re.findall('all',filterstring):
-                    self.data_now = self.data_now[self.data_now[filternow] == filterstring]
-            
+        if type(self.data) == dict:
+            self.data_now = self.data.copy()
             if len(self.data_now) > 0:
-                endtime = max(self.data_now['PC-TIME'])
+                endtime = max(self.data_now['times']['alltimes'])
                 if  self.handles['plot_timeback'].text().isnumeric():
-                    startime = endtime - pd.to_timedelta(int(self.handles['plot_timeback'].text()),'s')
+                    startime = np.datetime64(endtime - pd.to_timedelta(int(self.handles['plot_timeback'].text()),'s'))
                 else:
-                    startime = min(self.data_now['PC-TIME'])
+                    startime = min(self.data_now['times']['alltimes'])
                 if  self.handles['plot_timeback_runningwindow'].text().isnumeric(): # determining averaging window size
                     numberofpoints = int(self.handles['plot_timeback_runningwindow'].text())
                 else:
@@ -590,66 +587,15 @@ class PlotCanvas(FigureCanvas):
         #self.plot()
 
     def minethedata(self,data):
-        idxes = dict()
-        times = dict()
-        values = dict()
-        idxes['lick_L'] = data['var:WaterPort_L_ch_in'] == data['+INFO']
-        times['lick_L'] = data['PC-TIME'][idxes['lick_L']]
-        idxes['choice_L'] = (data['MSG'] == 'Choice_L') & (data['TYPE'] == 'TRANSITION')
-        times['choice_L'] = data['PC-TIME'][idxes['choice_L']]
-        idxes['reward_L'] = (data['MSG'] == 'Reward_L') & (data['TYPE'] == 'TRANSITION')
-        times['reward_L'] = data['PC-TIME'][idxes['reward_L']]        
-        idxes['autowater_L'] = (data['MSG'] == 'Auto_Water_L') & (data['TYPE'] == 'STATE')
-        times['autowater_L'] = data['PC-TIME'][idxes['autowater_L']]        
-        idxes['autowater_R'] = (data['MSG'] == 'Auto_Water_R') & (data['TYPE'] == 'STATE')
-        times['autowater_R'] = data['PC-TIME'][idxes['autowater_R']]
-        idxes['lick_R'] = data['var:WaterPort_R_ch_in'] == data['+INFO']
-        times['lick_R'] = data['PC-TIME'][idxes['lick_R']]
-        idxes['choice_R'] = (data['MSG'] == 'Choice_R') & (data['TYPE'] == 'TRANSITION')
-        times['choice_R'] = data['PC-TIME'][idxes['choice_R']]
-        idxes['reward_R'] = (data['MSG'] == 'Reward_R') & (data['TYPE'] == 'TRANSITION')
-        times['reward_R'] = data['PC-TIME'][idxes['reward_R']]
-        if 'var:WaterPort_M_ch_in' in data.keys():
-            idxes['lick_M'] = data['var:WaterPort_M_ch_in'] == data['+INFO']
-            times['lick_M'] = data['PC-TIME'][idxes['lick_M']]
-            idxes['choice_M'] = (data['MSG'] == 'Choice_M') & (data['TYPE'] == 'TRANSITION')
-            times['choice_M'] = data['PC-TIME'][idxes['choice_M']]
-            idxes['reward_M'] = (data['MSG'] == 'Reward_M') & (data['TYPE'] == 'TRANSITION')
-            times['reward_M'] = data['PC-TIME'][idxes['reward_M']]        
-            idxes['autowater_M'] = (data['MSG'] == 'Auto_Water_M') & (data['TYPE'] == 'STATE')
-            times['autowater_M'] = data['PC-TIME'][idxes['autowater_M']]            
-        idxes['trialstart'] = data['TYPE'] == 'TRIAL'
-        times['trialstart'] = data['PC-TIME'][idxes['trialstart']]
-        idxes['trialend'] = data['TYPE'] == 'END-TRIAL'
-        times['trialend'] = data['PC-TIME'][idxes['trialend']]
-        idxes['GoCue'] = (data['MSG'] == 'GoCue') & (data['TYPE'] == 'TRANSITION')
-        times['GoCue'] = data['PC-TIME'][idxes['GoCue']]
-        
-        idxes['reward_p_L'] = idxes['GoCue']
-        times['reward_p_L'] = data['PC-TIME'][idxes['reward_p_L']]
-        values['reward_p_L'] = data['reward_p_L'][idxes['reward_p_L']]
-        
-        idxes['reward_p_R'] = idxes['GoCue']
-        times['reward_p_R'] = data['PC-TIME'][idxes['reward_p_R']]
-        values['reward_p_R'] = data['reward_p_R'][idxes['reward_p_R']]
-        
-        if 'var:WaterPort_M_ch_in' in data.keys():
-            idxes['reward_p_M'] = idxes['GoCue']
-            times['reward_p_M'] = data['PC-TIME'][idxes['reward_p_M']]
-            values['reward_p_M'] = data['reward_p_M'][idxes['reward_p_M']]
-        idxes['p_reward_ratio'] = idxes['GoCue']
-        times['p_reward_ratio'] = times['reward_p_R']
-        values['p_reward_ratio'] = values['reward_p_R'] / (values['reward_p_R']+ values['reward_p_L'])
-        if 'reward_p_M' in values.keys() and len(values['reward_p_M'])>0:
-            values['p_reward_ratio_R'] = values['reward_p_R'] / (values['reward_p_R']+ values['reward_p_L'] + values['reward_p_M'])
-            values['p_reward_ratio_M'] = values['reward_p_M'] / (values['reward_p_R']+ values['reward_p_L'] + values['reward_p_M'])
-            values['p_reward_ratio_L'] = values['reward_p_L'] / (values['reward_p_R']+ values['reward_p_L'] + values['reward_p_M'])
-        return times, idxes, values
+        times = data['times'].copy()
+        values = data['values'].copy()
+        #idxes = data['idxes']
+        return times, values
     
     def plot_licks_and_rewards(self,data = [],startime=None,endtime=None):
         self.axes.cla()
-        if type(data) == pd.core.frame.DataFrame and len(data) > 0:
-            times,idxes, values = self.minethedata(data)
+        if type(data) == dict and len(data) > 0:
+            times, values = self.minethedata(data)
             for timeskey in times.keys():
                 neededidx = (times[timeskey]>=startime) & (times[timeskey]<=endtime)
                 times[timeskey]= times[timeskey][neededidx]
@@ -699,42 +645,14 @@ class PlotCanvas(FigureCanvas):
             
     def plot_bias(self,data = [],startime=None,endtime=None,numberofpoints = 10):
         self.axes.cla()
-        if type(data) == pd.core.frame.DataFrame and len(data) > 0:
-            times,idxes, values = self.minethedata(data)
-# =============================================================================
-#             alltimes = []       
-#             for timeskey in times.keys(): # finding endtime and starttime
-#                if len(alltimes) > 0:
-#                    alltimes = pd.concat([alltimes,times[timeskey]])
-#                else:
-#                    alltimes = times[timeskey]
-#             startime = min(alltimes) 
-#             endtime = max(alltimes)
-#             if  handles and handles['plot_timeback'].text().isnumeric():
-#                 startime = endtime - pd.to_timedelta(int(handles['plot_timeback'].text()),'s')
-# =============================================================================
-# =============================================================================
-#                 print(startime)
-#                 for timeskey in times.keys():
-#                     timediffs = (times[timeskey] - endtime).to_numpy()
-#                     neededidx = (timediffs/np.timedelta64(1,'s'))>0
-#                     times[timeskey]= times[timeskey][neededidx]
-#                 alltimes = []       
-#                 for timeskey in times.keys(): # finding endtime and starttime
-#                    if len(alltimes) > 0:
-#                        alltimes.append(times[timeskey])
-#                    else:
-#                        alltimes = times[timeskey]
-#                 startime = min(alltimes) 
-#                 endtime = max(alltimes)    
-# =============================================================================
-            
+        if type(data) == dict and len(data) > 0:
+            times, values = self.minethedata(data)
             
             steptime = (endtime-startime)/numberofpoints
             timerange = pd.date_range(start = startime, end = endtime, periods = numberofpoints*10) #freq = 's' *10
             #print(startime , endtime)
-            lick_left_num = np.zeros(len(timerange))
-            lick_right_num  = np.zeros(len(timerange))
+            #lick_left_num = np.zeros(len(timerange))
+            #lick_right_num  = np.zeros(len(timerange))
             
             reward_left_num = np.zeros(len(timerange))
             reward_right_num = np.zeros(len(timerange))
@@ -742,8 +660,9 @@ class PlotCanvas(FigureCanvas):
                 lick_middle_num  = np.zeros(len(timerange))
                 reward_middle_num = np.zeros(len(timerange))
             for idx,timenow in enumerate(timerange):
-                lick_left_num[idx] = sum((timenow+steptime > times['lick_L']) & (timenow-steptime<times['lick_L']))
-                lick_right_num[idx] = sum((timenow+steptime > times['lick_R']) & (timenow-steptime<times['lick_R']))
+                timenow = np.datetime64(timenow)
+                #lick_left_num[idx] = sum((timenow+steptime > times['lick_L']) & (timenow-steptime<times['lick_L']))
+                #lick_right_num[idx] = sum((timenow+steptime > times['lick_R']) & (timenow-steptime<times['lick_R']))
                 
                 reward_left_num[idx] = sum((timenow+steptime > times['choice_L']) & (timenow-steptime<times['choice_L']))
                 reward_right_num[idx] = sum((timenow+steptime > times['choice_R']) & (timenow-steptime<times['choice_R']))
@@ -754,9 +673,10 @@ class PlotCanvas(FigureCanvas):
             
             self.axes.cla()
             if 'lick_M' in times.keys():
-                idxes = times['p_reward_ratio'] > startime
+                idxes = np.where(times['p_reward_ratio'] > startime)
                 golden_reward_R_1 = values['reward_p_L'][idxes]/(values['reward_p_L'][idxes]+values['reward_p_R'][idxes]+values['reward_p_M'][idxes])
                 golden_reward_R_2 = (values['reward_p_L'][idxes]+values['reward_p_M'][idxes])/(values['reward_p_L'][idxes]+values['reward_p_R'][idxes]+values['reward_p_M'][idxes])
+                
                 reward_sum_num = reward_right_num+reward_left_num+reward_middle_num
                 
                 #self.axes.plot(timerange, bias_lick_R, 'k-',label = 'Lick bias')
@@ -776,9 +696,9 @@ class PlotCanvas(FigureCanvas):
                 vals = self.axes.get_yticks()
                 self.axes.set_yticklabels(['{:,.0%}'.format(x) for x in vals])
             else:
-                bias_lick_R = lick_right_num/(lick_right_num+lick_left_num)
+                #bias_lick_R = lick_right_num/(lick_right_num+lick_left_num)
                 bias_reward_R = reward_right_num/(reward_right_num+reward_left_num)
-                self.axes.plot(timerange, bias_lick_R, 'k-',label = 'Lick bias')
+                #self.axes.plot(timerange, bias_lick_R, 'k-',label = 'Lick bias')
                 self.axes.plot(timerange, bias_reward_R, 'g-',label = 'choice bias')
                 idxes = times['p_reward_ratio'] > startime
                 self.axes.plot(times['reward_p_L'][idxes], values['reward_p_L'][idxes], 'r-',label = 'Reward probability Left')
@@ -787,13 +707,6 @@ class PlotCanvas(FigureCanvas):
                 self.axes.set_yticks([0,1])
                 self.axes.set_yticklabels(['Left', 'Right'])
                 self.axes.set_ylim(-.1,1.1)
-            #self.axes.set_xlim(startime,endtime)
-            
-            #self.axes.legend()
-# =============================================================================
-#             self.axes.plot(timerange, lick_left_num, 'b-')
-#             self.axes.plot(timerange, lick_right_num, 'r-')
-# =============================================================================
             self.axes.set_title('Lick and reward bias')
             self.draw()
             
