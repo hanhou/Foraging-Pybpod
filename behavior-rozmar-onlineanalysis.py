@@ -199,7 +199,7 @@ class App(QDialog):
 #                                                 setupnames_needed = selected['setup'],
 #                                                 load_only_last_day = True)
 # =============================================================================
-        try:
+            try:
                 self.data = behavior_rozmar.load_pickles_for_online_analysis(projectdir = self.dirs['projectdir'],
                                                         projectnames_needed = selected['project'],
                                                         experimentnames_needed = selected['experiment'],
