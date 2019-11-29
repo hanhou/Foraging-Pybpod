@@ -199,16 +199,22 @@ class App(QDialog):
 #                                                 setupnames_needed = selected['setup'],
 #                                                 load_only_last_day = True)
 # =============================================================================
-        self.data = behavior_rozmar.load_pickles_for_online_analysis(projectdir = self.dirs['projectdir'],
-                                                projectnames_needed = selected['project'],
-                                                experimentnames_needed = selected['experiment'],
-                                                setupnames_needed = selected['setup'],
-                                                subjectnames_needed = selected['subject'],
-                                                load_only_last_day = True)
-        self.handles['load_the_data'].setText('Load the data')
-        self.handles['load_the_data'].setStyleSheet('QPushButton {color: black;}')
-        self.updateUI()
-        self.filterthedata()
+        try:
+                self.data = behavior_rozmar.load_pickles_for_online_analysis(projectdir = self.dirs['projectdir'],
+                                                        projectnames_needed = selected['project'],
+                                                        experimentnames_needed = selected['experiment'],
+                                                        setupnames_needed = selected['setup'],
+                                                        subjectnames_needed = selected['subject'],
+                                                        load_only_last_day = True)
+                self.handles['load_the_data'].setText('Load the data')
+                self.handles['load_the_data'].setStyleSheet('QPushButton {color: black;}')
+                self.updateUI()
+                self.filterthedata()
+            except:
+                print('couldn\'t load the data..')
+                self.handles['load_the_data'].setText('Load the data')
+                self.handles['load_the_data'].setStyleSheet('QPushButton {color: black;}')
+                self.updateUI()
         #print('data reloaded')
         #print(time.perf_counter())
     
