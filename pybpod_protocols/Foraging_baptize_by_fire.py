@@ -667,36 +667,36 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         variables_motor = read_motor_position(variables['comport_motor'])
         
         print('LickportMotors:',variables_motor)
-           
-        if ignore_trial_num_in_a_row > 10:
-            break
-        elif ignore_trial_num_in_a_row == 3:
-            print('too many ignores')
-            metadata = dict()
-            metadata['experiment_name'] = experiment_name
-            metadata['setup_name'] = setup_name
-            metadata['subject_name'] = subject_name
-            metadata['experimenter_name'] = experimenter_name        
-            metadata['reason'] = '3 ignores in a row .. mouse is getting nervous?'
-            notify_experimenter(metadata,os.path.join(rootdir,'Notifications'))
-        elif ignore_trial_num_in_a_row == 5:
-            print('too many ignores')
-            metadata = dict()
-            metadata['experiment_name'] = experiment_name
-            metadata['setup_name'] = setup_name
-            metadata['subject_name'] = subject_name
-            metadata['experimenter_name'] = experimenter_name        
-            metadata['reason'] = '5 ignores in a row .. mouse is getting bored?'
-            notify_experimenter(metadata,os.path.join(rootdir,'Notifications'))
-        if unrewarded_trial_num_in_a_row == 10:
-            print('lot of wrong choices')
-            metadata = dict()
-            metadata['experiment_name'] = experiment_name
-            metadata['setup_name'] = setup_name
-            metadata['subject_name'] = subject_name
-            metadata['experimenter_name'] = experimenter_name        
-            metadata['reason'] = '10 unrewarded trials in a row .. mouse is not paying attention?'
-            notify_experimenter(metadata,os.path.join(rootdir,'Notifications'))
+        if not(start_with_bias_check and blocki < bias_check_blocknum): 
+            if ignore_trial_num_in_a_row > 10:
+                break
+            elif ignore_trial_num_in_a_row == 3:
+                print('too many ignores')
+                metadata = dict()
+                metadata['experiment_name'] = experiment_name
+                metadata['setup_name'] = setup_name
+                metadata['subject_name'] = subject_name
+                metadata['experimenter_name'] = experimenter_name        
+                metadata['reason'] = '3 ignores in a row .. mouse is getting nervous?'
+                notify_experimenter(metadata,os.path.join(rootdir,'Notifications'))
+            elif ignore_trial_num_in_a_row == 5:
+                print('too many ignores')
+                metadata = dict()
+                metadata['experiment_name'] = experiment_name
+                metadata['setup_name'] = setup_name
+                metadata['subject_name'] = subject_name
+                metadata['experimenter_name'] = experimenter_name        
+                metadata['reason'] = '5 ignores in a row .. mouse is getting bored?'
+                notify_experimenter(metadata,os.path.join(rootdir,'Notifications'))
+            if unrewarded_trial_num_in_a_row == 10:
+                print('lot of wrong choices')
+                metadata = dict()
+                metadata['experiment_name'] = experiment_name
+                metadata['setup_name'] = setup_name
+                metadata['subject_name'] = subject_name
+                metadata['experimenter_name'] = experimenter_name        
+                metadata['reason'] = '10 unrewarded trials in a row .. mouse is not paying attention?'
+                notify_experimenter(metadata,os.path.join(rootdir,'Notifications'))
     if ignore_trial_num_in_a_row > 10:
         print('too many ignores')
         metadata = dict()
