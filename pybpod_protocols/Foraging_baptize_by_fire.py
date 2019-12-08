@@ -14,7 +14,7 @@ import os, sys
 
 usedummyzaber = False # for testing without motor movement - only for debugging
 bias_check_auto_train_min_rewarded_trial_num = 2
-
+highest_probability_port_must_change = True
 def notify_experimenter(metadata,path):
     filepath = os.path.join(path,'notifications.json')
     metadata['datetime'] = datetime.now().strftime("%Y/%m/%d, %H:%M:%S")
@@ -202,6 +202,7 @@ start_with_bias_check = variables['block_start_with_bias_check']
 #first_block_to_right = variables['block_first_to_right']
 if 'lickport_number' not in variables.keys() or variables['lickport_number'] == 2:
     lickportnum = 2
+    got_stuck_n = 0
     if variables['difficulty_ratio_pair_num']<1:
         reward_ratio_pairs = [[1,1]]
     else:   
@@ -231,15 +232,24 @@ if 'lickport_number' not in variables.keys() or variables['lickport_number'] == 
                     reward_ratio_pairs_bag.append(pair[::-1])
                 np.random.shuffle(reward_ratio_pairs_bag)
             pair_now = reward_ratio_pairs_bag.pop(0)
-            if len(p_reward_L) == 0 or p_reward_L[-1] != pair_now[0] or pair_now[0] == pair_now[1]:
+            if highest_probability_port_must_change and len(p_reward_L) > 0:
+                if not (p_reward_L[-1] == p_reward_R[-1] or pair_now[0] == pair_now[1]) and np.argmax([p_reward_L[-1],p_reward_R[-1]]) == np.argmax(pair_now):
+                    prob_change_is_fine = False
+                else:
+                    prob_change_is_fine = True
+            else:
+                prob_change_is_fine = True
+            if (len(p_reward_L) == 0 or p_reward_L[-1] != pair_now[0] or pair_now[0] == pair_now[1]) and prob_change_is_fine or got_stuck_n > 10:
                 p_reward_L.append(pair_now[0])
                 p_reward_R.append(pair_now[1])
+                got_stuck_n = 0
             else:
                 reward_ratio_pairs_bag.append(pair_now)
-    
+                got_stuck_n += 1
     p_reward_M=list(np.zeros(len(p_reward_L))) # 
 else:
     lickportnum = 3
+    got_stuck_n = 0
     if variables['difficulty_ratio_pair_num']<1:
         reward_ratio_pairs = [[1.,1.,1.]]
     else:
@@ -270,13 +280,23 @@ else:
                 np.random.shuffle(reward_ratio_pairs_bag)
                 #%
             pair_now = reward_ratio_pairs_bag.pop(0)
-            if len(p_reward_L) == 0 or pair_now[0] == pair_now[1] or not( p_reward_L[-1] == pair_now[0] and p_reward_R[-1] == pair_now[1] and p_reward_M[-1] == pair_now[2]):
+            if highest_probability_port_must_change and len(p_reward_L) > 0:
+                if not (p_reward_L[-1] == p_reward_R[-1] == p_reward_M[-1] or pair_now[0] == pair_now[1]) and np.argmax([p_reward_L[-1],p_reward_R[-1],p_reward_M[-1]]) == np.argmax(pair_now):
+                    prob_change_is_fine = False
+                else:
+                    prob_change_is_fine = True
+            else:
+                prob_change_is_fine = True
+                
+            if (len(p_reward_L) == 0 or pair_now[0] == pair_now[1] or not( p_reward_L[-1] == pair_now[0] and p_reward_R[-1] == pair_now[1] and p_reward_M[-1] == pair_now[2])) and prob_change_is_fine or len(reward_ratio_pairs_bag) == 0 or got_stuck_n > 10:
                 p_reward_L.append(pair_now[0])
                 p_reward_R.append(pair_now[1])
                 p_reward_M.append(pair_now[2])
+                got_stuck_n = 0
             else:
                 reward_ratio_pairs_bag.append(pair_now)
-
+                got_stuck_n += 1
+#%%
 # =============================================================================
 #     Periodic blocks
 # while len(p_reward_L) < blocknum: # reward rate pairs are chosen randomly
@@ -670,15 +690,17 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         if not(start_with_bias_check and blocki < bias_check_blocknum): 
             if ignore_trial_num_in_a_row > 10:
                 break
-            elif ignore_trial_num_in_a_row == 3:
-                print('too many ignores')
-                metadata = dict()
-                metadata['experiment_name'] = experiment_name
-                metadata['setup_name'] = setup_name
-                metadata['subject_name'] = subject_name
-                metadata['experimenter_name'] = experimenter_name        
-                metadata['reason'] = '3 ignores in a row .. mouse is getting nervous?'
-                notify_experimenter(metadata,os.path.join(rootdir,'Notifications'))
+# =============================================================================
+#             elif ignore_trial_num_in_a_row == 3:
+#                 print('too many ignores')
+#                 metadata = dict()
+#                 metadata['experiment_name'] = experiment_name
+#                 metadata['setup_name'] = setup_name
+#                 metadata['subject_name'] = subject_name
+#                 metadata['experimenter_name'] = experimenter_name        
+#                 metadata['reason'] = '3 ignores in a row .. mouse is getting nervous?'
+#                 notify_experimenter(metadata,os.path.join(rootdir,'Notifications'))
+# =============================================================================
             elif ignore_trial_num_in_a_row == 5:
                 print('too many ignores')
                 metadata = dict()
@@ -686,17 +708,19 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                 metadata['setup_name'] = setup_name
                 metadata['subject_name'] = subject_name
                 metadata['experimenter_name'] = experimenter_name        
-                metadata['reason'] = '5 ignores in a row .. mouse is getting bored?'
+                metadata['reason'] = '5 ignores in a row .. mouse is slowing down!'
                 notify_experimenter(metadata,os.path.join(rootdir,'Notifications'))
-            if unrewarded_trial_num_in_a_row == 10:
-                print('lot of wrong choices')
-                metadata = dict()
-                metadata['experiment_name'] = experiment_name
-                metadata['setup_name'] = setup_name
-                metadata['subject_name'] = subject_name
-                metadata['experimenter_name'] = experimenter_name        
-                metadata['reason'] = '10 unrewarded trials in a row .. mouse is not paying attention?'
-                notify_experimenter(metadata,os.path.join(rootdir,'Notifications'))
+# =============================================================================
+#             if unrewarded_trial_num_in_a_row == 10:
+#                 print('lot of wrong choices')
+#                 metadata = dict()
+#                 metadata['experiment_name'] = experiment_name
+#                 metadata['setup_name'] = setup_name
+#                 metadata['subject_name'] = subject_name
+#                 metadata['experimenter_name'] = experimenter_name        
+#                 metadata['reason'] = '10 unrewarded trials in a row .. mouse is not paying attention?'
+#                 notify_experimenter(metadata,os.path.join(rootdir,'Notifications'))
+# =============================================================================
     if ignore_trial_num_in_a_row > 10:
         print('too many ignores')
         metadata = dict()
