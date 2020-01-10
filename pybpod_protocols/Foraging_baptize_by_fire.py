@@ -433,6 +433,10 @@ random_values_R = np.random.uniform(0.,1.,2000).tolist()
 random_values_M = np.random.uniform(0.,1.,2000).tolist()
 print('Random seed:', str(randomseedvalue))
 
+if subject_name == 'test_setup':
+    retract_protract_motor(0)
+    print('protracting zaber motor to avoid watering the camera below..')
+
 for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R'], variables['reward_probabilities_L'],variables['reward_probabilities_M'])):
     rewarded_trial_num = 0
     unrewarded_trial_num_in_a_row = 0
