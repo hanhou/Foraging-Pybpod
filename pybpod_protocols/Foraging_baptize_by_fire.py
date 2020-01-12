@@ -13,7 +13,7 @@ import numpy as np
 import os, sys 
 
 usedummyzaber = False # for testing without motor movement - only for debugging
-bias_check_auto_train_min_rewarded_trial_num = 2
+bias_check_auto_train_min_rewarded_trial_num = 1
 highest_probability_port_must_change = True
 def notify_experimenter(metadata,path):
     filepath = os.path.join(path,'notifications.json')
@@ -393,6 +393,10 @@ else:
         variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
 variables_setup = variables.copy()
 variables_motor = read_motor_position(variables['comport_motor'])
+if subject_name == 'test_setup':
+    retract_protract_motor(0)
+    variables_motor['LickPort_RostroCaudal_pos'] = 0
+    print('protracting zaber motor to avoid watering the camera below..')
 variables_subject['motor_forwardposition'] = variables_motor['LickPort_RostroCaudal_pos']
 variables_subject['motor_retractedposition'] = variables_motor['LickPort_RostroCaudal_pos'] + variables_subject['motor_retractiondistance']
 #generate json files
@@ -433,9 +437,7 @@ random_values_R = np.random.uniform(0.,1.,2000).tolist()
 random_values_M = np.random.uniform(0.,1.,2000).tolist()
 print('Random seed:', str(randomseedvalue))
 
-if subject_name == 'test_setup':
-    retract_protract_motor(0)
-    print('protracting zaber motor to avoid watering the camera below..')
+
 
 for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R'], variables['reward_probabilities_L'],variables['reward_probabilities_M'])):
     rewarded_trial_num = 0
@@ -508,8 +510,20 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             sma.add_state(
             	state_name='GoCue',
             	state_timer=0,
-            	state_change_conditions={EventName.Tup: 'Auto_Water_L'},
+            	state_change_conditions={EventName.Tup: 'Auto_Water_M'},
             	output_actions = [])
+            if reward_M or reward_M_accumulated:
+                sma.add_state(
+                	state_name='Auto_Water_M',
+                	state_timer=variables['ValveOpenTime_M']*variables['auto_water_time_multiplier'],
+                	state_change_conditions={EventName.Tup: 'Auto_Water_L'},
+                	output_actions = [('Valve',variables['WaterPort_M_ch_out'])])
+            else:
+                sma.add_state(
+                	state_name='Auto_Water_M',
+                	state_timer=0,
+                	state_change_conditions={EventName.Tup: 'Auto_Water_L'},
+                	output_actions = [])
             if reward_L or reward_L_accumulated:
                 sma.add_state(
                 	state_name='Auto_Water_L',
@@ -526,23 +540,11 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                 sma.add_state(
                 	state_name='Auto_Water_R',
                 	state_timer=variables['ValveOpenTime_R']*variables['auto_water_time_multiplier'],
-                	state_change_conditions={EventName.Tup: 'Auto_Water_M'},
+                	state_change_conditions={EventName.Tup: 'GoCue_real'},
                 	output_actions = [('Valve',variables['WaterPort_R_ch_out'])])
             else:
                 sma.add_state(
                 	state_name='Auto_Water_R',
-                	state_timer=0,
-                	state_change_conditions={EventName.Tup: 'Auto_Water_M'},
-                	output_actions = [])
-            if reward_M or reward_M_accumulated:
-                sma.add_state(
-                	state_name='Auto_Water_M',
-                	state_timer=variables['ValveOpenTime_M']*variables['auto_water_time_multiplier'],
-                	state_change_conditions={EventName.Tup: 'GoCue_real'},
-                	output_actions = [('Valve',variables['WaterPort_M_ch_out'])])
-            else:
-                sma.add_state(
-                	state_name='Auto_Water_M',
                 	state_timer=0,
                 	state_change_conditions={EventName.Tup: 'GoCue_real'},
                 	output_actions = [])
