@@ -369,27 +369,30 @@ def save_pickles_for_online_analysis(projectdir = Path(defpath),projectnames_nee
                                 sessiondatetoload = sessionnames_forsort[-1]
                             
                             for sessionname in (setupname / 'sessions').iterdir():
-                                if sessionname.is_dir() and (not load_only_last_day or sessiondatetoload in sessionname.name): 
-                                    sessionnames.append(sessionname.name)
-                                    dirstructure[projectname.name][experimentname.name][setupname.name].append(sessionname.name)
-                                    if not os.path.exists(setupname_export/ (sessionname.name+'.pkl')):
-                                        doit = True
-                                    elif os.stat(setupname_export/ (sessionname.name+'.pkl')).st_mtime < os.stat(sessionname/ (sessionname.name+'.csv')).st_mtime:
-                                        doit = True
-                                    else:
-                                        doit = False
-                                    if doit:
-                                        df = load_and_parse_a_csv_file(sessionname/ (sessionname.name+'.csv'))
-                                        variables = dict()
-                                        try:
-                                            variables['times'], variables['idxes'], variables['values'] = minethedata(df)  
-                                            variables['experimenter'] = df['experimenter'][0]
-                                            variables['subject'] = df['subject'][0]
-                                        except:
+                                try:
+                                    if sessionname.is_dir() and (not load_only_last_day or sessiondatetoload in sessionname.name): 
+                                        sessionnames.append(sessionname.name)
+                                        dirstructure[projectname.name][experimentname.name][setupname.name].append(sessionname.name)
+                                        if not os.path.exists(setupname_export/ (sessionname.name+'.pkl')):
+                                            doit = True
+                                        elif os.stat(setupname_export/ (sessionname.name+'.pkl')).st_mtime < os.stat(sessionname/ (sessionname.name+'.csv')).st_mtime:
+                                            doit = True
+                                        else:
+                                            doit = False
+                                        if doit:
+                                            df = load_and_parse_a_csv_file(sessionname/ (sessionname.name+'.csv'))
                                             variables = dict()
-                                        with open(setupname_export/ (sessionname.name+'.tmp'), 'wb') as outfile:
-                                            pickle.dump(variables, outfile)
-                                        shutil.move(setupname_export/ (sessionname.name+'.tmp'),setupname_export/ (sessionname.name+'.pkl'))
+                                            try:
+                                                variables['times'], variables['idxes'], variables['values'] = minethedata(df)  
+                                                variables['experimenter'] = df['experimenter'][0]
+                                                variables['subject'] = df['subject'][0]
+                                            except:
+                                                variables = dict()
+                                            with open(setupname_export/ (sessionname.name+'.tmp'), 'wb') as outfile:
+                                                pickle.dump(variables, outfile)
+                                            shutil.move(setupname_export/ (sessionname.name+'.tmp'),setupname_export/ (sessionname.name+'.pkl'))
+                                except:
+                                    print('something is wrong with '+sessionname.name)
 # =============================================================================
 #                                     else:
 #                                         print(sessionname.name+' skipped' )
