@@ -531,6 +531,9 @@ class App(QDialog):
                     except zaber_serial.binaryserial.serial.SerialException:
                         print('can''t access Zaber ' + str(zabertry_i))
                     time.sleep(.01)
+            except:
+                print('zaber issue')
+                pass 
 
     def load_parameters(self):
         maxcol = 4 # number of columns
