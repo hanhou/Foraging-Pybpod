@@ -299,6 +299,14 @@ def minethedata(data):
         times['reward_p_R'] = data['PC-TIME'][idxes['reward_p_R']]
         values['reward_p_R'] = data['reward_p_R'][idxes['reward_p_R']]
         
+        idxes['motor_position_lateral'] = idxes['GoCue']
+        times['motor_position_lateral'] = data['PC-TIME'][idxes['motor_position_lateral']]
+        values['motor_position_lateral'] = data['var_motor:LickPort_Lateral_pos'][idxes['motor_position_lateral']]
+        
+        idxes['motor_position_rostrocaudal'] = idxes['GoCue']
+        times['motor_position_rostrocaudal'] = data['PC-TIME'][idxes['motor_position_rostrocaudal']]
+        values['motor_position_rostrocaudal'] = data['var_motor:LickPort_RostroCaudal_pos'][idxes['motor_position_rostrocaudal']]
+        
         if 'var:WaterPort_M_ch_in' in data.keys():
             idxes['reward_p_M'] = idxes['GoCue']
             times['reward_p_M'] = data['PC-TIME'][idxes['reward_p_M']]
@@ -365,34 +373,31 @@ def save_pickles_for_online_analysis(projectdir = Path(defpath),projectnames_nee
                                 for sessionname in (setupname / 'sessions').iterdir():
                                     if sessionname.is_dir(): 
                                         sessionnames_forsort.append(sessionname.name[:8])#only the date
-                                sessionnames_forsort = np.sort(sessionnames_forsort)
-                                sessiondatetoload = sessionnames_forsort[-1]
+                                sessionnames_forsort = np.sort(np.unique(sessionnames_forsort))
+                                sessiondatestoload = sessionnames_forsort[-5:]
                             
                             for sessionname in (setupname / 'sessions').iterdir():
-                                try:
-                                    if sessionname.is_dir() and (not load_only_last_day or sessiondatetoload in sessionname.name): 
-                                        sessionnames.append(sessionname.name)
-                                        dirstructure[projectname.name][experimentname.name][setupname.name].append(sessionname.name)
-                                        if not os.path.exists(setupname_export/ (sessionname.name+'.pkl')):
-                                            doit = True
-                                        elif os.stat(setupname_export/ (sessionname.name+'.pkl')).st_mtime < os.stat(sessionname/ (sessionname.name+'.csv')).st_mtime:
-                                            doit = True
-                                        else:
-                                            doit = False
-                                        if doit:
-                                            df = load_and_parse_a_csv_file(sessionname/ (sessionname.name+'.csv'))
+                                if sessionname.is_dir() and (not load_only_last_day or sessionname.name[:8] in sessiondatestoload): 
+                                    sessionnames.append(sessionname.name)
+                                    dirstructure[projectname.name][experimentname.name][setupname.name].append(sessionname.name)
+                                    if not os.path.exists(setupname_export/ (sessionname.name+'.pkl')):
+                                        doit = True
+                                    elif os.stat(setupname_export/ (sessionname.name+'.pkl')).st_mtime < os.stat(sessionname/ (sessionname.name+'.csv')).st_mtime:
+                                        doit = True
+                                    else:
+                                        doit = False
+                                    if doit and os.path.exists(sessionname/ (sessionname.name+'.csv')):
+                                        df = load_and_parse_a_csv_file(sessionname/ (sessionname.name+'.csv'))
+                                        variables = dict()
+                                        try:
+                                            variables['times'], variables['idxes'], variables['values'] = minethedata(df)  
+                                            variables['experimenter'] = df['experimenter'][0]
+                                            variables['subject'] = df['subject'][0]
+                                        except:
                                             variables = dict()
-                                            try:
-                                                variables['times'], variables['idxes'], variables['values'] = minethedata(df)  
-                                                variables['experimenter'] = df['experimenter'][0]
-                                                variables['subject'] = df['subject'][0]
-                                            except:
-                                                variables = dict()
-                                            with open(setupname_export/ (sessionname.name+'.tmp'), 'wb') as outfile:
-                                                pickle.dump(variables, outfile)
-                                            shutil.move(setupname_export/ (sessionname.name+'.tmp'),setupname_export/ (sessionname.name+'.pkl'))
-                                except:
-                                    print('something is wrong with '+sessionname.name)
+                                        with open(setupname_export/ (sessionname.name+'.tmp'), 'wb') as outfile:
+                                            pickle.dump(variables, outfile)
+                                        shutil.move(setupname_export/ (sessionname.name+'.tmp'),setupname_export/ (sessionname.name+'.pkl'))
 # =============================================================================
 #                                     else:
 #                                         print(sessionname.name+' skipped' )
@@ -422,10 +427,10 @@ def load_pickles_for_online_analysis(projectdir = Path(defpath),projectnames_nee
                                 sessionnames= list()
                                 for sessionname in os.listdir(setupname / 'sessions'):
                                     sessionnames.append(sessionname[:8])#only the date
-                                sessionnames = np.sort(sessionnames)
-                                sessiondatetoload = sessionnames[-1]
+                                sessionnames = np.sort(np.unique(sessionnames))
+                                sessiondatestoload = sessionnames[-5:]
                             for sessionname in os.listdir(setupname / 'sessions'):
-                                if sessionname[-3:] == 'pkl' and (not load_only_last_day or sessiondatetoload in sessionname): 
+                                if sessionname[-3:] == 'pkl' and (not load_only_last_day or sessionname[:8] in sessiondatestoload): 
                                     #print('opening '+ sessionname)
                                     with open(setupname / 'sessions'/ sessionname,'rb') as readfile:
                                         variables_new = pickle.load(readfile)
