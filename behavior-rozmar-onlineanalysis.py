@@ -16,7 +16,10 @@ import time as time
 from datetime import datetime
 import json
 import threading
-
+try:
+    import zaber.serial as zaber_serial
+except:
+    pass
 print('started')
 paths = ['/home/rozmar/Data/Behavior/Behavior_rigs/Tower-2','C:\\Users\\labadmin\\Documents\\Pybpod\\Projects']
 for defpath in paths:
@@ -24,7 +27,7 @@ for defpath in paths:
     if os.path.exists(defpath):
         break
 #defpath = '/home/rozmar/Network/BehaviorRig/Behavroom-Stacked-2/labadmin/Documents/Pybpod/Projects'#'C:\\Users\\labadmin\\Documents\\Pybpod\\Projects'#'/home/rozmar/Network/BehaviorRig/Behavroom-Stacked-2/labadmin/Documents/Pybpod/Projects'#
-
+#%%
 class App(QDialog):
     def __init__(self):
         super().__init__()
@@ -40,6 +43,8 @@ class App(QDialog):
         #self.loadthedata()
         self.data = None
         self.variables = None
+        self.motorpositions = None
+        self.motorpositions_previous = None
         self.initUI()
         
         self.timer  = QTimer(self)
@@ -206,6 +211,24 @@ class App(QDialog):
                                                         setupnames_needed = selected['setup'],
                                                         subjectnames_needed = selected['subject'],
                                                         load_only_last_day = True)
+                #Update motor position values from previous csv files
+                rc_times  = self.data['times']['motor_position_rostrocaudal']
+                order = np.argsort(rc_times)
+                rc_times  = rc_times[order]
+                #lat_times  = self.data['times']['motor_position_lateral'][order]
+                lat_values = self.data['values']['motor_position_lateral'][order]
+                rc_values = self.data['values']['motor_position_rostrocaudal'][order]
+                
+                bigdiff_idxes = np.concatenate([np.diff(rc_times)>np.timedelta64(6,'h'),[True]])
+                uniquedays_str = np.asarray(np.asarray(rc_times[bigdiff_idxes],dtype = 'datetime64[D]'),dtype = str) 
+                rc_positions = rc_values[bigdiff_idxes]
+                lateral_positions = lat_values[bigdiff_idxes]
+                self.motorpositions_previous = self.motorpositions
+                self.motorpositions = dict()
+                self.motorpositions['date'] = uniquedays_str
+                self.motorpositions['rc_positions'] = rc_positions
+                self.motorpositions['lateral_positions'] = lateral_positions
+                
                 self.handles['load_the_data'].setText('Load the data')
                 self.handles['load_the_data'].setStyleSheet('QPushButton {color: black;}')
                 self.updateUI()
@@ -326,6 +349,20 @@ class App(QDialog):
         self.handles['loadparams'].setFocusPolicy(Qt.NoFocus)
         self.handles['loadparams'].clicked.connect(self.load_parameters)
         
+        
+        self.handles['select_session'] = QComboBox(self)
+        self.handles['select_session'].setFocusPolicy(Qt.NoFocus)
+        #self.handles['select_session'].addItem('all sessions')
+        #sessionnames = self.alldirs['sessionnames']
+        #sessionnames.sort(reverse = True)
+        #self.handles['select_session'].addItems(sessionnames)
+        #self.handles['select_session'].currentIndexChanged.connect(lambda: self.filterthedata('filter_session'))
+        
+        self.handles['set_lickport_position'] = QPushButton('Set lickport position')
+        self.handles['set_lickport_position'].setFocusPolicy(Qt.NoFocus)
+        self.handles['set_lickport_position'].clicked.connect(self.set_lickport_position)
+        
+        
         layout.addWidget(self.handles['filter_project'] ,0,0)
         layout.addWidget(self.handles['filter_experiment'],0,1)
         layout.addWidget(self.handles['filter_setup'],0,2)
@@ -334,6 +371,8 @@ class App(QDialog):
         layout.addWidget(self.handles['load_the_data'],0,4)
         layout.addWidget(self.handles['filter_experimenter'],0,5)
         layout.addWidget(self.handles['loadparams'],0,6)
+        layout.addWidget(self.handles['select_session'],0,7)
+        layout.addWidget(self.handles['set_lickport_position'],0,8)
         self.horizontalGroupBox_filter.setLayout(layout)
         
         self.horizontalGroupBox_axes = QGroupBox("plots")
@@ -379,16 +418,25 @@ class App(QDialog):
 #         self.handles['filter_subject'].currentIndexChanged.connect(lambda: self.filterthedata('filter_subject'))
 #         
 # =============================================================================
-        self.handles['filter_experimenter'].currentIndexChanged.disconnect()
-        currtext = self.handles['filter_experimenter'].currentText()
-        self.handles['filter_experimenter'].clear()
-        self.handles['filter_experimenter'].addItem('all experimenters')
-        if type(self.data) == pd.DataFrame:
-            self.handles['filter_experimenter'].addItems(self.data['experimenter'].unique())
-            idx = self.handles['filter_experimenter'].findText(currtext)
-            if idx != -1:
-                self.handles['filter_experimenter'].setCurrentIndex(idx)
-        self.handles['filter_experimenter'].currentIndexChanged.connect(lambda: self.filterthedata('filter_experimenter'))
+        if self.motorpositions:
+            self.handles['select_session'].clear()
+            self.handles['select_session'].addItems(self.motorpositions['date'])
+            self.handles['select_session'].setCurrentIndex(len(self.motorpositions['date'])-1)
+
+        
+# =============================================================================
+#         self.handles['filter_experimenter'].currentIndexChanged.disconnect()
+#         currtext = self.handles['filter_experimenter'].currentText()
+#         self.handles['filter_experimenter'].clear()
+#         self.handles['filter_experimenter'].addItem('all experimenters')
+#         if type(self.data) == pd.DataFrame:
+#             self.handles['filter_experimenter'].addItems(self.data['experimenter'].unique())
+#             idx = self.handles['filter_experimenter'].findText(currtext)
+#             if idx != -1:
+#                 self.handles['filter_experimenter'].setCurrentIndex(idx)
+#         self.handles['filter_experimenter'].currentIndexChanged.connect(lambda: self.filterthedata('filter_experimenter'))
+# =============================================================================
+        
     def updateUI_dirstructure(self, lastselected):
         project_now = [self.handles['filter_project'].currentText()]
         experiment_now = [self.handles['filter_experiment'].currentText()]
@@ -420,14 +468,70 @@ class App(QDialog):
             self.handles['filter_setup'].addItem('all setups')
             self.handles['filter_setup'].addItems(self.alldirs['setupnames'])
             self.handles['filter_setup'].currentIndexChanged.connect(lambda: self.filterthedata('filter_setup'))
+            
+        
+        
 # =============================================================================
-#         if lastselected == 'filter_project' or lastselected == 'filter_setup':
-#             self.handles['filter_session'].currentIndexChanged.disconnect()
-#             self.handles['filter_session'].clear()
-#             self.handles['filter_session'].addItem('all sessions')
-#             self.handles['filter_session'].addItems(self.alldirs['sessionnames'])
-#             self.handles['filter_session'].currentIndexChanged.connect(lambda: self.filterthedata('filter_session'))
+#         if lastselected == 'filter_project' or lastselected == 'filter_experiment' or lastselected == 'filter_setup':
+#             #self.handles['select_session'].currentIndexChanged.disconnect()
+#             self.handles['select_session'].clear()
+#             #self.handles['select_session'].addItem('all sessions')
+#             sessionnames = self.alldirs['sessionnames']
+#             sessionnames.sort(reverse = True)
+#             self.handles['select_session'].addItems(sessionnames)
+#             #self.handles['select_session'].currentIndexChanged.connect(lambda: self.filterthedata('filter_session'))
 # =============================================================================
+# =============================================================================
+#     def zaber_move_Lat(self):
+#         if 	self.handles['motor_LAT_edit'].text().isnumeric():
+#             
+#         self.zaber_refresh()
+#                 
+# 		
+#     def zaber_move_RC(self):
+#         if 	self.handles['motor_RC_edit'].text().isnumeric():
+#             for zabertry_i in range(0,1000): # when the COMport is occupied, it will try again
+#                 try:
+#                     with zaber_serial.BinarySerial(variables['comport_motor']) as ser:
+#                         moveabs_cmd = zaber_serial.BinaryCommand(1,20,int(self.handles['motor_RC_edit'].text()))
+#                         ser.write(moveabs_cmd)
+#                         time.sleep(.1)
+#                     break
+#                 except zaber_serial.binaryserial.serial.SerialException:
+#                     print('can''t access Zaber ' + str(zabertry_i))
+#                     time.sleep(.01)
+#         self.zaber_refresh()   
+# =============================================================================
+            
+    def set_lickport_position(self):
+        #%%
+        if self.motorpositions:
+            idx = self.handles['select_session'].currentText() == np.asarray(self.motorpositions['date'])
+            print(self.motorpositions)
+            print(self.motorpositions['rc_positions'][idx][0])
+            print(self.motorpositions['lateral_positions'][idx][0])
+            try:
+                for zabertry_i in range(0,1000): # when the COMport is occupied, it will try again
+                    try:
+                        with zaber_serial.BinarySerial(self.variables['setup']['comport_motor']) as ser:
+                            moveabs_cmd = zaber_serial.BinaryCommand(2,20,int(self.motorpositions['lateral_positions'][idx]))
+                            ser.write(moveabs_cmd)
+                            time.sleep(.1)
+                        break
+                    except zaber_serial.binaryserial.serial.SerialException:
+                        print('can''t access Zaber ' + str(zabertry_i))
+                    time.sleep(.01)
+                for zabertry_i in range(0,1000): # when the COMport is occupied, it will try again
+                    try:
+                        with zaber_serial.BinarySerial(self.variables['setup']['comport_motor']) as ser:
+                            moveabs_cmd = zaber_serial.BinaryCommand(1,20,int(self.motorpositions['rc_positions'][idx]))
+                            ser.write(moveabs_cmd)
+                            time.sleep(.1)
+                        break
+                    except zaber_serial.binaryserial.serial.SerialException:
+                        print('can''t access Zaber ' + str(zabertry_i))
+                    time.sleep(.01)
+
     def load_parameters(self):
         maxcol = 4 # number of columns
         project_now = self.handles['filter_project'].currentText()
@@ -665,7 +769,13 @@ class PlotCanvas(FigureCanvas):
         self.axes.cla()
         if type(data) == dict and len(data) > 0:
             times, values = self.minethedata(data)
-            
+# =============================================================================
+#             self.axes.cla()
+#             print(times['motor_position_rostrocaudal'])
+#             print(values['motor_position_rostrocaudal'])
+#             self.axes.plot(times['motor_position_rostrocaudal'], values['motor_position_rostrocaudal'], 'ko',label = 'RC')
+#             self.axes.plot(times['motor_position_lateral'], values['motor_position_lateral'], 'ro',label = 'Lat')
+# =============================================================================
             steptime = (endtime-startime)/numberofpoints
             timerange = pd.date_range(start = startime, end = endtime, periods = numberofpoints*10) #freq = 's' *10
             #print(startime , endtime)
