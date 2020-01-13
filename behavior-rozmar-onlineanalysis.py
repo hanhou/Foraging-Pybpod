@@ -265,18 +265,20 @@ class App(QDialog):
             if len(self.data_now) > 0:
                 endtime = max(self.data_now['times']['alltimes'])
                 if  self.handles['plot_timeback'].text().isnumeric():
-                    startime = np.datetime64(endtime - pd.to_timedelta(int(self.handles['plot_timeback'].text()),'s'))
+                    startime = pd.to_timedelta(int(self.handles['plot_timeback'].text()),'s')
                 else:
-                    startime = min(self.data_now['times']['alltimes'])
+                    startime = None#min(self.data_now['times']['alltimes'])
                 if  self.handles['plot_timeback_runningwindow'].text().isnumeric(): # determining averaging window size
                     numberofpoints = int(self.handles['plot_timeback_runningwindow'].text())
                 else:
                     numberofpoints = 10    
-                self.handles['axes1'].plot_licks_and_rewards(self.data_now,startime,endtime)
-                self.handles['axes2'].plot_bias(self.data_now,startime,endtime,numberofpoints)
+                self.handles['axes1'].plot_licks_and_rewards(self.data_now,startime,endtime,self.handles['select_session'].currentText())
+                self.handles['axes2'].plot_bias(self.data_now,startime,endtime,numberofpoints,self.handles['select_session'].currentText())
                 print('plotting done')
+                
         if lastselected == 'filter_subject'  :
             self.load_parameters()
+            self.loadthedata()
 # =============================================================================
 #         data = self.data 
 #         handlenames = self.handles.keys()
@@ -339,11 +341,13 @@ class App(QDialog):
         self.handles['filter_subject'].addItem('all subjects')
         #self.handles['filter_subject'].addItems(self.data['subject'].unique())
         self.handles['filter_subject'].currentIndexChanged.connect(lambda: self.filterthedata('filter_subject'))
-        self.handles['filter_experimenter'] = QComboBox(self)
-        self.handles['filter_experimenter'].setFocusPolicy(Qt.NoFocus)
-        self.handles['filter_experimenter'].addItem('all experimenters')
-        #self.handles['filter_experimenter'].addItems(self.data['experimenter'].unique())
-        self.handles['filter_experimenter'].currentIndexChanged.connect(lambda: self.filterthedata('filter_experimenter'))
+# =============================================================================
+#         self.handles['filter_experimenter'] = QComboBox(self)
+#         self.handles['filter_experimenter'].setFocusPolicy(Qt.NoFocus)
+#         self.handles['filter_experimenter'].addItem('all experimenters')
+#         #self.handles['filter_experimenter'].addItems(self.data['experimenter'].unique())
+#         self.handles['filter_experimenter'].currentIndexChanged.connect(lambda: self.filterthedata('filter_experimenter'))
+# =============================================================================
         
         self.handles['loadparams'] = QPushButton('Load parameters')
         self.handles['loadparams'].setFocusPolicy(Qt.NoFocus)
@@ -352,6 +356,7 @@ class App(QDialog):
         
         self.handles['select_session'] = QComboBox(self)
         self.handles['select_session'].setFocusPolicy(Qt.NoFocus)
+        self.handles['select_session'].currentIndexChanged.connect(self.filterthedata)
         #self.handles['select_session'].addItem('all sessions')
         #sessionnames = self.alldirs['sessionnames']
         #sessionnames.sort(reverse = True)
@@ -369,10 +374,10 @@ class App(QDialog):
         #layout.addWidget(self.handles['filter_session'],0,3)
         layout.addWidget(self.handles['filter_subject'],0,3)
         layout.addWidget(self.handles['load_the_data'],0,4)
-        layout.addWidget(self.handles['filter_experimenter'],0,5)
+        #layout.addWidget(self.handles['filter_experimenter'],0,5)
+        layout.addWidget(self.handles['select_session'],0,5)
         layout.addWidget(self.handles['loadparams'],0,6)
-        layout.addWidget(self.handles['select_session'],0,7)
-        layout.addWidget(self.handles['set_lickport_position'],0,8)
+        layout.addWidget(self.handles['set_lickport_position'],0,7)
         self.horizontalGroupBox_filter.setLayout(layout)
         
         self.horizontalGroupBox_axes = QGroupBox("plots")
@@ -419,10 +424,11 @@ class App(QDialog):
 #         
 # =============================================================================
         if self.motorpositions:
+            self.handles['select_session'].currentIndexChanged.disconnect()
             self.handles['select_session'].clear()
             self.handles['select_session'].addItems(self.motorpositions['date'])
             self.handles['select_session'].setCurrentIndex(len(self.motorpositions['date'])-1)
-
+            self.handles['select_session'].currentIndexChanged.connect(self.filterthedata)
         
 # =============================================================================
 #         self.handles['filter_experimenter'].currentIndexChanged.disconnect()
@@ -507,14 +513,17 @@ class App(QDialog):
         #%%
         if self.motorpositions:
             idx = self.handles['select_session'].currentText() == np.asarray(self.motorpositions['date'])
-            print(self.motorpositions)
-            print(self.motorpositions['rc_positions'][idx][0])
-            print(self.motorpositions['lateral_positions'][idx][0])
+# =============================================================================
+#             print(self.motorpositions)
+#             print(self.motorpositions['rc_positions'][idx][0])
+#             print(self.motorpositions['lateral_positions'][idx][0])
+#             print(self.variables['subject']['motor_retractiondistance'])
+# =============================================================================
             try:
                 for zabertry_i in range(0,1000): # when the COMport is occupied, it will try again
                     try:
                         with zaber_serial.BinarySerial(self.variables['setup']['comport_motor']) as ser:
-                            moveabs_cmd = zaber_serial.BinaryCommand(2,20,int(self.motorpositions['lateral_positions'][idx]))
+                            moveabs_cmd = zaber_serial.BinaryCommand(2,20,int(self.motorpositions['lateral_positions'][idx][0]))
                             ser.write(moveabs_cmd)
                             time.sleep(.1)
                         break
@@ -524,7 +533,10 @@ class App(QDialog):
                 for zabertry_i in range(0,1000): # when the COMport is occupied, it will try again
                     try:
                         with zaber_serial.BinarySerial(self.variables['setup']['comport_motor']) as ser:
-                            moveabs_cmd = zaber_serial.BinaryCommand(1,20,int(self.motorpositions['rc_positions'][idx]))
+                            pos = int(self.motorpositions['rc_positions'][idx][0]-self.variables['subject']['motor_retractiondistance'])
+                            if pos<0:
+                                pos = 0
+                            moveabs_cmd = zaber_serial.BinaryCommand(1,20,pos)
                             ser.write(moveabs_cmd)
                             time.sleep(.1)
                         break
@@ -711,17 +723,47 @@ class PlotCanvas(FigureCanvas):
         FigureCanvas.updateGeometry(self)
         #self.plot()
 
-    def minethedata(self,data):
-        times = data['times'].copy()
-        values = data['values'].copy()
-        #idxes = data['idxes']
+    def minethedata(self,data,session):
+        times_old = data['times'].copy()
+        values_old = data['values'].copy()
+        times = dict()
+        values = dict()
+        days = dict()
+        for key in times_old.keys():
+            times_now  = times_old[key]
+            order = np.argsort(times_now)
+            times[key] = times_now[order]
+            days[key] = np.asarray(times_now[order],dtype = 'datetime64[D]')
+            if len(days[key])>0:
+                needed = days[key] == np.datetime64(session)
+            else:
+                needed = []
+            times[key] = times[key][needed]
+            if key in values_old.keys():
+                values_now = values_old[key]
+                values[key] = values_now[order]
+                values[key] = values[key][needed]
+        
+# =============================================================================
+#         print(times_old)
+#         print(times)
+#         print(values_old)
+#         print(values)
+# =============================================================================
+        print(days)
         return times, values
     
-    def plot_licks_and_rewards(self,data = [],startime=None,endtime=None):
+    def plot_licks_and_rewards(self,data = [],startime=None,endtime=None,session = None):
         self.axes.cla()
         if type(data) == dict and len(data) > 0:
-            times, values = self.minethedata(data)
+            times, values = self.minethedata(data,session)
+            if startime == None:
+                startime = np.min(times['alltimes'])
+            else:
+                startime = np.max([np.datetime64(np.max(times['alltimes']) - startime),np.min(times['alltimes'])])
+            endtime = np.max(times['alltimes'])
             for timeskey in times.keys():
+            
                 neededidx = (times[timeskey]>=startime) & (times[timeskey]<=endtime)
                 times[timeskey]= times[timeskey][neededidx]
 # =============================================================================
@@ -768,10 +810,15 @@ class PlotCanvas(FigureCanvas):
                 #self.axes.set_xlim(startime,endtime)
             self.draw()
             
-    def plot_bias(self,data = [],startime=None,endtime=None,numberofpoints = 10):
+    def plot_bias(self,data = [],startime=None,endtime=None,numberofpoints = 10,session = None):
         self.axes.cla()
         if type(data) == dict and len(data) > 0:
-            times, values = self.minethedata(data)
+            times, values = self.minethedata(data,session)
+            if startime == None:
+                startime = np.min(times['alltimes'])
+            else:
+                startime = np.max([np.datetime64(np.max(times['alltimes']) - startime),np.min(times['alltimes'])])
+            endtime = np.max(times['alltimes'])
 # =============================================================================
 #             self.axes.cla()
 #             print(times['motor_position_rostrocaudal'])
