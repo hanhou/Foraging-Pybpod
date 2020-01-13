@@ -31,6 +31,7 @@ for defpath in paths:
 class App(QDialog):
     def __init__(self):
         super().__init__()
+        print('started')
         self.dirs = dict()
         self.handles = dict()
         self.title = 'behavior - online analysis'
