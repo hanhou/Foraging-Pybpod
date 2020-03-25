@@ -106,7 +106,20 @@ def load_and_parse_a_csv_file(csvfilename):
                 df.loc[df['Trial_number_in_session'] == trialnum, 'Block_number'] = int(blocknumber)
             except:
                 df.loc[df['Trial_number_in_session'] == trialnum, 'Block_number'] = np.nan
-                
+    # adding accumulated rewards -L,R,M
+    for direction in ['L','R','M']:
+        indexes = df[df['MSG'] == 'reward_{}_accumulated:'.format(direction)].index + 1 #+2
+        if len(indexes)>0:
+            if 'reward_{}_accumulated'.format(direction) not in df.columns:
+                df['reward_{}_accumulated'.format(direction)]=np.NaN
+            accumulated_rewards = df['MSG'][indexes]
+            trialnumbers = df['Trial_number_in_session'][indexes].values
+            for accumulated_reward,trialnum in zip(accumulated_rewards,trialnumbers):
+                #df['Block_number'][df['Trial_number_in_session'] == trialnum] = int(blocknumber)
+                try:
+                    df.loc[df['Trial_number_in_session'] == trialnum, 'reward_{}_accumulated'.format(direction)] = accumulated_reward == 'True'
+                except:
+                    df.loc[df['Trial_number_in_session'] == trialnum, 'reward_{}_accumulated'.format(direction)] = np.nan               
     # adding trial numbers -  the variable names are crappy.. sorry
     indexes = df[df['MSG'] == 'Trialnumber:'].index + 1 #+2
     if len(indexes)>0:
