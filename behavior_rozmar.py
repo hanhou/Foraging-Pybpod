@@ -304,6 +304,10 @@ def minethedata(data):
         idxes['GoCue'] = (data['MSG'] == 'GoCue') & (data['TYPE'] == 'TRANSITION')
         times['GoCue'] = data['PC-TIME'][idxes['GoCue']]
         
+        # HH20200729
+        idxes['ITI_start'] = (data['MSG'] == 'ITI') & (data['TYPE'] == 'TRANSITION')
+        times['ITI_start'] = data['PC-TIME'][idxes['ITI_start']]
+        
         idxes['reward_p_L'] = idxes['GoCue']
         times['reward_p_L'] = data['PC-TIME'][idxes['reward_p_L']]
         values['reward_p_L'] = data['reward_p_L'][idxes['reward_p_L']]

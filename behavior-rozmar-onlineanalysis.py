@@ -6,8 +6,11 @@ from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import pyqtSlot, QTimer, Qt
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
+from matplotlib.gridspec import GridSpec
 
 import numpy as np
 import pandas as pd
@@ -35,10 +38,10 @@ class App(QDialog):
         self.dirs = dict()
         self.handles = dict()
         self.title = 'behavior - online analysis'
-        self.left = 10
-        self.top = 10
-        self.width = 1024
-        self.height = 768
+        self.left = 20 # 10
+        self.top = 30 # 10
+        self.width = 1200 # 1024
+        self.height = 900  # 768
         self.dirs['projectdir'] =  defpath
         self.loaddirectorystructure()
         #self.loadthedata()
@@ -78,6 +81,7 @@ class App(QDialog):
                                      'early_lick_punishment',
                                      'reward_rate_family',
                                      'lickport_number',
+                                     'auto_stop_max_ignored_trials_in_a_row',
                                      ]
         free_water = {
                       'difficulty_ratio_pair_num' : 0,
@@ -181,6 +185,7 @@ class App(QDialog):
         self.alldirs['sessionnames'] = sessionnames        
         self.alldirs['subjectnames'] = subjectnames     
         print('directory structure reloaded')
+        
     def loadthedata(self):
         print('loadthedata')
         self.handles['load_the_data'].setText('Loading...')
@@ -198,13 +203,13 @@ class App(QDialog):
             self.pickle_write_thread = threading.Thread(target=behavior_rozmar.save_pickles_for_online_analysis, args=(self.dirs['projectdir'], selected['project'], selected['experiment'], selected['setup'], True))
             self.pickle_write_thread.daemon = True                            # Daemonize thread
             self.pickle_write_thread.start() 
-# =============================================================================
-#         behavior_rozmar.save_pickles_for_online_analysis(projectdir = self.dirs['projectdir'],
-#                                                 projectnames_needed = selected['project'],
-#                                                 experimentnames_needed = selected['experiment'],
-#                                                 setupnames_needed = selected['setup'],
-#                                                 load_only_last_day = True)
-# =============================================================================
+            
+            # For debugging ...
+            # behavior_rozmar.save_pickles_for_online_analysis(projectdir = self.dirs['projectdir'],
+            #                                         projectnames_needed = selected['project'],
+            #                                         experimentnames_needed = selected['experiment'],
+            #                                         setupnames_needed = selected['setup'],
+            #                                         load_only_last_day = True)
             try:
                 self.data = behavior_rozmar.load_pickles_for_online_analysis(projectdir = self.dirs['projectdir'],
                                                         projectnames_needed = selected['project'],
@@ -234,8 +239,9 @@ class App(QDialog):
                 self.handles['load_the_data'].setStyleSheet('QPushButton {color: black;}')
                 self.updateUI()
                 self.filterthedata()
-            except:
+            except Exception as error:
                 print('couldn\'t load the data..')
+                print(error)
                 self.handles['load_the_data'].setText('Load the data')
                 self.handles['load_the_data'].setStyleSheet('QPushButton {color: black;}')
                 self.updateUI()
@@ -259,8 +265,9 @@ class App(QDialog):
     def filterthedata(self,lastselected = ' '):
         if lastselected != ' ':
             print('filterthedata')
-            print(lastselected)
+            # print(lastselected)
             self.updateUI_dirstructure(lastselected)
+            
         if type(self.data) == dict:
             self.data_now = self.data.copy()
             if len(self.data_now) > 0:
@@ -268,13 +275,18 @@ class App(QDialog):
                 if  self.handles['plot_timeback'].text().isnumeric():
                     startime = pd.to_timedelta(int(self.handles['plot_timeback'].text()),'s')
                 else:
-                    startime = None#min(self.data_now['times']['alltimes'])
+                    startime = None #min(self.data_now['times']['alltimes'])
                 if  self.handles['plot_timeback_runningwindow'].text().isnumeric(): # determining averaging window size
                     numberofpoints = int(self.handles['plot_timeback_runningwindow'].text())
                 else:
                     numberofpoints = 10    
-                self.handles['axes1'].plot_licks_and_rewards(self.data_now,startime,endtime,self.handles['select_session'].currentText())
-                self.handles['axes2'].plot_bias(self.data_now,startime,endtime,numberofpoints,self.handles['select_session'].currentText())
+                # self.handles['axes1'].plot_licks_and_rewards(self.data_now,startime,endtime,self.handles['select_session'].currentText())
+                # self.handles['axes2'].plot_bias(self.data_now,startime,endtime,numberofpoints,self.handles['select_session'].currentText())
+
+                # Use only one canvas for all (sub)plots, which makes axis control more straightforward. HH20200729
+                self.handles['axes'].update_plots(self.data_now, startime, endtime, numberofpoints,
+                                                  self.handles['select_session'].currentText())
+
                 print('plotting done')
                 
         if lastselected == 'filter_subject'  :
@@ -381,12 +393,23 @@ class App(QDialog):
         layout.addWidget(self.handles['set_lickport_position'],0,7)
         self.horizontalGroupBox_filter.setLayout(layout)
         
+        # ----- Online plotting -----
         self.horizontalGroupBox_axes = QGroupBox("plots")
         layout_axes = QGridLayout()
-        self.handles['axes1'] = PlotCanvas(self, width=5, height=4)
-        self.handles['axes2'] = PlotCanvas(self, width=5, height=4)
-        layout_axes.addWidget(self.handles['axes1'],0,0)
-        layout_axes.addWidget(self.handles['axes2'],1,0)
+        
+        # Use only one canvas for all (sub)plots, which makes axis control more straightforward. HH20200729
+        # self.handles['axes1'] = PlotCanvas(self, width=5, height=4)
+        # self.handles['axes2'] = PlotCanvas(self, width=5, height=4)
+        # layout_axes.addWidget(self.handles['axes1'],1,0)
+        # layout_axes.addWidget(self.handles['axes2'],2,0)
+        # self.handles['axes1'].axes.get_shared_x_axes().join(self.handles['axes1'].axes, self.handles['axes2'].axes)
+        self.handles['axes'] = PlotCanvas(self, width=5, height=4)
+        layout_axes.addWidget(self.handles['axes'],1,0)
+        
+        # Add NavigationToolBar (zoom in/out). HH20200729
+        self.handles['navigation_toolbar'] = NavigationToolbar(self.handles['axes'], self)
+        layout_axes.addWidget(self.handles['navigation_toolbar'],0,0)
+
         self.horizontalGroupBox_axes.setLayout(layout_axes)
         
         self.horizontalGroupBox_plot_settings = QGroupBox("Plot settings")
@@ -561,6 +584,7 @@ class App(QDialog):
                 variables_subject = json.load(json_file)
             with open(setup_var_file) as json_file:
                 variables_setup = json.load(json_file)
+                
             if self.variables is None:
                 layout = QGridLayout()
                 self.horizontalGroupBox_preset_variables = QGroupBox("Preset variables")
@@ -571,6 +595,7 @@ class App(QDialog):
                 layout.addWidget(self.horizontalGroupBox_variables_subject ,2,0)
                 self.horizontalGroupBox_variables.setLayout(layout)
                 
+                # Preset variables
                 layout_preset = QGridLayout()
                 self.handles['presetbuttons'] = dict()
                 for idx,key in enumerate(self.preset_variables.keys()):
@@ -580,6 +605,7 @@ class App(QDialog):
                     layout_preset.addWidget(self.handles['presetbuttons'][key] ,0,idx)
                 self.horizontalGroupBox_preset_variables.setLayout(layout_preset)    
                 
+                # Parameter settings
                 layout_setup = QGridLayout()
                 row = 0
                 col = -1
@@ -601,8 +627,8 @@ class App(QDialog):
                 layout_subject = QGridLayout()
                 row = 0
                 col = -1
-                for idx,key in enumerate(variables_subject.keys()):
-                    if key in self.variables_to_display:
+                for idx,key in enumerate(variables_subject.keys()):   # Read all variables in json file
+                    if key in self.variables_to_display:   # But only show part of them
                         col +=1
                         if col > maxcol*2:
                             col = 0
@@ -613,19 +639,28 @@ class App(QDialog):
                         self.handles['variables_subject'][key].returnPressed.connect(self.save_parameters)
                         self.handles['variables_subject'][key].textChanged.connect(self.check_parameters)
                         layout_subject.addWidget(self.handles['variables_subject'][key] ,row,col)
+                        
                 self.horizontalGroupBox_variables_subject.setLayout(layout_subject)
                 self.variables=dict()
             else:
                 self.horizontalGroupBox_variables_setup.setTitle("Setup: "+setup_now)
                 self.horizontalGroupBox_variables_subject.setTitle("Subject: "+subject_now)
+                
                 for key in self.handles['variables_subject'].keys():
-                    self.handles['variables_subject'][key].setText(str(variables_subject[key]))
+                    if key in variables_subject.keys():
+                        self.handles['variables_subject'][key].setText(str(variables_subject[key]))
+                    else:  # Just in case there are missing parameters (due to updated parameter tables) 
+                        self.handles['variables_subject'][key].setText("NA")
+                        self.handles['variables_subject'][key].setStyleSheet('QLineEdit {background: grey;}')
+                    
                 for key in self.handles['variables_setup'].keys():
                     self.handles['variables_setup'][key].setText(str(variables_setup[key]))
+                    
             self.variables['subject'] = variables_subject
             self.variables['setup'] = variables_setup
             self.variables['subject_file'] = subject_var_file
             self.variables['setup_file'] = setup_var_file
+            
     def check_parameters(self):
         project_now = self.handles['filter_project'].currentText()
         experiment_now = self.handles['filter_experiment'].currentText()
@@ -637,33 +672,45 @@ class App(QDialog):
             variables_subject = json.load(json_file)
         with open(setup_var_file) as json_file:
             variables_setup = json.load(json_file)
+            
         self.variables['subject'] = variables_subject
         self.variables['setup'] = variables_setup
         for dicttext in ['subject','setup']:
             for key in self.handles['variables_'+dicttext].keys(): 
                 valuenow = None
-                if type(self.variables[dicttext][key]) == bool:
-                    if 'true' in self.handles['variables_'+dicttext][key].text().lower() or '1' in self.handles['variables_'+dicttext][key].text():
-                        valuenow = True
+                
+                # Auto formatting
+                if key in self.variables[dicttext].keys():  # If json file has the parameter in the GUI (backward compatibility). HH20200730
+                    if type(self.variables[dicttext][key]) == bool:
+                        if 'true' in self.handles['variables_'+dicttext][key].text().lower() or '1' in self.handles['variables_'+dicttext][key].text():
+                            valuenow = True
+                        else:
+                            valuenow = False
+                    elif type(self.variables[dicttext][key]) == float:
+                        try:
+                            valuenow = float(self.handles['variables_'+dicttext][key].text())
+                        except:
+                            print('not proper value')
+                            valuenow = None
+                    elif type(self.variables[dicttext][key]) == int:                   
+                        try:
+                            valuenow = int(round(float(self.handles['variables_'+dicttext][key].text())))
+                        except:
+                            print('not proper value')
+                            valuenow = None
+                            
+                    # Turn the newly changed parameters to red            
+                    if valuenow == self.variables[dicttext][key]:
+                        self.handles['variables_'+dicttext][key].setStyleSheet('QLineEdit {color: black;}')
                     else:
-                        valuenow = False
-                elif type(self.variables[dicttext][key]) == float:
-                    try:
-                        valuenow = float(self.handles['variables_'+dicttext][key].text())
-                    except:
-                        print('not proper value')
-                        valuenow = None
-                elif type(self.variables[dicttext][key]) == int:                   
-                    try:
-                        valuenow = int(round(float(self.handles['variables_'+dicttext][key].text())))
-                    except:
-                        print('not proper value')
-                        valuenow = None
-                if valuenow == self.variables[dicttext][key]:
-                    self.handles['variables_'+dicttext][key].setStyleSheet('QLineEdit {color: black;}')
-                else:
-                    self.handles['variables_'+dicttext][key].setStyleSheet('QLineEdit {color: red;}')
+                        self.handles['variables_'+dicttext][key].setStyleSheet('QLineEdit {color: red;}')
+                else:   # If json file has missing parameters (backward compatibility). HH20200730
+                    # self.handles['variables_subject'][key].setText("NA")
+                    self.handles['variables_subject'][key].setStyleSheet('QLineEdit {background: grey;}')
+                    
+                    
         qApp.processEvents()
+        
     def save_parameters(self):
         project_now = self.handles['filter_project'].currentText()
         experiment_now = self.handles['filter_experiment'].currentText()
@@ -680,25 +727,33 @@ class App(QDialog):
         print('save')
         for dicttext in ['subject','setup']:
             for key in self.handles['variables_'+dicttext].keys(): 
-                if type(self.variables[dicttext][key]) == bool:
-                    if 'true' in self.handles['variables_'+dicttext][key].text().lower() or '1' in self.handles['variables_'+dicttext][key].text():
-                        self.variables[dicttext][key] = True
-                    else:
-                        self.variables[dicttext][key] = False
-                elif type(self.variables[dicttext][key]) == float:
-                    try:
-                        self.variables[dicttext][key] = float(self.handles['variables_'+dicttext][key].text())
-                    except:
-                        print('not proper value')
-                elif type(self.variables[dicttext][key]) == int:                   
-                    try:
-                        self.variables[dicttext][key] = int(round(float(self.handles['variables_'+dicttext][key].text())))
-                    except:
-                        print('not proper value')
+                
+                # Auto formatting
+                if key in self.variables[dicttext].keys():  # If json file has the parameter in the GUI (backward compatibility). HH20200730
+                    if type(self.variables[dicttext][key]) == bool:
+                        if 'true' in self.handles['variables_'+dicttext][key].text().lower() or '1' in self.handles['variables_'+dicttext][key].text():
+                            self.variables[dicttext][key] = True
+                        else:
+                            self.variables[dicttext][key] = False
+                    elif type(self.variables[dicttext][key]) == float:
+                        try:
+                            self.variables[dicttext][key] = float(self.handles['variables_'+dicttext][key].text())
+                        except:
+                            print('not proper value')
+                    elif type(self.variables[dicttext][key]) == int:                   
+                        try:
+                            self.variables[dicttext][key] = int(round(float(self.handles['variables_'+dicttext][key].text())))
+                        except:
+                            print('not proper value')
+                            
+                else:   # If json file has missing parameters, we add this new parameter (backward compatibility). HH20200730
+                    self.variables[dicttext][key] = int(self.handles['variables_'+dicttext][key].text())   # Only consider int now
+                        
         with open(self.variables['setup_file'], 'w') as outfile:
             json.dump(self.variables['setup'], outfile)
         with open(self.variables['subject_file'], 'w') as outfile:
             json.dump(self.variables['subject'], outfile)
+            
         self.load_parameters()
         self.check_parameters()
         
@@ -712,10 +767,19 @@ class App(QDialog):
             
 class PlotCanvas(FigureCanvas):
     def __init__(self, parent=None, width=5, height=4, dpi=100):
-        fig = Figure(figsize=(width, height), dpi=dpi)
-        self.axes = fig.add_subplot(111)
+        self.fig = Figure(figsize=(width, height), dpi=dpi)
+        
+        # Use one canvas for all plots, which makes axis control more straightforward. HH20200729
+        #  self.axes = fig.add_subplot(111)
+        # self.axes = fig.subplots(2,1, sharex=True)
+        # fig.tight_layout() 
+        
+        gs = GridSpec(2, 1, wspace = 0.2, bottom = 0.1, top = 0.9, left = 0.06, right = 0.98)
+        self.ax1 = self.fig.add_subplot(gs[0, 0])
+        self.ax2 = self.fig.add_subplot(gs[1, 0])
+        self.ax1.get_shared_x_axes().join(self.ax1, self.ax2)
 
-        FigureCanvas.__init__(self, fig)
+        FigureCanvas.__init__(self, self.fig)
         self.setParent(parent)
 
         FigureCanvas.setSizePolicy(self,
@@ -723,6 +787,32 @@ class PlotCanvas(FigureCanvas):
                 QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
         #self.plot()
+        
+    def update_plots(self, data, startime, endtime, numberofpoints, session):
+        # --- Fetch data ---
+        times, values = self.minethedata(data, session)  
+        
+        # --- Perform time range selection here instead of doing it twice in the plotting functions. HH20200730 ---
+        if startime == None:
+            startime = np.min(times['alltimes'])
+        else:
+            startime = np.max([np.datetime64(np.max(times['alltimes']) - startime),np.min(times['alltimes'])])
+        endtime = np.max(times['alltimes'])
+        
+        # Update time and values.  HH20200730
+        for timeskey in times.keys():
+            neededidx = (times[timeskey]>=startime) & (times[timeskey]<=endtime)
+            times[timeskey]= times[timeskey][neededidx]
+            
+            if timeskey in values.keys():
+                values[timeskey]= values[timeskey][neededidx]
+                
+        steptime = (endtime - startime)/numberofpoints
+        timerange = pd.date_range(start = startime, end = endtime, periods = numberofpoints*10) #freq = 's' *10
+                
+        # --- Plotting ---
+        self.plot_licks_and_rewards(times)
+        self.plot_bias(times, values, timerange, steptime)
 
     def minethedata(self,data,session):
         times_old = data['times'].copy()
@@ -745,28 +835,36 @@ class PlotCanvas(FigureCanvas):
                 values[key] = values_now[order]
                 values[key] = values[key][needed]
         
+
 # =============================================================================
 #         print(times_old)
 #         print(times)
 #         print(values_old)
 #         print(values)
 # =============================================================================
-        print(days)
+        # print(days)
         return times, values
     
-    def plot_licks_and_rewards(self,data = [],startime=None,endtime=None,session = None):
-        self.axes.cla()
-        if type(data) == dict and len(data) > 0:
-            times, values = self.minethedata(data,session)
-            if startime == None:
-                startime = np.min(times['alltimes'])
-            else:
-                startime = np.max([np.datetime64(np.max(times['alltimes']) - startime),np.min(times['alltimes'])])
-            endtime = np.max(times['alltimes'])
-            for timeskey in times.keys():
+    def plot_licks_and_rewards(self, times): #, startime=None, endtime=None):
+        
+        # self.axes.cla() 
+        # ax = self.axes[0]
+        ax = self.ax1
+        ax.cla()
             
-                neededidx = (times[timeskey]>=startime) & (times[timeskey]<=endtime)
-                times[timeskey]= times[timeskey][neededidx]
+        # if type(data) == dict and len(data) > 0:
+        # times, values = self.minethedata(data,session)  # Moved to update_plots
+        
+        # Moved to minethedata(). HH20200730
+        # if startime == None:
+        #     startime = np.min(times['alltimes'])
+        # else:
+        #     startime = np.max([np.datetime64(np.max(times['alltimes']) - startime),np.min(times['alltimes'])])
+        # endtime = np.max(times['alltimes'])
+        
+        # for timeskey in times.keys():
+        #     neededidx = (times[timeskey]>=startime) & (times[timeskey]<=endtime)
+        #     times[timeskey]= times[timeskey][neededidx]
 # =============================================================================
 #             if  handles and handles['plot_timeback'].text().isnumeric():
 #                 alltimes = []
@@ -776,7 +874,7 @@ class PlotCanvas(FigureCanvas):
 #                    else:
 #                        alltimes = times[timeskey]
 #                 endtime = max(alltimes)
-#                 #startime = endtime - int(handles['plot_timeback'].text())*np.timedelta64(1,'s')
+#                 #self.startime = endtime - int(handles['plot_timeback'].text())*np.timedelta64(1,'s')
 #                 for timeskey in times.keys():
 #                     timediffs = (times[timeskey] - endtime).to_numpy()
 #                     neededidx = (timediffs/np.timedelta64(1,'s')+int(handles['plot_timeback'].text()))>0
@@ -784,110 +882,140 @@ class PlotCanvas(FigureCanvas):
 #                   #  idxes[timeskey]= idxes[timeskey][neededidx]
 #                 #print(neededidx )
 # =============================================================================
-            self.axes.cla()
-            self.axes.plot(times['trialstart'], np.zeros(len(times['trialstart']))+.5, 'b|', markersize = 150)
-            self.axes.plot(times['trialend'], np.zeros(len(times['trialend']))+.5, 'r|', markersize = 150)
-            self.axes.plot(times['GoCue'], np.zeros(len(times['GoCue']))+.5, 'g|', markersize = 100)
+        ax.cla()
+        # ax.plot(times['trialstart'], np.zeros(len(times['trialstart']))+.5, 'b|', markersize = 150, label='TrialStart')
+        # ax.plot(times['trialend'], np.zeros(len(times['trialend']))+.5, 'r|', markersize = 150)
+        # ax.plot(times['GoCue'], np.zeros(len(times['GoCue']))+.5, 'g|', markersize = 100, label='GoCue')
+        
+        # Changed to show real trial END. HH
+        ax.eventplot(times['trialstart'], lineoffsets=.5, linelengths=1.5, linewidth=0.6, color='b', label='TrialStart', alpha=0.5)
+        ax.eventplot(times['GoCue'], lineoffsets=.5, linelengths=1, linewidth=0.6, color='g', label='GoCue', alpha=0.5)
+        ax.eventplot(times['ITI_start'], lineoffsets=.5, linelengths=1.5, linewidth=0.6, color='r', label='TrialEnd(ITIStart)', alpha=0.5)  
+        
+        ax.plot(times['lick_L'], np.zeros(len(times['lick_L'])), 'k|')
+        ax.plot(times['lick_R'], np.zeros(len(times['lick_R']))+1, 'k|')
+        ax.plot(times['choice_L'], np.zeros(len(times['choice_L']))+.1, 'go', markerfacecolor = (1, 1, 1, 1))
+        ax.plot(times['choice_R'], np.zeros(len(times['choice_R']))+.9, 'go',markerfacecolor = (1, 1, 1, 1))
+        ax.plot(times['reward_L'], np.zeros(len(times['reward_L']))+.2, 'go', markerfacecolor = (0, 1, 0, 1))
+        ax.plot(times['reward_R'], np.zeros(len(times['reward_R']))+.8, 'go',markerfacecolor = (0, 1, 0, 1))  
+        ax.plot(times['autowater_L'], np.zeros(len(times['autowater_L']))+.7, 'go', markerfacecolor = (0, 0, 1, 1))
+        #ax.plot(times['autowater_L'], np.zeros(len(times['autowater_L']))+.1, 'go', markerfacecolor = (0, 0, 1, 1))
+        #ax.plot(times['autowater_R'], np.zeros(len(times['autowater_R']))+.9, 'go',markerfacecolor = (0, 0, 1, 1))
+        
+        if 'lick_M' in times.keys():
+            ax.plot(times['lick_M'], np.zeros(len(times['lick_M']))+.5, 'k|')
+            ax.plot(times['choice_M'], np.zeros(len(times['choice_M']))+.45, 'go',markerfacecolor = (1, 1, 1, 1))
+            ax.plot(times['reward_M'], np.zeros(len(times['reward_M']))+.55, 'go', markerfacecolor = (0, 1, 0, 1))
+            #ax.plot(times['autowater_M'], np.zeros(len(times['autowater_M']))+.45, 'go',markerfacecolor = (0, 0, 1, 1))
+        
+        ax.set_title('Lick and reward history')
+        ax.set_yticks([0,1])
+        ax.set_yticklabels(['Left', 'Right'])
+        ax.set_ylim(-0.1, 1.1)
+        # ax.set_xlim([startime, endtime])
+        
+        ax.legend(bbox_to_anchor=(0., 1.02, .25, .102), ncol=3, loc=3, fontsize=8)
+        ax.set_xticks([])
+        
+        #if  handles and handles['plot_timeback'].text().isnumeric():
+            #ax.set_xlim(self.startime,endtime)
+        self.draw()
             
-            self.axes.plot(times['lick_L'], np.zeros(len(times['lick_L'])), 'k|')
+    def plot_bias(self, times, values, timerange, steptime): #, startime=None, endtime=None, numberofpoints = 10):
+        
+        # self.axes.cla()
+        # ax = self.axes[1]
+        ax = self.ax2
+        ax.cla()
+        
+        # if type(data) == dict and len(data) > 0:
+        # times, values = self.minethedata(data,session)
+        
+        # Moved to minethedata(). HH20200730
+        # if startime == None:
+        #     startime = np.min(times['alltimes'])
+        # else:
+        #     startime = np.max([np.datetime64(np.max(times['alltimes']) - startime),np.min(times['alltimes'])])
             
-            self.axes.plot(times['lick_R'], np.zeros(len(times['lick_R']))+1, 'k|')
-            self.axes.plot(times['choice_L'], np.zeros(len(times['choice_L']))+.1, 'go', markerfacecolor = (1, 1, 1, 1))
-            self.axes.plot(times['choice_R'], np.zeros(len(times['choice_R']))+.9, 'go',markerfacecolor = (1, 1, 1, 1))
-            self.axes.plot(times['reward_L'], np.zeros(len(times['reward_L']))+.2, 'go', markerfacecolor = (0, 1, 0, 1))
-            self.axes.plot(times['reward_R'], np.zeros(len(times['reward_R']))+.8, 'go',markerfacecolor = (0, 1, 0, 1))  
-            self.axes.plot(times['autowater_L'], np.zeros(len(times['autowater_L']))+.7, 'go', markerfacecolor = (0, 0, 1, 1))
-            #self.axes.plot(times['autowater_L'], np.zeros(len(times['autowater_L']))+.1, 'go', markerfacecolor = (0, 0, 1, 1))
-            #self.axes.plot(times['autowater_R'], np.zeros(len(times['autowater_R']))+.9, 'go',markerfacecolor = (0, 0, 1, 1))
-            if 'lick_M' in times.keys():
-                self.axes.plot(times['lick_M'], np.zeros(len(times['lick_M']))+.5, 'k|')
-                self.axes.plot(times['choice_M'], np.zeros(len(times['choice_M']))+.45, 'go',markerfacecolor = (1, 1, 1, 1))
-                self.axes.plot(times['reward_M'], np.zeros(len(times['reward_M']))+.55, 'go', markerfacecolor = (0, 1, 0, 1))
-                #self.axes.plot(times['autowater_M'], np.zeros(len(times['autowater_M']))+.45, 'go',markerfacecolor = (0, 0, 1, 1))
-            self.axes.set_title('Lick and reward history')
-            self.axes.set_yticks([0,1])
-            self.axes.set_yticklabels(['Left', 'Right'])
-            #if  handles and handles['plot_timeback'].text().isnumeric():
-                #self.axes.set_xlim(startime,endtime)
-            self.draw()
-            
-    def plot_bias(self,data = [],startime=None,endtime=None,numberofpoints = 10,session = None):
-        self.axes.cla()
-        if type(data) == dict and len(data) > 0:
-            times, values = self.minethedata(data,session)
-            if startime == None:
-                startime = np.min(times['alltimes'])
-            else:
-                startime = np.max([np.datetime64(np.max(times['alltimes']) - startime),np.min(times['alltimes'])])
-            endtime = np.max(times['alltimes'])
+        # endtime = np.max(times['alltimes'])
 # =============================================================================
-#             self.axes.cla()
+#             ax.cla()
 #             print(times['motor_position_rostrocaudal'])
 #             print(values['motor_position_rostrocaudal'])
-#             self.axes.plot(times['motor_position_rostrocaudal'], values['motor_position_rostrocaudal'], 'ko',label = 'RC')
-#             self.axes.plot(times['motor_position_lateral'], values['motor_position_lateral'], 'ro',label = 'Lat')
+#             ax.plot(times['motor_position_rostrocaudal'], values['motor_position_rostrocaudal'], 'ko',label = 'RC')
+#             ax.plot(times['motor_position_lateral'], values['motor_position_lateral'], 'ro',label = 'Lat')
 # =============================================================================
-            steptime = (endtime-startime)/numberofpoints
-            timerange = pd.date_range(start = startime, end = endtime, periods = numberofpoints*10) #freq = 's' *10
-            #print(startime , endtime)
-            #lick_left_num = np.zeros(len(timerange))
-            #lick_right_num  = np.zeros(len(timerange))
+        #print(startime , endtime)
+        #lick_left_num = np.zeros(len(timerange))
+        #lick_right_num  = np.zeros(len(timerange))
+        
+        reward_left_num = np.zeros(len(timerange))
+        reward_right_num = np.zeros(len(timerange))
+        if 'lick_M' in times.keys():
+            lick_middle_num  = np.zeros(len(timerange))
+            reward_middle_num = np.zeros(len(timerange))
+        for idx,timenow in enumerate(timerange):
+            timenow = np.datetime64(timenow)
+            #lick_left_num[idx] = sum((timenow+steptime > times['lick_L']) & (timenow-steptime<times['lick_L']))
+            #lick_right_num[idx] = sum((timenow+steptime > times['lick_R']) & (timenow-steptime<times['lick_R']))
             
-            reward_left_num = np.zeros(len(timerange))
-            reward_right_num = np.zeros(len(timerange))
+            reward_left_num[idx] = sum((timenow+steptime > times['choice_L']) & (timenow-steptime<times['choice_L']))
+            reward_right_num[idx] = sum((timenow+steptime > times['choice_R']) & (timenow-steptime<times['choice_R']))
             if 'lick_M' in times.keys():
-                lick_middle_num  = np.zeros(len(timerange))
-                reward_middle_num = np.zeros(len(timerange))
-            for idx,timenow in enumerate(timerange):
-                timenow = np.datetime64(timenow)
-                #lick_left_num[idx] = sum((timenow+steptime > times['lick_L']) & (timenow-steptime<times['lick_L']))
-                #lick_right_num[idx] = sum((timenow+steptime > times['lick_R']) & (timenow-steptime<times['lick_R']))
-                
-                reward_left_num[idx] = sum((timenow+steptime > times['choice_L']) & (timenow-steptime<times['choice_L']))
-                reward_right_num[idx] = sum((timenow+steptime > times['choice_R']) & (timenow-steptime<times['choice_R']))
-                if 'lick_M' in times.keys():
-                    lick_middle_num[idx] = sum((timenow+steptime > times['lick_M']) & (timenow-steptime<times['lick_M']))
-                    reward_middle_num[idx] = sum((timenow+steptime > times['choice_M']) & (timenow-steptime<times['choice_M']))
+                lick_middle_num[idx] = sum((timenow+steptime > times['lick_M']) & (timenow-steptime<times['lick_M']))
+                reward_middle_num[idx] = sum((timenow+steptime > times['choice_M']) & (timenow-steptime<times['choice_M']))
 
+        # ax.cla()
+        if 'lick_M' in times.keys():
+            # There's no need for idxes any more. HH20200730
+            # idxes = np.where(times['p_reward_ratio'])
             
-            self.axes.cla()
-            if 'lick_M' in times.keys():
-                idxes = np.where(times['p_reward_ratio'] > startime)
-                golden_reward_R_1 = values['reward_p_L'][idxes]/(values['reward_p_L'][idxes]+values['reward_p_R'][idxes]+values['reward_p_M'][idxes])
-                golden_reward_R_2 = (values['reward_p_L'][idxes]+values['reward_p_M'][idxes])/(values['reward_p_L'][idxes]+values['reward_p_R'][idxes]+values['reward_p_M'][idxes])
-                
-                reward_sum_num = reward_right_num+reward_left_num+reward_middle_num
-                
-                #self.axes.plot(timerange, bias_lick_R, 'k-',label = 'Lick bias')
-                #self.axes.plot(timerange, bias_reward_R, 'g-',label = 'choice bias')
-                self.axes.stackplot(timerange,  reward_left_num/reward_sum_num ,  reward_middle_num/reward_sum_num ,  reward_right_num/reward_sum_num ,colors=['r','g','b'], alpha=0.4 )
-                #self.axes.plot(timerange, bias_reward_R_1, 'g-',label = 'choice bias')
-                #self.axes.plot(timerange, bias_reward_R_2, 'g-',label = 'choice bias')
-                
-                
-                self.axes.plot(times['reward_p_L'][idxes], values['reward_p_L'][idxes], 'r-',label = 'Reward probability Left')
-                self.axes.plot(times['reward_p_R'][idxes], values['reward_p_R'][idxes], 'b-',label = 'Reward probability Right')
-                self.axes.plot(times['reward_p_M'][idxes], values['reward_p_M'][idxes], 'g-',label = 'Reward probability Middle')
-                self.axes.plot(times['p_reward_ratio'][idxes], golden_reward_R_1, 'y-',label = 'Reward ratio')
-                self.axes.plot(times['p_reward_ratio'][idxes], golden_reward_R_2, 'y-',label = 'Reward ratio')
-                #self.axes.plot(times['p_reward_ratio'][idxes], values['p_reward_ratio'][idxes], 'y-',label = 'Reward ratio')
-                self.axes.set_ylim(0,1)
-                vals = self.axes.get_yticks()
-                self.axes.set_yticklabels(['{:,.0%}'.format(x) for x in vals])
-            else:
-                #bias_lick_R = lick_right_num/(lick_right_num+lick_left_num)
-                bias_reward_R = reward_right_num/(reward_right_num+reward_left_num)
-                #self.axes.plot(timerange, bias_lick_R, 'k-',label = 'Lick bias')
-                self.axes.plot(timerange, bias_reward_R, 'g-',label = 'choice bias')
-                idxes = times['p_reward_ratio'] > startime
-                self.axes.plot(times['reward_p_L'][idxes], values['reward_p_L'][idxes], 'r-',label = 'Reward probability Left')
-                self.axes.plot(times['reward_p_R'][idxes], values['reward_p_R'][idxes], 'b-',label = 'Reward probability Right')
-                self.axes.plot(times['p_reward_ratio'][idxes], values['p_reward_ratio'][idxes], 'y-',label = 'Reward ratio')
-                self.axes.set_yticks([0,1])
-                self.axes.set_yticklabels(['Left', 'Right'])
-                self.axes.set_ylim(-.1,1.1)
-            self.axes.set_title('Lick and reward bias')
-            self.draw()
+            golden_reward_R_1 = values['reward_p_L']/(values['reward_p_L']+values['reward_p_R']+values['reward_p_M'])
+            golden_reward_R_2 = (values['reward_p_L']+values['reward_p_M'])/(values['reward_p_L']+values['reward_p_R']+values['reward_p_M'])
+            
+            reward_sum_num = reward_right_num+reward_left_num+reward_middle_num
+            
+            #ax.plot(timerange, bias_lick_R, 'k-',label = 'Lick bias')
+            #ax.plot(timerange, bias_reward_R, 'g-',label = 'choice bias')
+            ax.stackplot(timerange,  reward_left_num/reward_sum_num ,  reward_middle_num/reward_sum_num ,  reward_right_num/reward_sum_num ,colors=['r','g','b'], alpha=0.4 )
+            #ax.plot(timerange, bias_reward_R_1, 'g-',label = 'choice bias')
+            #ax.plot(timerange, bias_reward_R_2, 'g-',label = 'choice bias')
+            
+            ax.plot(times['reward_p_R'], values['reward_p_R'], 'b-',label = 'R') # 'Reward probability Right')
+            ax.plot(times['reward_p_M'], values['reward_p_M'], 'g-',label = 'M') #'Reward probability Middle')
+            ax.plot(times['reward_p_L'], values['reward_p_L'], 'r-',label = 'L') #'Reward probability Left')
+            ax.plot(times['p_reward_ratio'], golden_reward_R_1, 'y-') #,label = 'Reward ratio')
+            ax.plot(times['p_reward_ratio'], golden_reward_R_2, 'y-') #,label = 'Reward ratio')
+            #ax.plot(times['p_reward_ratio'], values['p_reward_ratio'], 'y-',label = 'Reward ratio')
+            ax.legend(loc='lower left', fontsize=8)
+            ax.set_ylim(-0.05, 1.05)
+            # vals = ax.get_yticks()
+            # ax.set_yticklabels(['{:.0%}'.format(x) for x in vals])
+        else:
+            #bias_lick_R = lick_right_num/(lick_right_num+lick_left_num)
+            bias_reward_R = reward_right_num/(reward_right_num+reward_left_num)
+            #ax.plot(timerange, bias_lick_R, 'k-',label = 'Lick bias')
+            ax.plot(timerange, bias_reward_R, 'g-',label = 'choice bias')
+            # idxes = times['p_reward_ratio'] > startime
+            ax.plot(times['reward_p_L'], values['reward_p_L'], 'r-',label = 'Reward probability Left')
+            ax.plot(times['reward_p_R'], values['reward_p_R'], 'b-',label = 'Reward probability Right')
+            ax.plot(times['p_reward_ratio'], values['p_reward_ratio'], 'y-',label = 'Reward ratio')
+            ax.set_yticks([0,1])
+            ax.set_yticklabels(['Left', 'Right'])
+            ax.set_ylim(-.1,1.1)
+            
+            
+        # Trial numbers info
+        num_total_trials = times['trialstart'].size
+        num_finished_trials = times['choice_L'].size + times['choice_R'].size + times['choice_M'].size
+        num_ignored_trials = num_total_trials - num_finished_trials
+        num_rewarded_trials = times['reward_L'].size + times['reward_R'].size + times['reward_M'].size
+        reward_rate = num_rewarded_trials / num_finished_trials if num_finished_trials else np.nan
+        foraging_eff_classic = reward_rate / (np.nanmean(values['reward_p_L'] + values['reward_p_R'] + values['reward_p_M']))
+        
+        ax.set_title(f'Total trials = {num_total_trials}, finished = {num_finished_trials}, rewarded = {num_rewarded_trials}, reward_rate = {reward_rate:.2%}, foraging_eff_classic = {foraging_eff_classic:.2%}')
+        # ax.set_title('Lick and reward bias')
+        self.draw()
             
         
 if __name__ == '__main__':

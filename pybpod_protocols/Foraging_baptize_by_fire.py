@@ -119,7 +119,13 @@ def set_motor_speed():
             except zaber_serial.binaryserial.serial.SerialException:
                 print('can''t access Zaber ' + str(zabertry_i))
                 time.sleep(.01)
-    
+
+
+# ======================================================================================
+# Main function starts here
+# ====================================================================================== 
+
+# ========= Setting up environment (path, metadata, etc.) ==========
 my_bpod = Bpod()
 history = my_bpod.session.history
 experiment_name = 'not defined' 
@@ -158,6 +164,9 @@ for dirnow in pathlist:
         setuppath = pathnow
     pathnow = os.path.join(pathnow,dirnow)
     
+    
+# ================ Define subejct-specific variables ===============
+# ----- Load previous used parameters from json file -----
 subjectfile = os.path.join(subjectdir,'variables.json')
 if os.path.exists(subjectfile):
     with open(subjectfile) as json_file:
@@ -197,19 +206,21 @@ else:
             'reward_rate_family': 1,
             'lickport_number':3.,
     }
-#generate reward probabilities
+    
+# ----- Generate reward probabilities for this session ------
 start_with_bias_check = variables['block_start_with_bias_check']
 #first_block_to_right = variables['block_first_to_right']
 if 'lickport_number' not in variables.keys() or variables['lickport_number'] == 2:
     lickportnum = 2
     got_stuck_n = 0
+    
     if variables['difficulty_ratio_pair_num']<1:
-        reward_ratio_pairs = [[1,1]]
+        reward_ratio_pairs = [[1,1]]   # For the very beginning of training
     else:   
         if 'reward_rate_family' not in variables.keys() or variables['reward_rate_family'] <= 1:
-            reward_ratio_pairs=[[.4,.05],[.3857,.0643],[.3375,.1125],[.225,.225]]#,        
+            reward_ratio_pairs=[[.4,.05],[.3857,.0643],[.3375,.1125],[.225,.225]]#,        # 8:1, 6:1, 3:1, 1:1
         elif variables['reward_rate_family'] == 2:
-            reward_ratio_pairs=[[8/9,1/9],[6/7,1/7],[3/4,1/4],[2/3,1/3],[.5,.5]]#,        
+            reward_ratio_pairs=[[8/9,1/9],[6/7,1/7],[3/4,1/4],[2/3,1/3],[.5,.5]]#,        # 8:1, 6:1, 3:1, 2:1, 1:1
         elif variables['reward_rate_family'] >= 3:
             reward_ratio_pairs=[[1,0],[.9,.1],[.8,.2],[.7,.3],[.6,.4],[.5,.5]]#,
         reward_ratio_pairs = (np.array(reward_ratio_pairs)/np.sum(reward_ratio_pairs[0])*variables['difficulty_sum_reward_rate']).tolist()
@@ -239,6 +250,7 @@ if 'lickport_number' not in variables.keys() or variables['lickport_number'] == 
                     prob_change_is_fine = True
             else:
                 prob_change_is_fine = True
+                
             if (len(p_reward_L) == 0 or p_reward_L[-1] != pair_now[0] or pair_now[0] == pair_now[1]) and prob_change_is_fine or got_stuck_n > 10:
                 p_reward_L.append(pair_now[0])
                 p_reward_R.append(pair_now[1])
@@ -320,6 +332,9 @@ variables['reward_probabilities_L']=p_reward_L
 variables['reward_probabilities_M']=p_reward_M
 print(variables)
 variables_subject = variables.copy()
+
+
+# =================== Define rig-specific variables (ports, etc.) =========================
 variables = dict()
 setupfile = os.path.join(setuppath,'variables.json')
 if os.path.exists(setupfile):
@@ -391,12 +406,17 @@ else:
         variables['comport_motor'] = 'COM5'
         variables['retract_motor_signal'] = (OutputChannel.SoftCode, 1)
         variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
+        
+        
 variables_setup = variables.copy()
+
+# -------- Define the default **protracted** position as the current motor position -------
 variables_motor = read_motor_position(variables['comport_motor'])
 if subject_name == 'test_setup':
     retract_protract_motor(0)
     variables_motor['LickPort_RostroCaudal_pos'] = 0
     print('protracting zaber motor to avoid watering the camera below..')
+    
 variables_subject['motor_forwardposition'] = variables_motor['LickPort_RostroCaudal_pos']
 variables_subject['motor_retractedposition'] = variables_motor['LickPort_RostroCaudal_pos'] + variables_subject['motor_retractiondistance']
 #generate json files
@@ -407,16 +427,19 @@ with open(subjectfile, 'w') as outfile:
     json.dump(variables_subject, outfile)
 print('json files (re)generated')
 
-my_bpod.softcode_handler_function = my_softcode_handler
+my_bpod.softcode_handler_function = my_softcode_handler   # Assign the SoftCode function
 
 variables = variables_subject.copy()
 variables.update(variables_setup)
 print('Variables:', variables)
 
 #print('subjectname for testing:',my_bpod.session.INFO_SUBJECT_NAME)
+
+
+# ============== Final preparations ==============
 # ----> Start the task
 ignore_trial_num_in_a_row = 0
-if variables['accumulate_reward']:
+if variables['accumulate_reward']:   # Always get a reward on the first trial
     reward_L_accumulated = True
     reward_R_accumulated = True
     if lickportnum == 3:
@@ -430,89 +453,124 @@ else:
  
 set_motor_speed() # the motors should move FAST    
 
-randomseedvalue = datetime.now().timetuple().tm_yday
+# Save the random seed for reproducibility
+randomseedvalue = datetime.now().timetuple().tm_yday    
 np.random.seed(randomseedvalue)
 random_values_L = np.random.uniform(0.,1.,2000).tolist()
 random_values_R = np.random.uniform(0.,1.,2000).tolist()
 random_values_M = np.random.uniform(0.,1.,2000).tolist()
-print('Random seed:', str(randomseedvalue))
+print('Random seed:', str(randomseedvalue))    
 
-
-
+# ===============  Session start ====================
+# For each block
 for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R'], variables['reward_probabilities_L'],variables['reward_probabilities_M'])):
+    
+    # Initialization
     rewarded_trial_num = 0
     unrewarded_trial_num_in_a_row = 0
     triali = -1
     
-    
+    #??? Generate run length of this block (not exactly truncated exponential)
     trialnum_now = np.random.exponential(variables['Trialnumber_in_block'],1)+variables['Trialnumber_in_block_min']
     if trialnum_now > variables['Trialnumber_in_block_max']:
             trialnum_now = variables['Trialnumber_in_block_max'] 
     auto_train_min_rewarded_trial_num =  variables['auto_train_min_rewarded_trial_num']
+    
+    # ------ For each trial ------
+    # Make sure the subject gets at least `auto_train_min_rewarded_trial_num` rewards
     while triali < trialnum_now - 1 or rewarded_trial_num < auto_train_min_rewarded_trial_num:
-        # check if variables changed in json file
+        
+        # Update variables if variables changed in json file DURING RUNNING (from behavior_online_analysis GUI)
+        # Note: those who control block structure will not take effect unless rerunning the protocol!!! (eg: reward probs)
         with open(subjectfile) as json_file:
             variables_subject_new = json.load(json_file)
         with open(setupfile) as json_file:
             variables_setup_new = json.load(json_file)
         if variables_setup_new != variables_setup or variables_subject_new != variables_subject:
+            # Update effective `variables` ( = subject + setup)
             variables = variables_subject_new.copy()
             variables.update(variables_setup_new)
-            variables_setup = variables_setup_new.copy()
+            # Cache the old values for future variable updates
+            variables_setup = variables_setup_new.copy() 
             variables_subject = variables_subject_new.copy()
-            print('Variables updated:',variables)
+            print('Variables updated:',variables)  # Print to csv after each parameter update
             auto_train_min_rewarded_trial_num =  variables['auto_train_min_rewarded_trial_num']
         
-        triali += 1
+        triali += 1  # First trial number = 0; 
+                     # By incrementing triali here, the trial number will include ignored trials.
+        
+        # Generate NEW reward for each port based on the predetermined random sequences
         reward_L = random_values_L.pop(0) < p_L #np.random.uniform(0.,1.) < p_L
         reward_R = random_values_R.pop(0) < p_R # np.random.uniform(0.,1.) < p_R
         reward_M = random_values_M.pop(0) < p_M # np.random.uniform(0.,1.) < p_R
+        
+        #??? Generate ITI for this trial (not exactly truncated exponential)
         iti_now = np.random.exponential(variables['iti'],1) + variables['iti_min'] + ignore_trial_num_in_a_row*variables['increase_ITI_on_ignore_trials']*variables['iti']
         #iti_now = 0
         if iti_now > variables['iti_max']:
             iti_now = variables['iti_max']    
             
-            
+        #??? Generate delay period for this trial (not exactly truncated exponential)  
         baselinetime_now =  np.random.exponential(variables['delay'],1)+variables['delay_min']# np.random.normal(variables['delay'],variables['delay_rate'])  
         if baselinetime_now > variables['delay_max']:
             baselinetime_now = variables['delay_max']
-            
-        if start_with_bias_check and blocki < bias_check_blocknum: # for checking bias in the first 4 short blocks
-            trialnum_now = 1
-            auto_train_min_rewarded_trial_num = bias_check_auto_train_min_rewarded_trial_num
-            reward_L_accumulated = False
+        
+        # If bias check: at the begining of the session, force the mouse to navigate all the lickports in sequence (two rounds)    
+        if start_with_bias_check and blocki < bias_check_blocknum: 
+            trialnum_now = 1  # Override block length = 1
+            auto_train_min_rewarded_trial_num = bias_check_auto_train_min_rewarded_trial_num  # At least get XX reward (XX = 1); 
+                                                                                              # Make sure the animal indeed chooses each port sequentially during bias check
+            reward_L_accumulated = False  # We don't need baiting during bias check
             reward_R_accumulated = False
             reward_M_accumulated = False
+            # Regular timing
             iti_now = 2
             baselinetime_now = 1
-            
-            
+        # (Else: If no bias check or bias check has been done --> Normal trial begins)
+        
+        # ------- Start of a trial ---------
         sma = StateMachine(my_bpod)
+        
+        # ---- 1. Delay period ----
         if variables['early_lick_punishment']:
+            # Lick before timeup of the delay timer ('baselinetime_now') --> Reset the delay timer
             sma.add_state(
                 state_name='Start',
                 state_timer=baselinetime_now,
                 state_change_conditions={variables['WaterPort_L_ch_in']: 'BackToBaseline', variables['WaterPort_R_ch_in']: 'BackToBaseline',variables['WaterPort_M_ch_in']: 'BackToBaseline',EventName.Tup: 'GoCue'},
                 output_actions = [])
-        else:
+            
+            # Add 2 second timeout (during which more early licks will be ignored), then restart the trial
+            sma.add_state(
+            	state_name='BackToBaseline',
+            	state_timer=2,
+            	state_change_conditions={EventName.Tup: 'Start'},
+            	output_actions = [])
+
+        else: # If NO early lick punishment: start the go cue after the FIXED delay period
             sma.add_state(
                 state_name='Start',
                 state_timer=baselinetime_now,
                 state_change_conditions={EventName.Tup: 'GoCue'},
                 output_actions = [])
-        sma.add_state(
-        	state_name='BackToBaseline',
-        	state_timer=2,
-        	state_change_conditions={EventName.Tup: 'Start'},
-        	output_actions = [])
-        # autowater comes here!!
+
+        # autowater comes here!! (for encouragement)
         if variables['auto_water'] and (unrewarded_trial_num_in_a_row >= variables['auto_water_min_unrewarder_trials_in_a_row'] or ignore_trial_num_in_a_row >=variables['auto_water_min_ignored_trials_in_a_row'] ):
+            # ------ 2. GoCue (with autowater) --------
+            # Note: even in the autowater mode, the water does not always come out automatically in all ports.
+            # It happens only if
+            # 1. Too many unrewarded or ignored trials in a row (controled by the two thresholds).
+            # 2. The reward is indeed baited in the corresponding port.
+            
+            # During auto_water, the 'GoCue' state does not deliver any sound (not 'GoCue_real', see below)
             sma.add_state(
             	state_name='GoCue',
             	state_timer=0,
             	state_change_conditions={EventName.Tup: 'Auto_Water_M'},
             	output_actions = [])
-            if reward_M or reward_M_accumulated:
+            
+            # "Auto" means the water automatically comes out WITHOUT LICKING, but it still needs reward to be present.
+            if reward_M or reward_M_accumulated:  
                 sma.add_state(
                 	state_name='Auto_Water_M',
                 	state_timer=variables['ValveOpenTime_M']*variables['auto_water_time_multiplier'],
@@ -524,6 +582,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                 	state_timer=0,
                 	state_change_conditions={EventName.Tup: 'Auto_Water_L'},
                 	output_actions = [])
+                
             if reward_L or reward_L_accumulated:
                 sma.add_state(
                 	state_name='Auto_Water_L',
@@ -536,6 +595,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                 	state_timer=0,
                 	state_change_conditions={EventName.Tup: 'Auto_Water_R'},
                 	output_actions = [])
+                
             if reward_R or reward_R_accumulated:
                 sma.add_state(
                 	state_name='Auto_Water_R',
@@ -548,29 +608,49 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                 	state_timer=0,
                 	state_change_conditions={EventName.Tup: 'GoCue_real'},
                 	output_actions = [])
+                
+            # In the autowater mode, it is the 'GoCue_real' that tells the mouse to lick
             sma.add_state(
             	state_name='GoCue_real',
             	state_timer=variables['response_time'],
             	state_change_conditions={variables['WaterPort_L_ch_in']: 'Choice_L', variables['WaterPort_R_ch_in']: 'Choice_R', variables['WaterPort_M_ch_in']: 'Choice_M', EventName.Tup: 'ITI'},
-            	output_actions = [(variables['GoCue_ch'],255)])
+            	output_actions = [(variables['GoCue_ch'],255)])   # PWM5 --> 100% duty cycle (always on)
+                                                                  # Q: Why not using DigitalOut?
+                                                                  # A: Because PWM is the only 3.3V digital out port (designed to control LED brightness)
+                                                                  #    'Valve' is also digital out but it's 12V!
+                                                                  # See here: https://sanworks.io/forum/showthread.php?tid=25
+            # End of autowater's gocue
+            
         else:
+            # ------ 2. GoCue (normal) --------
+            # Licks detected within the response time --> Choice_X, where X is the first licked port; 
+            # Otherwise, Tup --> ITI --> end of this trial 
             sma.add_state(
             	state_name='GoCue',
-            	state_timer=variables['response_time'],
+                state_timer=variables['response_time'],
             	state_change_conditions={variables['WaterPort_L_ch_in']: 'Choice_L', variables['WaterPort_R_ch_in']: 'Choice_R', variables['WaterPort_M_ch_in']: 'Choice_M', EventName.Tup: 'ITI'},
-            	output_actions = [(variables['GoCue_ch'],255)])
-        if reward_L or reward_L_accumulated:
+            	output_actions = [(variables['GoCue_ch'],255)])   # Set PWM5 to 100% duty cycle (always on), which triggers the wav trigger board
+                                                                  # Make sure that the sd card in the wav-trigger board is set properly 
+                                                                  # such that it will be triggered by the ONSET of PWM signal!!
+        
+        # ----- 3. Reward delivery -----
+        # Note that the states 'Choice_X' are shared with the autowater mode. 
+        # Therefore, in the autowater mode, there will be extra water AFTER the autowater?
+        
+        if reward_L or reward_L_accumulated:  # reward_L: reward generated in the current trial
+                                              # reward_L_accumulated: reward baited from the last trial
             sma.add_state(
             	state_name='Choice_L',
             	state_timer=0,
             	state_change_conditions={EventName.Tup: 'Reward_L'},
-            	output_actions = [])#(variables['Choice_cue_L_ch'],255)
+            	output_actions = [])#(variables['Choice_cue_L_ch'],255)   # Will sound feedback help? It seems not??
         else:
             sma.add_state(
             	state_name='Choice_L',
             	state_timer=0,
             	state_change_conditions={EventName.Tup: 'NO_Reward'},
             	output_actions = []) #(variables['Choice_cue_L_ch'],255)
+            
         if reward_R or reward_R_accumulated:
             sma.add_state(
             	state_name='Choice_R',
@@ -583,6 +663,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             	state_timer=0,
             	state_change_conditions={EventName.Tup: 'NO_Reward'},
             	output_actions = [])#(variables['Choice_cue_R_ch'],255)
+            
         if reward_M or reward_M_accumulated:
             sma.add_state(
             	state_name='Choice_M',
@@ -595,6 +676,9 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             	state_timer=0,
             	state_change_conditions={EventName.Tup: 'NO_Reward'},
             	output_actions = [])#(variables['Choice_cue_R_ch'],255)
+        
+        # Actual reward delivery
+        # All the licks during reward delivery are ignored (valve open time is very short anyway).
         sma.add_state(
         	state_name='Reward_L',
         	state_timer=variables['ValveOpenTime_L'],
@@ -610,32 +694,53 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         	state_timer=variables['ValveOpenTime_M'],
         	state_change_conditions={EventName.Tup: 'Consume_reward'},
         	output_actions = [('Valve',variables['WaterPort_M_ch_out'])])
+        
         sma.add_state(
         	state_name='NO_Reward',
         	state_timer=0,
         	state_change_conditions={EventName.Tup: 'ITI'},
         	output_actions = [])
+        
+        # End of reward delivery
+        
+        # --- 3. Enjoy the water! ---    
+        # The mice are free to lick, until no lick in 'Reward_consume_time', which is hard-coded to 1s.
         sma.add_state(
         	state_name='Consume_reward',
-        	state_timer=variables['Reward_consume_time'],
+        	state_timer=variables['Reward_consume_time'],  # time needed without lick to go to the next trial
         	state_change_conditions={variables['WaterPort_L_ch_in']: 'Consume_reward_return',variables['WaterPort_R_ch_in']: 'Consume_reward_return',variables['WaterPort_M_ch_in']: 'Consume_reward_return',EventName.Tup: 'ITI'},
         	output_actions = [])
+        
+        #??? Is this state redundant? Can we assign a state to its own targeted state,
+        # i.e., "variables['WaterPort_L_ch_in']: 'Consume_reward'" in the state 'Consume_reward' ?
         sma.add_state(
         	state_name='Consume_reward_return',
         	state_timer=.1,
         	state_change_conditions={EventName.Tup: 'Consume_reward'},
         	output_actions = [])
+        
+        # --- 4. ITI ----
         if variables['motor_retract_waterport']:
+            # Retract lickports (using PWM7 or 8)
             sma.add_state(
             	state_name='ITI',
             	state_timer=iti_now,
             	state_change_conditions={EventName.Tup: 'End'},
             	output_actions = [variables['retract_motor_signal']]) #(Bpod.OutputChannels.SoftCode, 1)
+            
+            # Protract lickports (using SoftCode 2)
+            # 1. Line 410: my_bpod.softcode_handler_function = my_softcode_handler
+            # 2. my_softcode_handler(2) brings the lickports to variables['motor_forwardposition'], 
+            #    which has been set OUTSIDE the trial loop.
+            # 3. my_softcode_handler() only controls the RostroCaudal axis
+            # 4. Therefore, any manual adjustment along the LEFT-RIGHT axis will be kept over a session, 
+            #    whereas the RostroCaudal position will be reset to the original value in every trial.         
             sma.add_state(
-                state_name = 'End',
+                state_name = 'End',   # Actually it's more like the start of the next trial
                 state_timer = 0,
                 state_change_conditions={EventName.Tup: 'exit'},
                 output_actions=[variables['protract_motor_signal']]) #(Bpod.OutputChannels.SoftCode, 2)
+            
         else:    
             sma.add_state(
             	state_name='ITI',
@@ -652,6 +757,10 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
     
         my_bpod.run_state_machine(sma)  # Run state machine
         
+        # ----------- End of state machine ------------
+        
+        # -------- Handle reward baiting, print log messages, etc. ---------
+        # Check if the mouse got a reward in this trial
         trialdata = my_bpod.session.current_trial.export()
         reward_L_consumed = not np.isnan(trialdata['States timestamps']['Reward_L'][0][0])
         reward_R_consumed = not np.isnan(trialdata['States timestamps']['Reward_R'][0][0])
@@ -659,6 +768,8 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         L_chosen = not np.isnan(trialdata['States timestamps']['Choice_L'][0][0])
         R_chosen = not np.isnan(trialdata['States timestamps']['Choice_R'][0][0])
         M_chosen = not np.isnan(trialdata['States timestamps']['Choice_M'][0][0])
+        
+        # Update counters
         if reward_L_consumed or reward_R_consumed or reward_M_consumed:
             rewarded_trial_num += 1
             unrewarded_trial_num_in_a_row = 0
@@ -668,16 +779,19 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             ignore_trial_num_in_a_row  = 0
         else:
             ignore_trial_num_in_a_row += 1
-            
+        
+        # Handle reward baiting
         if variables['accumulate_reward']:
             if reward_L_consumed:
                 reward_L_accumulated = False
             elif reward_L and not reward_L_consumed:
                 reward_L_accumulated = True
+                
             if reward_R_consumed:
                 reward_R_accumulated = False
             elif reward_R and not reward_R_consumed:
                 reward_R_accumulated = True
+            
             if reward_M_consumed:
                 reward_M_accumulated = False
             elif reward_M and not reward_M_consumed:
@@ -690,11 +804,21 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         print('reward_R_accumulated:',reward_R_accumulated)
         print('reward_M_accumulated:',reward_M_accumulated)
         
+        # Update the lickport (**protracted**) positions
         variables_motor = read_motor_position(variables['comport_motor'])
         
         print('LickportMotors:',variables_motor)
+        
         if not(start_with_bias_check and blocki < bias_check_blocknum): 
-            if ignore_trial_num_in_a_row > 10:
+            
+            # If too many ignores, abort the whole session.
+            
+            if 'auto_stop_max_ignored_trials_in_a_row' in variables.keys(): # A new variable added. HH
+                auto_stop_max_ignored_trials_in_a_row = variables['auto_stop_max_ignored_trials_in_a_row']
+            else:
+                auto_stop_max_ignored_trials_in_a_row = 10  # Backward compatibility
+            
+            if ignore_trial_num_in_a_row > auto_stop_max_ignored_trials_in_a_row:
                 break
 # =============================================================================
 #             elif ignore_trial_num_in_a_row == 3:
@@ -707,7 +831,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
 #                 metadata['reason'] = '3 ignores in a row .. mouse is getting nervous?'
 #                 notify_experimenter(metadata,os.path.join(rootdir,'Notifications'))
 # =============================================================================
-            elif ignore_trial_num_in_a_row == 5:
+            elif ignore_trial_num_in_a_row == auto_stop_max_ignored_trials_in_a_row / 2:
                 print('too many ignores')
                 metadata = dict()
                 metadata['experiment_name'] = experiment_name
@@ -727,7 +851,10 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
 #                 metadata['reason'] = '10 unrewarded trials in a row .. mouse is not paying attention?'
 #                 notify_experimenter(metadata,os.path.join(rootdir,'Notifications'))
 # =============================================================================
-    if ignore_trial_num_in_a_row > 10:
+
+        # ------- End of this trial -------
+        
+    if ignore_trial_num_in_a_row > auto_stop_max_ignored_trials_in_a_row:
         print('too many ignores')
         metadata = dict()
         metadata['experiment_name'] = experiment_name
@@ -737,6 +864,10 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         metadata['reason'] = '10 ignores in a row - experiment was terminated!'
         notify_experimenter(metadata,os.path.join(rootdir,'Notifications'))
         break
+    
+    # ------ End of this block --------
+
+# ------- End of the whole session -----------
     
 my_bpod.close()
 
