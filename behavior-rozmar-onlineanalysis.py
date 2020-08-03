@@ -951,9 +951,13 @@ class PlotCanvas(FigureCanvas):
         
         reward_left_num = np.zeros(len(timerange))
         reward_right_num = np.zeros(len(timerange))
-        if 'lick_M' in times.keys():
+        
+        if_3lp = np.nansum(values['reward_p_M']) > 0  # This is correct way of determining whether it's a 3lp task
+        
+        if if_3lp: #'lick_M' in times.keys():
             lick_middle_num  = np.zeros(len(timerange))
             reward_middle_num = np.zeros(len(timerange))
+            
         for idx,timenow in enumerate(timerange):
             timenow = np.datetime64(timenow)
             #lick_left_num[idx] = sum((timenow+steptime > times['lick_L']) & (timenow-steptime<times['lick_L']))
@@ -961,12 +965,13 @@ class PlotCanvas(FigureCanvas):
             
             reward_left_num[idx] = sum((timenow+steptime > times['choice_L']) & (timenow-steptime<times['choice_L']))
             reward_right_num[idx] = sum((timenow+steptime > times['choice_R']) & (timenow-steptime<times['choice_R']))
-            if 'lick_M' in times.keys():
+            
+            if if_3lp: #'lick_M' in times.keys():
                 lick_middle_num[idx] = sum((timenow+steptime > times['lick_M']) & (timenow-steptime<times['lick_M']))
                 reward_middle_num[idx] = sum((timenow+steptime > times['choice_M']) & (timenow-steptime<times['choice_M']))
 
         # ax.cla()
-        if 'lick_M' in times.keys():
+        if if_3lp: # 'lick_M' in times.keys():
             # There's no need for idxes any more. HH20200730
             # idxes = np.where(times['p_reward_ratio'])
             
@@ -991,19 +996,19 @@ class PlotCanvas(FigureCanvas):
             ax.set_ylim(-0.05, 1.05)
             # vals = ax.get_yticks()
             # ax.set_yticklabels(['{:.0%}'.format(x) for x in vals])
-        else:
+        else:  # 2 lick port
             #bias_lick_R = lick_right_num/(lick_right_num+lick_left_num)
             bias_reward_R = reward_right_num/(reward_right_num+reward_left_num)
             #ax.plot(timerange, bias_lick_R, 'k-',label = 'Lick bias')
-            ax.plot(timerange, bias_reward_R, 'g-',label = 'choice bias')
             # idxes = times['p_reward_ratio'] > startime
-            ax.plot(times['reward_p_L'], values['reward_p_L'], 'r-',label = 'Reward probability Left')
-            ax.plot(times['reward_p_R'], values['reward_p_R'], 'b-',label = 'Reward probability Right')
-            ax.plot(times['p_reward_ratio'], values['p_reward_ratio'], 'y-',label = 'Reward ratio')
+            ax.plot(times['reward_p_L'], values['reward_p_L'], 'r-', lw=0.7, label = 'p_L')
+            ax.plot(times['reward_p_R'], values['reward_p_R'], 'b-', lw=0.7, label = 'p_R')
+            ax.plot(times['p_reward_ratio'], values['p_reward_ratio'], 'y-', label = 'p_R_frac')
+            ax.plot(timerange, bias_reward_R, 'k-', lw=2, label = 'choice_frac')
+            ax.legend(loc='lower left', fontsize=8)
             ax.set_yticks([0,1])
             ax.set_yticklabels(['Left', 'Right'])
             ax.set_ylim(-.1,1.1)
-            
             
         # Trial numbers info
         num_total_trials = times['trialstart'].size
@@ -1011,12 +1016,37 @@ class PlotCanvas(FigureCanvas):
         num_ignored_trials = num_total_trials - num_finished_trials
         num_rewarded_trials = times['reward_L'].size + times['reward_R'].size + times['reward_M'].size
         reward_rate = num_rewarded_trials / num_finished_trials if num_finished_trials else np.nan
-        foraging_eff_classic = reward_rate / (np.nanmean(values['reward_p_L'] + values['reward_p_R'] + values['reward_p_M']))
         
-        ax.set_title(f'Total trials = {num_total_trials}, finished = {num_finished_trials}, rewarded = {num_rewarded_trials}, reward_rate = {reward_rate:.2%}, foraging_eff_classic = {foraging_eff_classic:.2%}')
+        if not if_3lp:
+            for_eff_classic, for_eff_optimal = self._foraging_eff(reward_rate, values['reward_p_L'], values['reward_p_R'])
+        else:
+            for_eff_classic, for_eff_optimal = [np.nan] * 2
+        
+        ax.set_title(f'Total trials = {num_total_trials}, finished = {num_finished_trials} ({num_finished_trials/num_total_trials:.2%}). '
+                     f'rewarded = {num_rewarded_trials} ({reward_rate:.2%}), '
+                     f'for_eff_classic = {for_eff_classic:.2%}, _optimal = {for_eff_optimal:.2%}')
+        
         # ax.set_title('Lick and reward bias')
         self.draw()
             
+    def _foraging_eff(self, reward_rate, p_Ls, p_Rs):  # Calculate foraging efficiency (only for 2lp)
+        # Classic method (Corrado2005)
+        for_eff_classic = reward_rate / (np.nanmean(p_Ls + p_Rs))
+        
+        # Optimal (there is no simple way of only considering finished trials in the online script,
+        # so here I assume all the trials are not ignored)
+        p_stars = np.zeros_like(p_Ls)
+        for i, (p_L, p_R) in enumerate(zip(p_Ls, p_Rs)):   # Sum over all ps 
+            p_max = np.max([p_L, p_R])
+            p_min = np.min([p_L, p_R])
+            if p_min > 0:
+                m_star = np.floor(np.log(1-p_max)/np.log(1-p_min))
+                p_stars[i] = p_max + (1-(1-p_min)**(m_star + 1)-p_max**2)/(m_star+1)
+            else:
+                p_stars[i] = p_max
+        for_eff_optimal = reward_rate / np.nanmean(p_stars)
+        
+        return for_eff_classic, for_eff_optimal
         
 if __name__ == '__main__':
     app = QApplication(sys.argv)
