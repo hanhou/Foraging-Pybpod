@@ -170,6 +170,8 @@ class App(QDialog):
         self.preset_variables['3 - full task (2 lickports)'] = full_task_2_lickport
         self.preset_variables['4 - full task (3 lickports)'] = full_task_3_lickport
         
+        self.sliding_win_fix_width = True
+        
     def set_parameters_app(self):
         self.parametersetter = App_parametersetter(parent = self)
         
@@ -200,7 +202,14 @@ class App(QDialog):
             else:
                 selected[filternow] = None
         if self.pickle_write_thread == None or not self.pickle_write_thread.isAlive():
-            self.pickle_write_thread = threading.Thread(target=behavior_rozmar.save_pickles_for_online_analysis, args=(self.dirs['projectdir'], selected['project'], selected['experiment'], selected['setup'], True))
+            self.pickle_write_thread = threading.Thread(target=behavior_rozmar.save_pickles_for_online_analysis, 
+                                                        args=(self.dirs['projectdir'], 
+                                                              selected['project'], 
+                                                              selected['experiment'], 
+                                                              selected['setup'], 
+                                                              # False))   # Cache all data
+                                                               True))   # Only cache recent 5 days
+            
             self.pickle_write_thread.daemon = True                            # Daemonize thread
             self.pickle_write_thread.start() 
             
@@ -216,7 +225,9 @@ class App(QDialog):
                                                         experimentnames_needed = selected['experiment'],
                                                         setupnames_needed = selected['setup'],
                                                         subjectnames_needed = selected['subject'],
-                                                        load_only_last_day = True)
+                                                        # load_only_last_day = False)   # Load all data
+                                                        load_only_last_day = True)  # Only load recent 5 days
+                
                 #Update motor position values from previous csv files
                 rc_times  = self.data['times']['motor_position_rostrocaudal']
                 order = np.argsort(rc_times)
@@ -262,30 +273,71 @@ class App(QDialog):
         else:
             self.timer.stop()
             
-    def filterthedata(self,lastselected = ' '):
-        if lastselected != ' ':
+    def filterthedata(self, lastselected = ' '):
+        # if lastselected != ' ':
+            
+        if type(lastselected) == str and 'filter' in lastselected:
             print('filterthedata')
             # print(lastselected)
             self.updateUI_dirstructure(lastselected)
             
         if type(self.data) == dict:
             self.data_now = self.data.copy()
+            
             if len(self.data_now) > 0:
-                endtime = max(self.data_now['times']['alltimes'])
-                if  self.handles['plot_timeback'].text().isnumeric():
-                    startime = pd.to_timedelta(int(self.handles['plot_timeback'].text()),'s')
+                
+                # --- Mine data ---
+                times, values = self.minethedata(self.data_now, self.handles['select_session'].currentText())  
+                
+                # --- Perform time range selection here instead of doing it twice in the plotting functions ---
+                endtime = np.max(times['alltimes'])
+                if self.handles['plot_timeback'].text().isnumeric():
+                    plot_timeback = pd.to_timedelta(int(self.handles['plot_timeback'].text()),'s')
+                    startime = np.max([np.datetime64(np.max(times['alltimes']) - plot_timeback),
+                                       np.min(times['alltimes'])])
                 else:
-                    startime = None #min(self.data_now['times']['alltimes'])
-                if  self.handles['plot_timeback_runningwindow'].text().isnumeric(): # determining averaging window size
-                    numberofpoints = int(self.handles['plot_timeback_runningwindow'].text())
-                else:
-                    numberofpoints = 10    
-                # self.handles['axes1'].plot_licks_and_rewards(self.data_now,startime,endtime,self.handles['select_session'].currentText())
-                # self.handles['axes2'].plot_bias(self.data_now,startime,endtime,numberofpoints,self.handles['select_session'].currentText())
+                    startime = np.min(times['alltimes'])
+                    
+                # Update time and values.  HH20200730
+                for timeskey in times.keys():
+                    neededidx = (times[timeskey]>=startime) & (times[timeskey]<=endtime)
+                    times[timeskey]= times[timeskey][neededidx]
+                    
+                    if timeskey in values.keys():
+                        values[timeskey]= values[timeskey][neededidx]
+                        
+                # --- Determine the sliding windows for plotting --
+                if lastselected == 'window_number':
+                    self.sliding_win_fix_width = False
+                    self.handles['plot_timeback_runningwindow'].setStyleSheet('font-weight: bold')
+                    self.handles['plot_timeback_runningwindow_in_sec'].setStyleSheet('font-weight: normal')
+                elif lastselected == 'window_in_sec':
+                    self.sliding_win_fix_width = True
+                    self.handles['plot_timeback_runningwindow'].setStyleSheet('font-weight: normal')
+                    self.handles['plot_timeback_runningwindow_in_sec'].setStyleSheet('font-weight: bold')
+                
+                if self.sliding_win_fix_width:    # Fixed sliding window (in sec)
+                    try:   # To handle float number
+                        win_width = float(self.handles['plot_timeback_runningwindow_in_sec'].text())
+                    except:
+                        win_width = 60  
+                    numberofpoints = int((endtime - startime)/ np.timedelta64(1,'s')/ win_width)      
+                else:     # Backward compatibility: fixed number of sigments (not to confuse Tina)
+                    if self.handles['plot_timeback_runningwindow'].text().isnumeric(): # determining averaging window size
+                        numberofpoints = int(self.handles['plot_timeback_runningwindow'].text())
+                    else:
+                        numberofpoints = 10   
+                    win_width = (endtime - startime)/ np.timedelta64(1,'s')/ numberofpoints # in sec              
+                        
+                self.handles['plot_timeback_runningwindow'].setText(f'{numberofpoints}')   
+                self.handles['plot_timeback_runningwindow_in_sec'].setText(f'{win_width:.1f}') 
+                    
+                # -- Update plots --
+                # Window size = 10 * stepsize
+                win_centers = pd.date_range(start = startime, end = endtime, periods = numberofpoints*10) #freq = 's' *10   
 
-                # Use only one canvas for all (sub)plots, which makes axis control more straightforward. HH20200729
-                self.handles['axes'].update_plots(self.data_now, startime, endtime, numberofpoints,
-                                                  self.handles['select_session'].currentText())
+                if type(self.data_now) == dict and len(self.data_now) > 0:
+                    self.handles['axes'].update_plots(times, values, win_centers, win_width * np.timedelta64(1,'s'))
 
                 print('plotting done')
                 
@@ -302,6 +354,30 @@ class App(QDialog):
 #             filternames.remove(lastselected)
 #             filternames.insert(0,lastselected)
 # =============================================================================
+
+    def minethedata(self,data,session):
+        times_old = data['times'].copy()
+        values_old = data['values'].copy()
+        times = dict()
+        values = dict()
+        days = dict()
+        
+        for key in times_old.keys():
+            times_now  = times_old[key]
+            order = np.argsort(times_now)
+            times[key] = times_now[order]
+            days[key] = np.asarray(times_now[order],dtype = 'datetime64[D]')
+            if len(days[key])>0:
+                needed = days[key] == np.datetime64(session)
+            else:
+                needed = []
+            times[key] = times[key][needed]
+            if key in values_old.keys():
+                values_now = values_old[key]
+                values[key] = values_now[order]
+                values[key] = values[key][needed]
+        
+        return times, values        
 
     def initUI(self):
         self.setWindowTitle(self.title)
@@ -414,19 +490,29 @@ class App(QDialog):
         
         self.horizontalGroupBox_plot_settings = QGroupBox("Plot settings")
         layout_plot_settings = QGridLayout()
+        
+        layout_plot_settings.addWidget(QLabel('Time back to plot (sec)'),0,0)
         self.handles['plot_timeback'] = QLineEdit(self)
-        self.handles['plot_timeback'].setText('Time back to plot (seconds)')
+        self.handles['plot_timeback'].setText('(all)')
         self.handles['plot_timeback'].returnPressed.connect(self.filterthedata)
-        layout_plot_settings.addWidget(self.handles['plot_timeback'],0,0)
+        layout_plot_settings.addWidget(self.handles['plot_timeback'],0,1)
         
+        layout_plot_settings.addWidget(QLabel('Number of segements'),0,2)
         self.handles['plot_timeback_runningwindow'] = QLineEdit(self)
-        self.handles['plot_timeback_runningwindow'].setText('Number of segments in bias plot (integer)')
-        self.handles['plot_timeback_runningwindow'].returnPressed.connect(self.filterthedata)
-        layout_plot_settings.addWidget(self.handles['plot_timeback_runningwindow'],0,1)
+        self.handles['plot_timeback_runningwindow'].setText('(auto)')
+        self.handles['plot_timeback_runningwindow'].returnPressed.connect(lambda: self.filterthedata(lastselected='window_number'))
+        layout_plot_settings.addWidget(self.handles['plot_timeback_runningwindow'],0,3)
         
+        layout_plot_settings.addWidget(QLabel('Sliding window width (sec)'),0,4)
+        self.handles['plot_timeback_runningwindow_in_sec'] = QLineEdit(self)
+        self.handles['plot_timeback_runningwindow_in_sec'].setText('60')  # Default value: fixed width 60s
+        self.handles['plot_timeback_runningwindow_in_sec'].setStyleSheet('font-weight: bold')
+        self.handles['plot_timeback_runningwindow_in_sec'].returnPressed.connect(lambda: self.filterthedata(lastselected='window_in_sec'))
+        layout_plot_settings.addWidget(self.handles['plot_timeback_runningwindow_in_sec'],0,5)
+
         self.handles['plot_autorefresh'] = QCheckBox(self)
         self.handles['plot_autorefresh'].setText('auto refresh data')
-        layout_plot_settings.addWidget(self.handles['plot_autorefresh'],0,2)
+        layout_plot_settings.addWidget(self.handles['plot_autorefresh'],0,6)
         self.handles['plot_autorefresh'].stateChanged.connect(self.auto_load_data)
         self.horizontalGroupBox_plot_settings.setLayout(layout_plot_settings)
         
@@ -788,52 +874,34 @@ class PlotCanvas(FigureCanvas):
         FigureCanvas.updateGeometry(self)
         #self.plot()
         
-    def update_plots(self, data, startime, endtime, numberofpoints, session):
-        # --- Fetch data ---
-        times, values = self.minethedata(data, session)  
-        
-        # --- Perform time range selection here instead of doing it twice in the plotting functions. HH20200730 ---
-        if startime == None:
-            startime = np.min(times['alltimes'])
-        else:
-            startime = np.max([np.datetime64(np.max(times['alltimes']) - startime),np.min(times['alltimes'])])
-        endtime = np.max(times['alltimes'])
-        
-        # Update time and values.  HH20200730
-        for timeskey in times.keys():
-            neededidx = (times[timeskey]>=startime) & (times[timeskey]<=endtime)
-            times[timeskey]= times[timeskey][neededidx]
-            
-            if timeskey in values.keys():
-                values[timeskey]= values[timeskey][neededidx]
-                
-        steptime = (endtime - startime)/numberofpoints
-        timerange = pd.date_range(start = startime, end = endtime, periods = numberofpoints*10) #freq = 's' *10
+    def update_plots(self, times, values, win_centers, win_width):
                 
         # --- Plotting ---
         self.plot_licks_and_rewards(times)
-        self.plot_bias(times, values, timerange, steptime)
+        self.plot_bias(times, values, win_centers, win_width)
 
-    def minethedata(self,data,session):
-        times_old = data['times'].copy()
-        values_old = data['values'].copy()
-        times = dict()
-        values = dict()
-        days = dict()
-        for key in times_old.keys():
-            times_now  = times_old[key]
-            order = np.argsort(times_now)
-            times[key] = times_now[order]
-            days[key] = np.asarray(times_now[order],dtype = 'datetime64[D]')
-            if len(days[key])>0:
-                needed = days[key] == np.datetime64(session)
-            else:
-                needed = []
-            times[key] = times[key][needed]
-            if key in values_old.keys():
-                values_now = values_old[key]
-                values[key] = values_now[order]
-                values[key] = values[key][needed]
+    # Moved minethedata() to App
+    # def minethedata(self,data,session):
+    #     times_old = data['times'].copy()
+    #     values_old = data['values'].copy()
+    #     times = dict()
+    #     values = dict()
+    #     days = dict()
+        
+    #     for key in times_old.keys():
+    #         times_now  = times_old[key]
+    #         order = np.argsort(times_now)
+    #         times[key] = times_now[order]
+    #         days[key] = np.asarray(times_now[order],dtype = 'datetime64[D]')
+    #         if len(days[key])>0:
+    #             needed = days[key] == np.datetime64(session)
+    #         else:
+    #             needed = []
+    #         times[key] = times[key][needed]
+    #         if key in values_old.keys():
+    #             values_now = values_old[key]
+    #             values[key] = values_now[order]
+    #             values[key] = values[key][needed]
         
 
 # =============================================================================
@@ -843,7 +911,7 @@ class PlotCanvas(FigureCanvas):
 #         print(values)
 # =============================================================================
         # print(days)
-        return times, values
+        # return times, values
     
     def plot_licks_and_rewards(self, times): #, startime=None, endtime=None):
         
@@ -911,7 +979,7 @@ class PlotCanvas(FigureCanvas):
         ax.set_title('Lick and reward history')
         ax.set_yticks([0,1])
         ax.set_yticklabels(['Left', 'Right'])
-        ax.set_ylim(-0.1, 1.1)
+        ax.set_ylim(-0.15, 1.15)
         # ax.set_xlim([startime, endtime])
         
         ax.legend(bbox_to_anchor=(0., 1.02, .25, .102), ncol=3, loc=3, fontsize=8)
@@ -921,7 +989,7 @@ class PlotCanvas(FigureCanvas):
             #ax.set_xlim(self.startime,endtime)
         self.draw()
             
-    def plot_bias(self, times, values, timerange, steptime): #, startime=None, endtime=None, numberofpoints = 10):
+    def plot_bias(self, times, values, win_centers, win_width, causal=True): #, startime=None, endtime=None, numberofpoints = 10):
         
         # self.axes.cla()
         # ax = self.axes[1]
@@ -946,30 +1014,51 @@ class PlotCanvas(FigureCanvas):
 #             ax.plot(times['motor_position_lateral'], values['motor_position_lateral'], 'ro',label = 'Lat')
 # =============================================================================
         #print(startime , endtime)
-        #lick_left_num = np.zeros(len(timerange))
-        #lick_right_num  = np.zeros(len(timerange))
+        #lick_left_num = np.zeros(len(win_centers))
+        #lick_right_num  = np.zeros(len(win_centers))
         
-        reward_left_num = np.zeros(len(timerange))
-        reward_right_num = np.zeros(len(timerange))
+        choice_left_num = np.zeros(len(win_centers))
+        choice_right_num = np.zeros(len(win_centers))
         
-        if_3lp = np.nansum(values['reward_p_M']) > 0  # This is correct way of determining whether it's a 3lp task
+        if_3lp = 'lick_M' in times.keys() and np.nansum(values['reward_p_M']) > 0  # Better way of determining whether it's a 3lp task
         
         if if_3lp: #'lick_M' in times.keys():
-            lick_middle_num  = np.zeros(len(timerange))
-            reward_middle_num = np.zeros(len(timerange))
+            lick_middle_num  = np.zeros(len(win_centers))
+            choice_middle_num = np.zeros(len(win_centers))
             
-        for idx,timenow in enumerate(timerange):
+        for idx,timenow in enumerate(win_centers):
             timenow = np.datetime64(timenow)
-            #lick_left_num[idx] = sum((timenow+steptime > times['lick_L']) & (timenow-steptime<times['lick_L']))
-            #lick_right_num[idx] = sum((timenow+steptime > times['lick_R']) & (timenow-steptime<times['lick_R']))
             
-            reward_left_num[idx] = sum((timenow+steptime > times['choice_L']) & (timenow-steptime<times['choice_L']))
-            reward_right_num[idx] = sum((timenow+steptime > times['choice_R']) & (timenow-steptime<times['choice_R']))
+            #lick_left_num[idx] = sum((timenow+win_width > times['lick_L']) & (timenow-win_width<times['lick_L']))
+            #lick_right_num[idx] = sum((timenow+win_width > times['lick_R']) & (timenow-win_width<times['lick_R']))
+            
+            # choice_left_num[idx] = sum((timenow+win_width > times['choice_L']) & (timenow-win_width<times['choice_L']))
+            # choice_right_num[idx] = sum((timenow+win_width > times['choice_R']) & (timenow-win_width<times['choice_R']))
+
+            if causal:
+                # Causal sliding window (only trials before timenow contribute)
+                choice_left_num[idx] = sum((timenow - win_width < times['choice_L']) & (times['choice_L'] < timenow))
+                choice_right_num[idx] = sum((timenow - win_width < times['choice_R']) & (times['choice_R'] < timenow))
+            else:
+                # Non-causal
+                choice_left_num[idx] = sum((timenow - win_width/2 < times['choice_L']) & (times['choice_L'] < timenow + win_width/2))
+                choice_right_num[idx] = sum((timenow - win_width/2 < times['choice_R']) & (times['choice_R'] < timenow + win_width/2))
             
             if if_3lp: #'lick_M' in times.keys():
-                lick_middle_num[idx] = sum((timenow+steptime > times['lick_M']) & (timenow-steptime<times['lick_M']))
-                reward_middle_num[idx] = sum((timenow+steptime > times['choice_M']) & (timenow-steptime<times['choice_M']))
-
+                # lick_middle_num[idx] = sum((timenow+win_width > times['lick_M']) & (timenow-win_width<times['lick_M']))
+                # choice_middle_num[idx] = sum((timenow+win_width > times['choice_M']) & (timenow-win_width<times['choice_M']))
+                
+                if causal:
+                    choice_middle_num[idx] = sum((timenow - win_width < times['choice_M']) & (times['choice_M'] < timenow))
+                else:
+                    choice_middle_num[idx] = sum((timenow - win_width/2 < times['choice_M']) & (times['choice_M'] < timenow + win_width/2))
+                
+        # Show the window in ax1
+        if causal:
+            self.ax1.plot([np.max(times['alltimes']) - win_width, np.max(times['alltimes'])], [-0.1] * 2, color='c', lw=4)
+        else:
+            self.ax1.plot([np.max(times['alltimes']) - win_width/2, np.max(times['alltimes'])+ win_width/2], [-0.1] * 2, color='c', lw=4)
+        
         # ax.cla()
         if if_3lp: # 'lick_M' in times.keys():
             # There's no need for idxes any more. HH20200730
@@ -978,13 +1067,13 @@ class PlotCanvas(FigureCanvas):
             golden_reward_R_1 = values['reward_p_L']/(values['reward_p_L']+values['reward_p_R']+values['reward_p_M'])
             golden_reward_R_2 = (values['reward_p_L']+values['reward_p_M'])/(values['reward_p_L']+values['reward_p_R']+values['reward_p_M'])
             
-            reward_sum_num = reward_right_num+reward_left_num+reward_middle_num
+            reward_sum_num = choice_right_num+choice_left_num+choice_middle_num
             
-            #ax.plot(timerange, bias_lick_R, 'k-',label = 'Lick bias')
-            #ax.plot(timerange, bias_reward_R, 'g-',label = 'choice bias')
-            ax.stackplot(timerange,  reward_left_num/reward_sum_num ,  reward_middle_num/reward_sum_num ,  reward_right_num/reward_sum_num ,colors=['r','g','b'], alpha=0.4 )
-            #ax.plot(timerange, bias_reward_R_1, 'g-',label = 'choice bias')
-            #ax.plot(timerange, bias_reward_R_2, 'g-',label = 'choice bias')
+            #ax.plot(win_centers, bias_lick_R, 'k-',label = 'Lick bias')
+            #ax.plot(win_centers, bias_reward_R, 'g-',label = 'choice bias')
+            ax.stackplot(win_centers,  choice_left_num/reward_sum_num ,  choice_middle_num/reward_sum_num ,  choice_right_num/reward_sum_num ,colors=['r','g','b'], alpha=0.4 )
+            #ax.plot(win_centers, bias_reward_R_1, 'g-',label = 'choice bias')
+            #ax.plot(win_centers, bias_reward_R_2, 'g-',label = 'choice bias')
             
             ax.plot(times['reward_p_R'], values['reward_p_R'], 'b-',label = 'R') # 'Reward probability Right')
             ax.plot(times['reward_p_M'], values['reward_p_M'], 'g-',label = 'M') #'Reward probability Middle')
@@ -998,13 +1087,13 @@ class PlotCanvas(FigureCanvas):
             # ax.set_yticklabels(['{:.0%}'.format(x) for x in vals])
         else:  # 2 lick port
             #bias_lick_R = lick_right_num/(lick_right_num+lick_left_num)
-            bias_reward_R = reward_right_num/(reward_right_num+reward_left_num)
-            #ax.plot(timerange, bias_lick_R, 'k-',label = 'Lick bias')
+            bias_reward_R = choice_right_num/(choice_right_num+choice_left_num)
+            #ax.plot(win_centers, bias_lick_R, 'k-',label = 'Lick bias')
             # idxes = times['p_reward_ratio'] > startime
             ax.plot(times['reward_p_L'], values['reward_p_L'], 'r-', lw=0.7, label = 'p_L')
             ax.plot(times['reward_p_R'], values['reward_p_R'], 'b-', lw=0.7, label = 'p_R')
             ax.plot(times['p_reward_ratio'], values['p_reward_ratio'], 'y-', label = 'p_R_frac')
-            ax.plot(timerange, bias_reward_R, 'k-', lw=2, label = 'choice_frac')
+            ax.plot(win_centers, bias_reward_R, 'k-', lw=2, label = 'choice_frac')
             ax.legend(loc='lower left', fontsize=8)
             ax.set_yticks([0,1])
             ax.set_yticklabels(['Left', 'Right'])
@@ -1012,15 +1101,19 @@ class PlotCanvas(FigureCanvas):
             
         # Trial numbers info
         num_total_trials = times['trialstart'].size
-        num_finished_trials = times['choice_L'].size + times['choice_R'].size + times['choice_M'].size
-        num_ignored_trials = num_total_trials - num_finished_trials
-        num_rewarded_trials = times['reward_L'].size + times['reward_R'].size + times['reward_M'].size
+        if if_3lp:
+            num_finished_trials = times['choice_L'].size + times['choice_R'].size + times['choice_M'].size
+            num_rewarded_trials = times['reward_L'].size + times['reward_R'].size + times['reward_M'].size
+        else:
+            num_finished_trials = times['choice_L'].size + times['choice_R'].size 
+            num_rewarded_trials = times['reward_L'].size + times['reward_R'].size
+            
         reward_rate = num_rewarded_trials / num_finished_trials if num_finished_trials else np.nan
         
         if not if_3lp:
             for_eff_classic, for_eff_optimal = self._foraging_eff(reward_rate, values['reward_p_L'], values['reward_p_R'])
         else:
-            for_eff_classic, for_eff_optimal = [np.nan] * 2
+            for_eff_classic, for_eff_optimal = [np.nan] * 2  # Not well-defined for 3lp (so far)
         
         ax.set_title(f'Total trials = {num_total_trials}, finished = {num_finished_trials} ({num_finished_trials/num_total_trials:.2%}). '
                      f'rewarded = {num_rewarded_trials} ({reward_rate:.2%}), '
