@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 
 import numpy as np
+from scipy import stats
 import pandas as pd
 import re
 import time as time
@@ -40,7 +41,7 @@ class App(QDialog):
         self.title = 'behavior - online analysis'
         self.left = 20 # 10
         self.top = 30 # 10
-        self.width = 1200 # 1024
+        self.width = 1400 # 1024
         self.height = 900  # 768
         self.dirs['projectdir'] =  defpath
         self.loaddirectorystructure()
@@ -250,11 +251,13 @@ class App(QDialog):
                 self.handles['load_the_data'].setStyleSheet('QPushButton {color: black;}')
                 self.updateUI()
                 self.filterthedata()
+                
             except Exception as error:
                 print('couldn\'t load the data..')
                 print(error)
                 self.handles['load_the_data'].setText('Load the data')
                 self.handles['load_the_data'].setStyleSheet('QPushButton {color: black;}')
+                
                 self.updateUI()
         #print('data reloaded')
         #print(time.perf_counter())
@@ -333,11 +336,8 @@ class App(QDialog):
                 self.handles['plot_timeback_runningwindow_in_sec'].setText(f'{win_width:.1f}') 
                     
                 # -- Update plots --
-                # Window size = 10 * stepsize
-                win_centers = pd.date_range(start = startime, end = endtime, periods = numberofpoints*10) #freq = 's' *10   
-
                 if type(self.data_now) == dict and len(self.data_now) > 0:
-                    self.handles['axes'].update_plots(times, values, win_centers, win_width * np.timedelta64(1,'s'))
+                    self.handles['axes'].update_plots(times, values, win_width * np.timedelta64(1,'s'))
 
                 print('plotting done')
                 
@@ -473,18 +473,20 @@ class App(QDialog):
         self.horizontalGroupBox_axes = QGroupBox("plots")
         layout_axes = QGridLayout()
         
+        # Add NavigationToolBar (zoom in/out). HH20200729
+        self.handles['axes'] = PlotCanvas(self, width=5, height=4)
+        self.handles['navigation_toolbar'] = NavigationToolbar(self.handles['axes'], self, )
+        
         # Use only one canvas for all (sub)plots, which makes axis control more straightforward. HH20200729
         # self.handles['axes1'] = PlotCanvas(self, width=5, height=4)
         # self.handles['axes2'] = PlotCanvas(self, width=5, height=4)
         # layout_axes.addWidget(self.handles['axes1'],1,0)
         # layout_axes.addWidget(self.handles['axes2'],2,0)
         # self.handles['axes1'].axes.get_shared_x_axes().join(self.handles['axes1'].axes, self.handles['axes2'].axes)
-        self.handles['axes'] = PlotCanvas(self, width=5, height=4)
-        layout_axes.addWidget(self.handles['axes'],1,0)
-        
-        # Add NavigationToolBar (zoom in/out). HH20200729
-        self.handles['navigation_toolbar'] = NavigationToolbar(self.handles['axes'], self)
+
         layout_axes.addWidget(self.handles['navigation_toolbar'],0,0)
+        layout_axes.addWidget(self.handles['axes'], 1, 0)
+
 
         self.horizontalGroupBox_axes.setLayout(layout_axes)
         
@@ -860,9 +862,11 @@ class PlotCanvas(FigureCanvas):
         # self.axes = fig.subplots(2,1, sharex=True)
         # fig.tight_layout() 
         
-        gs = GridSpec(2, 1, wspace = 0.2, bottom = 0.1, top = 0.9, left = 0.06, right = 0.98)
-        self.ax1 = self.fig.add_subplot(gs[0, 0])
-        self.ax2 = self.fig.add_subplot(gs[1, 0])
+        gs = GridSpec(2, 10, wspace = 3, bottom = 0.13, top = 0.88, left = 0.04, right = 0.98)
+        self.ax1 = self.fig.add_subplot(gs[0, 0:7])
+        self.ax2 = self.fig.add_subplot(gs[1, 0:7])
+        self.ax3 = self.fig.add_subplot(gs[0:2, 7:])
+        
         self.ax1.get_shared_x_axes().join(self.ax1, self.ax2)
 
         FigureCanvas.__init__(self, self.fig)
@@ -874,11 +878,12 @@ class PlotCanvas(FigureCanvas):
         FigureCanvas.updateGeometry(self)
         #self.plot()
         
-    def update_plots(self, times, values, win_centers, win_width):
+    def update_plots(self, times, values, win_width):
                 
         # --- Plotting ---
         self.plot_licks_and_rewards(times)
-        self.plot_bias(times, values, win_centers, win_width)
+        self.plot_bias(times, values, win_width)
+        self.plot_matching(times, win_width)
 
     # Moved minethedata() to App
     # def minethedata(self,data,session):
@@ -976,20 +981,21 @@ class PlotCanvas(FigureCanvas):
             ax.plot(times['reward_M'], np.zeros(len(times['reward_M']))+.55, 'go', markerfacecolor = (0, 1, 0, 1))
             #ax.plot(times['autowater_M'], np.zeros(len(times['autowater_M']))+.45, 'go',markerfacecolor = (0, 0, 1, 1))
         
-        ax.set_title('Lick and reward history')
+        # ax.set_title('Lick and reward history', fontsize=12)
         ax.set_yticks([0,1])
-        ax.set_yticklabels(['Left', 'Right'])
+        ax.set_yticklabels(['L', 'R'])
         ax.set_ylim(-0.15, 1.15)
         # ax.set_xlim([startime, endtime])
         
-        ax.legend(bbox_to_anchor=(0., 1.02, .25, .102), ncol=3, loc=3, fontsize=8)
+        # ax.legend(bbox_to_anchor=(0., 1.02, .25, .102), ncol=3, loc=3, fontsize=8)
+        ax.legend(loc='lower left', fontsize=8)
         ax.set_xticks([])
         
         #if  handles and handles['plot_timeback'].text().isnumeric():
             #ax.set_xlim(self.startime,endtime)
         self.draw()
             
-    def plot_bias(self, times, values, win_centers, win_width, causal=True): #, startime=None, endtime=None, numberofpoints = 10):
+    def plot_bias(self, times, values, win_width, causal=True): #, startime=None, endtime=None, numberofpoints = 10):
         
         # self.axes.cla()
         # ax = self.axes[1]
@@ -1017,13 +1023,16 @@ class PlotCanvas(FigureCanvas):
         #lick_left_num = np.zeros(len(win_centers))
         #lick_right_num  = np.zeros(len(win_centers))
         
+        numberofpoints = int(np.ptp(times['alltimes']) / win_width)
+        win_centers = pd.date_range(start = np.min(times['alltimes']), end = np.max(times['alltimes']), periods = numberofpoints*10)  # Stepsize = window width / 10 (hardcoded)
+
         choice_left_num = np.zeros(len(win_centers))
         choice_right_num = np.zeros(len(win_centers))
         
         if_3lp = 'lick_M' in times.keys() and np.nansum(values['reward_p_M']) > 0  # Better way of determining whether it's a 3lp task
         
         if if_3lp: #'lick_M' in times.keys():
-            lick_middle_num  = np.zeros(len(win_centers))
+            # lick_middle_num  = np.zeros(len(win_centers))
             choice_middle_num = np.zeros(len(win_centers))
             
         for idx,timenow in enumerate(win_centers):
@@ -1067,11 +1076,11 @@ class PlotCanvas(FigureCanvas):
             golden_reward_R_1 = values['reward_p_L']/(values['reward_p_L']+values['reward_p_R']+values['reward_p_M'])
             golden_reward_R_2 = (values['reward_p_L']+values['reward_p_M'])/(values['reward_p_L']+values['reward_p_R']+values['reward_p_M'])
             
-            reward_sum_num = choice_right_num+choice_left_num+choice_middle_num
+            choice_sum_num = choice_right_num+choice_left_num+choice_middle_num
             
             #ax.plot(win_centers, bias_lick_R, 'k-',label = 'Lick bias')
             #ax.plot(win_centers, bias_reward_R, 'g-',label = 'choice bias')
-            ax.stackplot(win_centers,  choice_left_num/reward_sum_num ,  choice_middle_num/reward_sum_num ,  choice_right_num/reward_sum_num ,colors=['r','g','b'], alpha=0.4 )
+            ax.stackplot(win_centers,  choice_left_num/choice_sum_num ,  choice_middle_num/choice_sum_num ,  choice_right_num/choice_sum_num ,colors=['r','g','b'], alpha=0.4 )
             #ax.plot(win_centers, bias_reward_R_1, 'g-',label = 'choice bias')
             #ax.plot(win_centers, bias_reward_R_2, 'g-',label = 'choice bias')
             
@@ -1096,7 +1105,7 @@ class PlotCanvas(FigureCanvas):
             ax.plot(win_centers, bias_reward_R, 'k-', lw=2, label = 'choice_frac')
             ax.legend(loc='lower left', fontsize=8)
             ax.set_yticks([0,1])
-            ax.set_yticklabels(['Left', 'Right'])
+            ax.set_yticklabels(['L', 'R'])
             ax.set_ylim(-.1,1.1)
             
         # Trial numbers info
@@ -1115,12 +1124,78 @@ class PlotCanvas(FigureCanvas):
         else:
             for_eff_classic, for_eff_optimal = [np.nan] * 2  # Not well-defined for 3lp (so far)
         
-        ax.set_title(f'Total trials = {num_total_trials}, finished = {num_finished_trials} ({num_finished_trials/num_total_trials:.2%}). '
-                     f'rewarded = {num_rewarded_trials} ({reward_rate:.2%}), '
-                     f'for_eff_classic = {for_eff_classic:.2%}, _optimal = {for_eff_optimal:.2%}')
+        self.ax1.set_title(f'Total trials = {num_total_trials}, finished = {num_finished_trials} ({num_finished_trials/num_total_trials:.1%}). '
+                     f'Rewarded = {num_rewarded_trials} ({reward_rate:.1%}). '
+                     f'Efficiency: classic = {for_eff_classic:.1%}, optimal = {for_eff_optimal:.1%}', fontsize=12)
         
         # ax.set_title('Lick and reward bias')
         self.draw()
+        
+    def plot_matching(self, times, win_width):       
+        # ========== Choice fraction vs Reward fraction (only lickport R and lickport L pairswise matching) =======
+        ax = self.ax3
+        ax.cla()
+        
+        # Generate non-overlapping sliding windows for matching plot
+        numberofpoints = int(np.ptp(times['alltimes']) / win_width)
+        win_centers = pd.date_range(start = np.min(times['alltimes']), end = np.max(times['alltimes']), periods = numberofpoints)
+
+        choice_R_frac = np.empty(len(win_centers))
+        choice_R_frac[:] = np.nan
+        reward_R_frac = choice_R_frac.copy()
+        choice_R_log_ratio = choice_R_frac.copy()
+        reward_R_log_ratio = choice_R_frac.copy()
+
+        for idx,timenow in enumerate(win_centers):
+            timenow = np.datetime64(timenow)
+            choice_R = sum((timenow - win_width/2 < times['choice_R']) & (times['choice_R'] < timenow + win_width/2))
+            choice_L =  sum((timenow - win_width/2 < times['choice_L']) & (times['choice_L'] < timenow + win_width/2))
+            reward_R = sum((timenow - win_width/2 < times['reward_R']) & (times['reward_R'] < timenow + win_width/2))
+            reward_L =  sum((timenow - win_width/2 < times['reward_L']) & (times['reward_L'] < timenow + win_width/2))
+            
+            if choice_R + choice_L and reward_R + reward_L: 
+                choice_R_frac[idx] = choice_R / (choice_R + choice_L)
+                reward_R_frac[idx] = reward_R / (reward_R + reward_L)
+            
+            if choice_R and choice_L and reward_R and reward_L: 
+                choice_R_log_ratio[idx] = np.log(choice_R / choice_L)
+                reward_R_log_ratio[idx] = np.log(reward_R / reward_L)
+                
+        # -- Plot fractions --
+        # ax.plot(reward_R_frac, choice_R_frac, 'ko')
+        # ax.plot([0, 1], [0,1], 'k--', lw=0.5)
+        # ax.set(xlabel=f'Reward_R fraction (win_width = {win_width/np.timedelta64(1,"s"):.0f} s)',
+        #         ylabel='Choice_R fraction')
+        
+        # -- Plot log ratios --
+        ax.plot(reward_R_log_ratio, choice_R_log_ratio, 'ko')
+        max_range = max(np.abs(ax.get_xlim()).max(), np.abs(ax.get_ylim()).max())
+        ax.plot([-max_range, max_range], [-max_range, max_range], 'k--', lw=1)
+        ax.set(xlabel=f'Log Reward_R/L (non-overlapping {win_width/np.timedelta64(1,"s"):.0f}-s wins)',
+                ylabel='Log Choice_R/L')
+
+        # -- Do linear fitting in log_ratio space --
+        try: 
+            non_nan = ~np.isnan(reward_R_log_ratio) & ~np.isnan(choice_R_log_ratio)
+            x = reward_R_log_ratio[non_nan]
+            y = choice_R_log_ratio[non_nan]
+            slope, intercept, r_value, p_value, _ = stats.linregress(x, y)
+            
+            # xx = np.linspace(0, 1, 100)
+            # yy = (xx ** slope) / (xx ** slope + np.exp(intercept) * ((1 - xx) ** slope))
+            xx = x
+            yy = x * slope + intercept
+            
+            ax.plot(xx, yy, 'r', label=f'r = {r_value:.3f}\np = {p_value:.2e}')  
+            ax.set_title(f'Matching slope = {slope:.2f}, bias_R = {intercept:.2f}', fontsize=12)
+            ax.set_xlim(-0.05, 1.05)
+            ax.legend(loc='lower right', fontsize=10)
+            ax.axis('equal')
+        except:
+            pass
+        
+        self.draw()
+        
             
     def _foraging_eff(self, reward_rate, p_Ls, p_Rs):  # Calculate foraging efficiency (only for 2lp)
         # Classic method (Corrado2005)
@@ -1144,4 +1219,4 @@ class PlotCanvas(FigureCanvas):
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     ex = App()
-    sys.exit(app.exec_())
+    sys.
