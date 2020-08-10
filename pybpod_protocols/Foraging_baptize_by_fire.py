@@ -221,9 +221,13 @@ if 'lickport_number' not in variables.keys() or variables['lickport_number'] == 
             reward_ratio_pairs=[[.4,.05],[.3857,.0643],[.3375,.1125],[.225,.225]]#,        # 8:1, 6:1, 3:1, 1:1
         elif variables['reward_rate_family'] == 2:
             reward_ratio_pairs=[[8/9,1/9],[6/7,1/7],[3/4,1/4],[2/3,1/3],[.5,.5]]#,        # 8:1, 6:1, 3:1, 2:1, 1:1
-        elif variables['reward_rate_family'] >= 3:
+        elif variables['reward_rate_family'] == 3:
             reward_ratio_pairs=[[1,0],[.9,.1],[.8,.2],[.7,.3],[.6,.4],[.5,.5]]#,
-        reward_ratio_pairs = (np.array(reward_ratio_pairs)/np.sum(reward_ratio_pairs[0])*variables['difficulty_sum_reward_rate']).tolist()
+        elif variables['reward_rate_family'] == 4:       # Starting from 6:1, 3:1, 1:1 (Lau2005 = {6:1, 3:1})
+            reward_ratio_pairs=[[6, 1],[3, 1],[1, 1]]
+            
+        # reward_ratio_pairs = (np.array(reward_ratio_pairs)/np.sum(reward_ratio_pairs[0])*variables['difficulty_sum_reward_rate']).tolist()
+        reward_ratio_pairs = (np.array(reward_ratio_pairs).T/np.sum(reward_ratio_pairs, axis=1)*variables['difficulty_sum_reward_rate']).T.tolist()
         reward_ratio_pairs = reward_ratio_pairs[:variables['difficulty_ratio_pair_num']]
 
     blocknum = variables['block_number'] # number of blocks
@@ -236,12 +240,14 @@ if 'lickport_number' not in variables.keys() or variables['lickport_number'] == 
         p_reward_R=list()#[.225] #list()#[.225] #list()# list()#the first block is set to 50% reward rate
 #%
         reward_ratio_pairs_bag = list()
+        
         while len(p_reward_L) < blocknum: # reward rate pairs are chosen randomly
             if len(reward_ratio_pairs_bag) == 0:
                 for pair in reward_ratio_pairs:
                     reward_ratio_pairs_bag.append(pair)
                     reward_ratio_pairs_bag.append(pair[::-1])
                 np.random.shuffle(reward_ratio_pairs_bag)
+                
             pair_now = reward_ratio_pairs_bag.pop(0)
             if highest_probability_port_must_change and len(p_reward_L) > 0:
                 if not (p_reward_L[-1] == p_reward_R[-1] or pair_now[0] == pair_now[1]) and np.argmax([p_reward_L[-1],p_reward_R[-1]]) == np.argmax(pair_now):
@@ -258,6 +264,7 @@ if 'lickport_number' not in variables.keys() or variables['lickport_number'] == 
             else:
                 reward_ratio_pairs_bag.append(pair_now)
                 got_stuck_n += 1
+                
     p_reward_M=list(np.zeros(len(p_reward_L))) # 
 else:
     lickportnum = 3
@@ -470,7 +477,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
     unrewarded_trial_num_in_a_row = 0
     triali = -1
     
-    #??? Generate run length of this block (not exactly truncated exponential)
+    # Generate run length of this block (not exactly truncated exponential, but has flatter hazard function than scipy.stats.truncexpon)
     trialnum_now = np.random.exponential(variables['Trialnumber_in_block'],1)+variables['Trialnumber_in_block_min']
     if trialnum_now > variables['Trialnumber_in_block_max']:
             trialnum_now = variables['Trialnumber_in_block_max'] 
@@ -504,13 +511,13 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         reward_R = random_values_R.pop(0) < p_R # np.random.uniform(0.,1.) < p_R
         reward_M = random_values_M.pop(0) < p_M # np.random.uniform(0.,1.) < p_R
         
-        #??? Generate ITI for this trial (not exactly truncated exponential)
+        # Generate ITI for this trial 
         iti_now = np.random.exponential(variables['iti'],1) + variables['iti_min'] + ignore_trial_num_in_a_row*variables['increase_ITI_on_ignore_trials']*variables['iti']
         #iti_now = 0
         if iti_now > variables['iti_max']:
             iti_now = variables['iti_max']    
             
-        #??? Generate delay period for this trial (not exactly truncated exponential)  
+        # Generate delay period for this trial 
         baselinetime_now =  np.random.exponential(variables['delay'],1)+variables['delay_min']# np.random.normal(variables['delay'],variables['delay_rate'])  
         if baselinetime_now > variables['delay_max']:
             baselinetime_now = variables['delay_max']
@@ -540,10 +547,11 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                 state_change_conditions={variables['WaterPort_L_ch_in']: 'BackToBaseline', variables['WaterPort_R_ch_in']: 'BackToBaseline',variables['WaterPort_M_ch_in']: 'BackToBaseline',EventName.Tup: 'GoCue'},
                 output_actions = [])
             
-            # Add 2 second timeout (during which more early licks will be ignored), then restart the trial
+            # Add timeout (during which more early licks will be ignored), then restart the trial
             sma.add_state(
             	state_name='BackToBaseline',
-            	state_timer=2,
+            	# state_timer=2,
+                state_timer=variables['delay'],  # Control timeout by delay itself
             	state_change_conditions={EventName.Tup: 'Start'},
             	output_actions = [])
 
@@ -643,7 +651,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             	state_name='Choice_L',
             	state_timer=0,
             	state_change_conditions={EventName.Tup: 'Reward_L'},
-            	output_actions = [])#(variables['Choice_cue_L_ch'],255)   # Will sound feedback help? It seems not??
+            	output_actions = [])#(variables['Choice_cue_L_ch'],255)   # Not to confuse the mice with too many sounds.
         else:
             sma.add_state(
             	state_name='Choice_L',
@@ -711,7 +719,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         	state_change_conditions={variables['WaterPort_L_ch_in']: 'Consume_reward_return',variables['WaterPort_R_ch_in']: 'Consume_reward_return',variables['WaterPort_M_ch_in']: 'Consume_reward_return',EventName.Tup: 'ITI'},
         	output_actions = [])
         
-        #??? Is this state redundant? Can we assign a state to its own targeted state,
+        # Is this state redundant? Can we assign a state to its own targeted state,
         # i.e., "variables['WaterPort_L_ch_in']: 'Consume_reward'" in the state 'Consume_reward' ?
         sma.add_state(
         	state_name='Consume_reward_return',

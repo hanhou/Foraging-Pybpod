@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # lower, upper, scale = 1.5, 10, 3   # ITI
-lower, upper, scale = 50, 100, 30   # block
+lower, upper, scale = 50, 150, 30  # block
 n = 10000
 
 # Real truncated exponential

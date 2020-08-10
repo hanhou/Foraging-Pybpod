@@ -193,6 +193,8 @@ class App(QDialog):
         print('loadthedata')
         self.handles['load_the_data'].setText('Loading...')
         self.handles['load_the_data'].setStyleSheet('QPushButton {color: red;}')
+        load_only_last_day = self.handles['only_recent_data'].isChecked()
+        
         qApp.processEvents()
         selected = dict()
         filterorder = ['project','experiment','setup','subject']
@@ -208,8 +210,9 @@ class App(QDialog):
                                                               selected['project'], 
                                                               selected['experiment'], 
                                                               selected['setup'], 
-                                                              # False))   # Cache all data
-                                                               True))   # Only cache recent 5 days
+                                                              load_only_last_day))  # User-defined
+                                                               # False))   # Cache all data
+                                                               # True))   # Only cache recent 5 days
             
             self.pickle_write_thread.daemon = True                            # Daemonize thread
             self.pickle_write_thread.start() 
@@ -226,8 +229,9 @@ class App(QDialog):
                                                         experimentnames_needed = selected['experiment'],
                                                         setupnames_needed = selected['setup'],
                                                         subjectnames_needed = selected['subject'],
+                                                        load_only_last_day = load_only_last_day)  # User-defined
                                                         # load_only_last_day = False)   # Load all data
-                                                        load_only_last_day = True)  # Only load recent 5 days
+                                                        # load_only_last_day = True)  # Only load recent 5 days
                 
                 #Update motor position values from previous csv files
                 rc_times  = self.data['times']['motor_position_rostrocaudal']
@@ -419,12 +423,15 @@ class App(QDialog):
 #         self.handles['filter_session'].addItem('all sessions')
 #         self.handles['filter_session'].addItems(self.alldirs['sessionnames'])
 #         self.handles['filter_session'].currentIndexChanged.connect(lambda: self.filterthedata('filter_session'))
-# =============================================================================
+# ============================================================================= 
         
         self.handles['load_the_data'] = QPushButton('Load the data')
         self.handles['load_the_data'].setFocusPolicy(Qt.NoFocus)
         self.handles['load_the_data'].clicked.connect(self.loadthedata)
         
+        self.handles['only_recent_data'] = QCheckBox('Recent data only')
+        self.handles['only_recent_data'].setChecked(True)
+
         self.handles['filter_subject'] = QComboBox(self)
         self.handles['filter_subject'].setFocusPolicy(Qt.NoFocus)
         self.handles['filter_subject'].addItem('all subjects')
@@ -462,11 +469,12 @@ class App(QDialog):
         layout.addWidget(self.handles['filter_setup'],0,2)
         #layout.addWidget(self.handles['filter_session'],0,3)
         layout.addWidget(self.handles['filter_subject'],0,3)
-        layout.addWidget(self.handles['load_the_data'],0,4)
+        layout.addWidget(self.handles['only_recent_data'], 0, 4)
+        layout.addWidget(self.handles['load_the_data'],0,5)
         #layout.addWidget(self.handles['filter_experimenter'],0,5)
-        layout.addWidget(self.handles['select_session'],0,5)
-        layout.addWidget(self.handles['loadparams'],0,6)
-        layout.addWidget(self.handles['set_lickport_position'],0,7)
+        layout.addWidget(self.handles['select_session'],0,6)
+        layout.addWidget(self.handles['loadparams'],0,7)
+        layout.addWidget(self.handles['set_lickport_position'],0,8)
         self.horizontalGroupBox_filter.setLayout(layout)
         
         # ----- Online plotting -----
@@ -1219,4 +1227,4 @@ class PlotCanvas(FigureCanvas):
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     ex = App()
-    sys.
+    sys.exit(app.exec_())
