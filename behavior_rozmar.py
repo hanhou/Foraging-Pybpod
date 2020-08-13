@@ -106,20 +106,7 @@ def load_and_parse_a_csv_file(csvfilename):
                 df.loc[df['Trial_number_in_session'] == trialnum, 'Block_number'] = int(blocknumber)
             except:
                 df.loc[df['Trial_number_in_session'] == trialnum, 'Block_number'] = np.nan
-    # adding accumulated rewards -L,R,M
-    for direction in ['L','R','M']:
-        indexes = df[df['MSG'] == 'reward_{}_accumulated:'.format(direction)].index + 1 #+2
-        if len(indexes)>0:
-            if 'reward_{}_accumulated'.format(direction) not in df.columns:
-                df['reward_{}_accumulated'.format(direction)]=np.NaN
-            accumulated_rewards = df['MSG'][indexes]
-            trialnumbers = df['Trial_number_in_session'][indexes].values
-            for accumulated_reward,trialnum in zip(accumulated_rewards,trialnumbers):
-                #df['Block_number'][df['Trial_number_in_session'] == trialnum] = int(blocknumber)
-                try:
-                    df.loc[df['Trial_number_in_session'] == trialnum, 'reward_{}_accumulated'.format(direction)] = accumulated_reward == 'True'
-                except:
-                    df.loc[df['Trial_number_in_session'] == trialnum, 'reward_{}_accumulated'.format(direction)] = np.nan               
+                
     # adding trial numbers -  the variable names are crappy.. sorry
     indexes = df[df['MSG'] == 'Trialnumber:'].index + 1 #+2
     if len(indexes)>0:
@@ -308,6 +295,13 @@ def minethedata(data):
         idxes['ITI_start'] = (data['MSG'] == 'ITI') & (data['TYPE'] == 'TRANSITION')
         times['ITI_start'] = data['PC-TIME'][idxes['ITI_start']]
         
+        # HH20200811
+        idxes['Double_dipped'] = (data['MSG'] == 'Double_dipped') & (data['TYPE'] == 'TRANSITION')
+        times['Double_dipped'] = data['PC-TIME'][idxes['Double_dipped']]
+        
+        idxes['early_licks'] = (data['MSG'] == 'BackToBaseline') & (data['TYPE'] == 'TRANSITION')
+        times['early_licks'] = data['PC-TIME'][idxes['early_licks']]
+
         idxes['reward_p_L'] = idxes['GoCue']
         times['reward_p_L'] = data['PC-TIME'][idxes['reward_p_L']]
         values['reward_p_L'] = data['reward_p_L'][idxes['reward_p_L']]
@@ -415,6 +409,7 @@ def save_pickles_for_online_analysis(projectdir = Path(defpath),projectnames_nee
                                         with open(setupname_export/ (sessionname.name+'.tmp'), 'wb') as outfile:
                                             pickle.dump(variables, outfile)
                                         shutil.move(setupname_export/ (sessionname.name+'.tmp'),setupname_export/ (sessionname.name+'.pkl'))
+                                        print(sessionname.name + '.pkl saved!')
 # =============================================================================
 #                                     else:
 #                                         print(sessionname.name+' skipped' )

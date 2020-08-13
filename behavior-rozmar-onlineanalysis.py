@@ -1,5 +1,5 @@
 import behavior_rozmar as behavior_rozmar
-import sys
+import sys, traceback
 import os
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton,  QLineEdit, QCheckBox, QHBoxLayout, QGroupBox, QDialog, QVBoxLayout, QGridLayout, QComboBox, QSizePolicy, qApp, QLabel
 from PyQt5.QtGui import QIcon
@@ -258,7 +258,8 @@ class App(QDialog):
                 
             except Exception as error:
                 print('couldn\'t load the data..')
-                print(error)
+                traceback.print_exc()
+                # print(error)
                 self.handles['load_the_data'].setText('Load the data')
                 self.handles['load_the_data'].setStyleSheet('QPushButton {color: black;}')
                 
@@ -423,7 +424,7 @@ class App(QDialog):
 #         self.handles['filter_session'].addItem('all sessions')
 #         self.handles['filter_session'].addItems(self.alldirs['sessionnames'])
 #         self.handles['filter_session'].currentIndexChanged.connect(lambda: self.filterthedata('filter_session'))
-# ============================================================================= 
+# =============================================================================
         
         self.handles['load_the_data'] = QPushButton('Load the data')
         self.handles['load_the_data'].setFocusPolicy(Qt.NoFocus)
@@ -870,7 +871,7 @@ class PlotCanvas(FigureCanvas):
         # self.axes = fig.subplots(2,1, sharex=True)
         # fig.tight_layout() 
         
-        gs = GridSpec(2, 10, wspace = 3, bottom = 0.13, top = 0.88, left = 0.04, right = 0.98)
+        gs = GridSpec(2, 10, wspace = 3, hspace = 0.1, bottom = 0.13, top = 0.85, left = 0.04, right = 0.98)
         self.ax1 = self.fig.add_subplot(gs[0, 0:7])
         self.ax2 = self.fig.add_subplot(gs[1, 0:7])
         self.ax3 = self.fig.add_subplot(gs[0:2, 7:])
@@ -1125,6 +1126,20 @@ class PlotCanvas(FigureCanvas):
             num_finished_trials = times['choice_L'].size + times['choice_R'].size 
             num_rewarded_trials = times['reward_L'].size + times['reward_R'].size
             
+        # Double dipping
+        if 'Double_dipped' in times.keys():
+            num_double_dipping = times['Double_dipped'].size
+            double_dipping_rate = num_double_dipping / num_finished_trials if num_finished_trials else np.nan
+        else:
+            num_double_dipping = np.nan
+            double_dipping_rate = np.nan
+            
+        # Early licks (there can be multiple early licks per trial)
+        if 'early_licks' in times.keys():
+            early_licks_per_trial = times['early_licks'].size / num_finished_trials
+        else:
+            early_licks_per_trial = np.nan
+            
         reward_rate = num_rewarded_trials / num_finished_trials if num_finished_trials else np.nan
         
         if not if_3lp:
@@ -1134,7 +1149,8 @@ class PlotCanvas(FigureCanvas):
         
         self.ax1.set_title(f'Total trials = {num_total_trials}, finished = {num_finished_trials} ({num_finished_trials/num_total_trials:.1%}). '
                      f'Rewarded = {num_rewarded_trials} ({reward_rate:.1%}). '
-                     f'Efficiency: classic = {for_eff_classic:.1%}, optimal = {for_eff_optimal:.1%}', fontsize=12)
+                     f'Efficiency: classic = {for_eff_classic:.1%}, optimal = {for_eff_optimal:.1%}\n'
+                     f'Early licks per trial = {early_licks_per_trial:.2f}. Double dipped trials = {num_double_dipping} ({double_dipping_rate:.1%})', fontsize=10)
         
         # ax.set_title('Lick and reward bias')
         self.draw()
