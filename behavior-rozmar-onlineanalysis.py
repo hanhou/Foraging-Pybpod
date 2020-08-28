@@ -195,7 +195,6 @@ class App(QDialog):
         self.handles['load_the_data'].setStyleSheet('QPushButton {color: red;}')
         load_only_last_day = self.handles['only_recent_data'].isChecked()
         
-        qApp.processEvents()
         selected = dict()
         filterorder = ['project','experiment','setup','subject']
         for filternow in filterorder:
@@ -204,6 +203,7 @@ class App(QDialog):
                 selected[filternow] = filterstring
             else:
                 selected[filternow] = None
+        
         if self.pickle_write_thread == None or not self.pickle_write_thread.isAlive():
             self.pickle_write_thread = threading.Thread(target=behavior_rozmar.save_pickles_for_online_analysis, 
                                                         args=(self.dirs['projectdir'], 
@@ -211,8 +211,8 @@ class App(QDialog):
                                                               selected['experiment'], 
                                                               selected['setup'], 
                                                               load_only_last_day))  # User-defined
-                                                               # False))   # Cache all data
-                                                               # True))   # Only cache recent 5 days
+                                                                # False))   # Cache all data
+                                                                # True))   # Only cache recent 5 days
             
             self.pickle_write_thread.daemon = True                            # Daemonize thread
             self.pickle_write_thread.start() 
@@ -232,6 +232,8 @@ class App(QDialog):
                                                         load_only_last_day = load_only_last_day)  # User-defined
                                                         # load_only_last_day = False)   # Load all data
                                                         # load_only_last_day = True)  # Only load recent 5 days
+                qApp.processEvents()
+                print('pkl loaded!')
                 
                 #Update motor position values from previous csv files
                 rc_times  = self.data['times']['motor_position_rostrocaudal']
@@ -254,7 +256,7 @@ class App(QDialog):
                 self.handles['load_the_data'].setText('Load the data')
                 self.handles['load_the_data'].setStyleSheet('QPushButton {color: black;}')
                 self.updateUI()
-                self.filterthedata()
+                self.filterthedata()   # Filter and plot here!!
                 
             except Exception as error:
                 print('couldn\'t load the data..')
@@ -272,8 +274,8 @@ class App(QDialog):
         #self.data = behavior_rozmar.loadcsvdata(self.data, projectdir = self.dirs['projectdir'])
         self.loadthedata()
         #self.filterthedata()
-        print('data reloaded')
-        print(time.perf_counter())  
+        # print('data reloaded')
+        # print(time.perf_counter())  
         
     def auto_load_data(self):
         if self.handles['plot_autorefresh'].isChecked():
@@ -283,9 +285,9 @@ class App(QDialog):
             
     def filterthedata(self, lastselected = ' '):
         # if lastselected != ' ':
+        print('filterthedata...')
             
         if type(lastselected) == str and 'filter' in lastselected:
-            print('filterthedata')
             # print(lastselected)
             self.updateUI_dirstructure(lastselected)
             
@@ -342,11 +344,13 @@ class App(QDialog):
                     
                 # -- Update plots --
                 if type(self.data_now) == dict and len(self.data_now) > 0:
+                    print('Plotting...')
                     self.handles['axes'].update_plots(times, values, win_width * np.timedelta64(1,'s'))
-
-                print('plotting done')
+                    qApp.processEvents()
+                    print('Plotting done\n-------------------')
                 
         if lastselected == 'filter_subject'  :
+            print('last selected = filter_subject, reload')
             self.load_parameters()
             self.loadthedata()
 # =============================================================================
@@ -1160,9 +1164,11 @@ class PlotCanvas(FigureCanvas):
         ax = self.ax3
         ax.cla()
         
-        # Generate non-overlapping sliding windows for matching plot
+        # Generate sliding windows for matching plot
+        num_of_steps_per_sliding_win_width = 5
         numberofpoints = int(np.ptp(times['alltimes']) / win_width)
-        win_centers = pd.date_range(start = np.min(times['alltimes']), end = np.max(times['alltimes']), periods = numberofpoints)
+        win_centers = pd.date_range(start = np.min(times['alltimes']), end = np.max(times['alltimes']), 
+                                    periods = numberofpoints * num_of_steps_per_sliding_win_width)
 
         choice_R_frac = np.empty(len(win_centers))
         choice_R_frac[:] = np.nan
@@ -1195,7 +1201,7 @@ class PlotCanvas(FigureCanvas):
         ax.plot(reward_R_log_ratio, choice_R_log_ratio, 'ko')
         max_range = max(np.abs(ax.get_xlim()).max(), np.abs(ax.get_ylim()).max())
         ax.plot([-max_range, max_range], [-max_range, max_range], 'k--', lw=1)
-        ax.set(xlabel=f'Log Reward_R/L (non-overlapping {win_width/np.timedelta64(1,"s"):.0f}-s wins)',
+        ax.set(xlabel=f'Log Reward_R/L (win = {win_width/np.timedelta64(1,"s"):.0f} s, dots/win = {num_of_steps_per_sliding_win_width})',
                 ylabel='Log Choice_R/L')
 
         # -- Do linear fitting in log_ratio space --
