@@ -204,7 +204,7 @@ class App(QDialog):
             else:
                 selected[filternow] = None
         
-        if self.pickle_write_thread == None or not self.pickle_write_thread.isAlive():
+        if self.pickle_write_thread == None or not self.pickle_write_thread.isAlive():  #!!!
             self.pickle_write_thread = threading.Thread(target=behavior_rozmar.save_pickles_for_online_analysis, 
                                                         args=(self.dirs['projectdir'], 
                                                               selected['project'], 
@@ -266,6 +266,8 @@ class App(QDialog):
                 self.handles['load_the_data'].setStyleSheet('QPushButton {color: black;}')
                 
                 self.updateUI()
+        else:
+            print('pickle_write_thread is alive, skipping load')
         #print('data reloaded')
         #print(time.perf_counter())
     
@@ -1109,13 +1111,13 @@ class PlotCanvas(FigureCanvas):
             # ax.set_yticklabels(['{:.0%}'.format(x) for x in vals])
         else:  # 2 lick port
             #bias_lick_R = lick_right_num/(lick_right_num+lick_left_num)
-            bias_reward_R = choice_right_num/(choice_right_num+choice_left_num)
+            bias_choice_R = choice_right_num/(choice_right_num+choice_left_num)
             #ax.plot(win_centers, bias_lick_R, 'k-',label = 'Lick bias')
             # idxes = times['p_reward_ratio'] > startime
             ax.plot(times['reward_p_L'], values['reward_p_L'], 'r-', lw=0.7, label = 'p_L')
             ax.plot(times['reward_p_R'], values['reward_p_R'], 'b-', lw=0.7, label = 'p_R')
             ax.plot(times['p_reward_ratio'], values['p_reward_ratio'], 'y-', label = 'p_R_frac')
-            ax.plot(win_centers, bias_reward_R, 'k-', lw=2, label = 'choice_frac')
+            ax.plot(win_centers, bias_choice_R, 'k-', lw=2, label = 'choice_frac')
             ax.legend(loc='lower left', fontsize=8)
             ax.set_yticks([0,1])
             ax.set_yticklabels(['L', 'R'])
@@ -1139,7 +1141,7 @@ class PlotCanvas(FigureCanvas):
             double_dipping_rate = np.nan
             
         # Early licks (there can be multiple early licks per trial)
-        if 'early_licks' in times.keys():
+        if 'early_licks' in times.keys() and num_finished_trials > 0:
             early_licks_per_trial = times['early_licks'].size / num_finished_trials
         else:
             early_licks_per_trial = np.nan

@@ -264,13 +264,14 @@ if 'lickport_number' not in variables.keys() or variables['lickport_number'] == 
                 p_reward_R.append(pair_now[1])
                 got_stuck_n = 0
             else:
-                reward_ratio_pairs_bag.append(pair_now)
+                reward_ratio_pairs_bag.append(pair_now)   
                 got_stuck_n += 1
                 
         # If there is {1:1} in the reward family, ensure the session starts with one {1:1} block (as a natural bias check) 
         # -- maybe I should use a flag to toggle this
         if_exist_ratio_one = np.any([ratio[0] == ratio[1] for ratio in reward_ratio_pairs])
-        if if_exist_ratio_one and (p_reward_L[0] != p_reward_R[0]):            # Insert {1:1} to the first block
+        if if_exist_ratio_one and (p_reward_L[0] != p_reward_R[0]):
+            # Insert {1:1} to the first block
             p_reward_L.insert(0, variables['difficulty_sum_reward_rate'] / 2)
             p_reward_R.insert(0, variables['difficulty_sum_reward_rate'] / 2)
             
@@ -901,6 +902,11 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         print('reward_L_accumulated:',reward_L_accumulated)
         print('reward_R_accumulated:',reward_R_accumulated)
         print('reward_M_accumulated:',reward_M_accumulated)
+        
+        # Plot current base reward prob. HH
+        print('reward_p_L:', p_L)
+        print('reward_p_R:', p_R)
+        print('reward_p_M:', p_M)
         
         # Update the lickport (**protracted**) positions
         variables_motor = read_motor_position(variables['comport_motor'])

@@ -820,6 +820,11 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         print('reward_R_accumulated:',reward_R_accumulated)
         print('reward_M_accumulated:',reward_M_accumulated)
         
+        # Plot current base reward prob. HH
+        print('reward_p_L:', p_L)
+        print('reward_p_R:', p_R)
+        print('reward_p_M:', p_M)
+
         # Update the lickport (**protracted**) positions
         variables_motor = read_motor_position(variables['comport_motor'])
         

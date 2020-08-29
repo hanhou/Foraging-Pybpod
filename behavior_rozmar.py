@@ -49,6 +49,7 @@ def loaddirstucture(projectdir = Path(defpath),projectnames_needed = None, exper
     return dirstructure, projectnames, experimentnames, setupnames, sessionnames, subjectnames              
 
 def load_and_parse_a_csv_file(csvfilename):
+    start = time.time()
     df = pd.read_csv(csvfilename,delimiter=';',skiprows = 6)
     df = df[df['TYPE']!='|'] # delete empty rows
     df = df[df['TYPE']!= 'During handling of the above exception, another exception occurred:'] # delete empty rows
@@ -70,6 +71,7 @@ def load_and_parse_a_csv_file(csvfilename):
     subject = tempstr[2:tempstr[2:].find("'")+2] #+2
     df['experimenter'] = experimenter
     df['subject'] = subject
+    
     # adding trial numbers in session
     idx = (df[df['TYPE'] == 'TRIAL']).index.to_numpy()
     idx = np.concatenate(([0],idx,[len(df)]),0)
@@ -79,7 +81,7 @@ def load_and_parse_a_csv_file(csvfilename):
         Trialnum  = np.concatenate((Trialnum,np.zeros(idxnumnow)+i),0)
     df['Trial_number_in_session'] = Trialnum
     # =============================================================================
-    #     # adding trial types
+    #     # adding trial typesbc
     #     tic = time.time()
     #     indexes = df[df['MSG'] == 'Trialtype:'].index + 1 #+2
     #     if len(indexes)>0:
@@ -155,7 +157,7 @@ def load_and_parse_a_csv_file(csvfilename):
             else:
                 #df['var:'+varname][variableidx:] = d['variables'][varname]
                 df.loc[range(variableidx,len(df)), 'var:'+varname] = d['variables'][varname]
-    
+ 
     # saving motor variables (if any)
     variableidx = (df[df['MSG'] == 'LickportMotors:']).index.to_numpy()
     if len(variableidx)>0:
@@ -178,7 +180,190 @@ def load_and_parse_a_csv_file(csvfilename):
                 df.loc[df['Block_number'] == blocknum, 'reward_p_R'] = probs_r[int(blocknum-1)]
                 if ('var:reward_probabilities_M' in df.columns) and ('Block_number' in df.columns):
                     df.loc[df['Block_number'] == blocknum, 'reward_p_M'] = probs_m[int(blocknum-1)]
+    
+    print(f'old func old method {(time.time()-start)}')
     return df
+
+def load_and_parse_a_csv_file_online(csvfilename):
+    # Get rid of many things that are not needed for online analysis. HH20200827
+    start = time.time()
+    df = pd.read_csv(csvfilename,delimiter=';',skiprows = 6)
+    # print(f'new method 190 {(time.time()-start)}')
+
+    df = df[df['TYPE']!='|'] # delete empty rows
+    df = df[df['TYPE']!= 'During handling of the above exception, another exception occurred:'] # delete empty rows
+    df = df[df['MSG']!= ' '] # delete empty rows
+    df = df[df['MSG']!= '|'] # delete empty rows
+    df = df.reset_index(drop=True) # resetting indexes after deletion
+    try:
+        df['PC-TIME']=df['PC-TIME'].apply(lambda x : datetime.strptime(x,'%Y-%m-%d %H:%M:%S.%f')) # converting string time to datetime
+    except ValueError: # sometimes pybpod don't write out the whole number...
+        badidx = df['PC-TIME'].str.find('.')==-1
+        if len(df['PC-TIME'][badidx]) == 1:
+            df['PC-TIME'][badidx] = df['PC-TIME'][badidx]+'.000000'
+        else:
+            df['PC-TIME'][badidx] = [df['PC-TIME'][badidx]+'.000000']
+        df['PC-TIME']=df['PC-TIME'].apply(lambda x : datetime.strptime(x,'%Y-%m-%d %H:%M:%S.%f')) # converting string time to datetime
+    tempstr = df['+INFO'][df['MSG']=='CREATOR-NAME'].values[0]
+    experimenter = tempstr[2:tempstr[2:].find('"')+2] #+2
+    tempstr = df['+INFO'][df['MSG']=='SUBJECT-NAME'].values[0]
+    subject = tempstr[2:tempstr[2:].find("'")+2] #+2
+    df['experimenter'] = experimenter
+    df['subject'] = subject
+    
+    # adding trial numbers in session
+    idx = (df[df['TYPE'] == 'TRIAL']).index.to_numpy()
+    idx = np.concatenate(([0],idx,[len(df)]),0)
+    idxdiff = np.diff(idx)
+    Trialnum = np.array([])
+    for i,idxnumnow in enumerate(idxdiff): #zip(np.arange(0:len(idxdiff)),idxdiff):#
+        Trialnum  = np.concatenate((Trialnum,np.zeros(idxnumnow)+i),0)
+    df['Trial_number_in_session'] = Trialnum
+
+    # --- If base reward probs are explicitly printed, use the new simple method. HH20200827 ---
+    reward_p_L_ind = df[df['MSG'] == 'reward_p_L:'].index + 1
+    reward_p_R_ind = reward_p_L_ind + 2
+    reward_p_M_ind = reward_p_L_ind + 4
+    
+    if len(reward_p_L_ind):
+        # --- Get reward_p per trial ---
+        reward_p_L = df['MSG'][reward_p_L_ind].to_numpy().astype(np.float)
+        reward_p_R = df['MSG'][reward_p_R_ind].to_numpy().astype(np.float)
+        reward_p_M = df['MSG'][reward_p_M_ind].to_numpy().astype(np.float)
+        
+        # print(f'new method 235 {(time.time()-start)}')
+        
+        # Fill in reward_p per time stamp        
+        trial_numbers = df['Trial_number_in_session']
+        reward_p_cache = np.empty((len(trial_numbers), 3))
+        reward_p_cache[:] = np.nan
+        for trial_n, (p_L, p_R, p_M) in enumerate(zip(reward_p_L, reward_p_R, reward_p_M)):
+            reward_p_cache[trial_numbers == trial_n + 1 , 0] = p_L
+            reward_p_cache[trial_numbers == trial_n + 1 , 1] = p_R
+            reward_p_cache[trial_numbers == trial_n + 1 , 2] = p_M
+            
+        df['reward_p_L'] = reward_p_cache[:, 0]
+        df['reward_p_R'] = reward_p_cache[:, 1]
+        df['reward_p_M'] = reward_p_cache[:, 2]
+        
+        # print(f'new method 241 {(time.time()-start)}')
+
+        # --- Get motor variables (if any), ignore other variables especially the huge reward_p arrays ---
+        # # saving variables (if any)
+        # variableidx = (df[df['MSG'] == 'Variables:']).index.to_numpy()
+        # if len(variableidx)>0:
+        #     d={}
+        #     exec('variables = ' + df['MSG'][variableidx+1].values[0], d)
+        #     for varname in d['variables'].keys():
+        #         if isinstance(d['variables'][varname], (list,tuple)):
+        #             templist = list()
+        #             for idx in range(0,len(df)):
+        #                 templist.append(d['variables'][varname])
+        #             df['var:'+varname]=templist
+        #         else:
+        #             df['var:'+varname] = d['variables'][varname]
+        
+        # # updating variables
+        # variableidxs = (df[df['MSG'] == 'Variables updated:']).index.to_numpy()
+        # for variableidx in variableidxs:
+        #     d={}
+        #     exec('variables = ' + df['MSG'][variableidx+1], d)
+        #     for varname in d['variables'].keys():
+        #         if isinstance(d['variables'][varname], (list,tuple)):
+        #             templist = list()
+        #             idxs = list()
+        #             for idx in range(variableidx,len(df)):
+        #                 idxs.append(idx)
+        #                 templist.append(d['variables'][varname])
+        #             df['var:'+varname][variableidx:]=templist.copy()
+        #         else:
+        #             #df['var:'+varname][variableidx:] = d['variables'][varname]
+        #             df.loc[range(variableidx,len(df)), 'var:'+varname] = d['variables'][varname]cb
+    
+        # saving motor variables (if any)
+        variableidx = (df[df['MSG'] == 'LickportMotors:']).index.to_numpy()
+        if len(variableidx)>0:
+            d={}
+            exec('variables = ' + df['MSG'][variableidx+1].values[0], d)
+            for varname in d['variables'].keys():
+                df['var_motor:'+varname] = d['variables'][varname]        
+        
+        print(f'new method 281 {(time.time()-start)}')
+        
+    else:  #  --- Use the old method (from 'block number' AND 'all variables', which is very slow). HH20200827 ---
+        # adding block numbers
+        indexes = df[df['MSG'] == 'Blocknumber:'].index + 1 #+2
+        if len(indexes)>0:
+            if 'Block_number' not in df.columns:
+                df['Block_number']=np.NaN
+            blocknumbers = df['MSG'][indexes]
+            trialnumbers = df['Trial_number_in_session'][indexes].values
+            for blocknumber,trialnum in zip(blocknumbers,trialnumbers):
+                #df['Block_number'][df['Trial_number_in_session'] == trialnum] = int(blocknumber)
+                try:
+                    df.loc[df['Trial_number_in_session'] == trialnum, 'Block_number'] = int(blocknumber)
+                except:
+                    df.loc[df['Trial_number_in_session'] == trialnum, 'Block_number'] = np.nan
+                    
+        # saving variables (if any)
+        variableidx = (df[df['MSG'] == 'Variables:']).index.to_numpy()
+        if len(variableidx)>0:
+            d={}
+            exec('variables = ' + df['MSG'][variableidx+1].values[0], d)
+            for varname in d['variables'].keys():
+                if isinstance(d['variables'][varname], (list,tuple)):
+                    templist = list()
+                    for idx in range(0,len(df)):
+                        templist.append(d['variables'][varname])
+                    df['var:'+varname]=templist
+                else:
+                    df['var:'+varname] = d['variables'][varname]
+        
+        # updating variables
+        variableidxs = (df[df['MSG'] == 'Variables updated:']).index.to_numpy()
+        for variableidx in variableidxs:
+            d={}
+            exec('variables = ' + df['MSG'][variableidx+1], d)
+            for varname in d['variables'].keys():
+                if isinstance(d['variables'][varname], (list,tuple)):
+                    templist = list()
+                    idxs = list()
+                    for idx in range(variableidx,len(df)):
+                        idxs.append(idx)
+                        templist.append(d['variables'][varname])
+                    df['var:'+varname][variableidx:]=templist.copy()
+                else:
+                    #df['var:'+varname][variableidx:] = d['variables'][varname]
+                    df.loc[range(variableidx,len(df)), 'var:'+varname] = d['variables'][varname]
+    
+        # saving motor variables (if any)
+        variableidx = (df[df['MSG'] == 'LickportMotors:']).index.to_numpy()
+        if len(variableidx)>0:
+            d={}
+            exec('variables = ' + df['MSG'][variableidx+1].values[0], d)
+            for varname in d['variables'].keys():
+                df['var_motor:'+varname] = d['variables'][varname]
+            
+        # extracting reward probabilities from variables
+        if ('var:reward_probabilities_L' in df.columns) and ('Block_number' in df.columns):
+            probs_l = df['var:reward_probabilities_L'][0]
+            probs_r = df['var:reward_probabilities_R'][0]
+            df['reward_p_L'] = np.nan
+            df['reward_p_R'] = np.nan
+            if ('var:reward_probabilities_M' in df.columns) and ('Block_number' in df.columns):
+                probs_m = df['var:reward_probabilities_M'][0]
+                df['reward_p_M'] = np.nan
+            for blocknum in df['Block_number'].unique():
+                if not np.isnan(blocknum):
+                    df.loc[df['Block_number'] == blocknum, 'reward_p_L'] = probs_l[int(blocknum-1)]
+                    df.loc[df['Block_number'] == blocknum, 'reward_p_R'] = probs_r[int(blocknum-1)]
+                    if ('var:reward_probabilities_M' in df.columns) and ('Block_number' in df.columns):
+                        df.loc[df['Block_number'] == blocknum, 'reward_p_M'] = probs_m[int(blocknum-1)]
+                        
+        print(f'old method {(time.time()-start)}')
+    
+    return df
+
 
 def loadcsvdata(bigtable=pd.DataFrame(),
                 projectdir = Path(defpath),
@@ -334,7 +519,101 @@ def minethedata(data):
 #bigtable = loadcsvdata(projectdir = '/home/rozmar/Data/Behavior/Projects')
 
 #%%
-#df = bigtable
+#df = bigtablebb
+
+def get_static_variable(df, varname):
+    # Get var:xxx from 'Variable' once instead of copying them to every time stamp 
+    variableidx = (df[df['MSG'] == 'Variables:']).index.to_numpy()
+    if len(variableidx)>0:
+        d={}
+        exec('variables = ' + df['MSG'][variableidx+1].values[0], d)
+        if varname in d['variables'].keys():
+            return d['variables'][varname]
+    return []
+
+def minethedata_online(data):
+        idxes = dict()
+        times = dict()
+        values = dict()
+        # idxes['lick_L'] = data['var:WaterPort_L_ch_in'] == data['+INFO']
+        idxes['lick_L'] = get_static_variable(data, 'WaterPort_L_ch_in') == data['+INFO'].values
+        times['lick_L'] = data['PC-TIME'][idxes['lick_L']]
+        idxes['choice_L'] = (data['MSG'] == 'Choice_L') & (data['TYPE'] == 'TRANSITION')
+        times['choice_L'] = data['PC-TIME'][idxes['choice_L']]
+        idxes['reward_L'] = (data['MSG'] == 'Reward_L') & (data['TYPE'] == 'TRANSITION')
+        times['reward_L'] = data['PC-TIME'][idxes['reward_L']]        
+        idxes['autowater_L'] = (data['MSG'] == 'Auto_Water_L') & (data['TYPE'] == 'TRANSITION')
+        times['autowater_L'] = data['PC-TIME'][idxes['autowater_L']]        
+        idxes['autowater_R'] = (data['MSG'] == 'Auto_Water_R') & (data['TYPE'] == 'TRANSITION')
+        times['autowater_R'] = data['PC-TIME'][idxes['autowater_R']]
+        
+        # idxes['lick_R'] = data['var:WaterPort_R_ch_in'] == data['+INFO']
+        idxes['lick_R'] = get_static_variable(data, 'WaterPort_R_ch_in') == data['+INFO']
+        times['lick_R'] = data['PC-TIME'][idxes['lick_R']]
+        idxes['choice_R'] = (data['MSG'] == 'Choice_R') & (data['TYPE'] == 'TRANSITION')
+        times['choice_R'] = data['PC-TIME'][idxes['choice_R']]
+        idxes['reward_R'] = (data['MSG'] == 'Reward_R') & (data['TYPE'] == 'TRANSITION')
+        times['reward_R'] = data['PC-TIME'][idxes['reward_R']]
+        
+        if get_static_variable(data, 'WaterPort_M_ch_in') !=[]:
+            # idxes['lick_M'] = data['var:WaterPort_M_ch_in'] == data['+INFO']
+            idxes['lick_M'] = get_static_variable(data, 'WaterPort_M_ch_in') == data['+INFO']
+            times['lick_M'] = data['PC-TIME'][idxes['lick_M']]
+            idxes['choice_M'] = (data['MSG'] == 'Choice_M') & (data['TYPE'] == 'TRANSITION')
+            times['choice_M'] = data['PC-TIME'][idxes['choice_M']]
+            idxes['reward_M'] = (data['MSG'] == 'Reward_M') & (data['TYPE'] == 'TRANSITION')
+            times['reward_M'] = data['PC-TIME'][idxes['reward_M']]        
+            idxes['autowater_M'] = (data['MSG'] == 'Auto_Water_M') & (data['TYPE'] == 'TRANSITION')
+            times['autowater_M'] = data['PC-TIME'][idxes['autowater_M']]    
+            
+        idxes['trialstart'] = data['TYPE'] == 'TRIAL'
+        times['trialstart'] = data['PC-TIME'][idxes['trialstart']]
+        idxes['trialend'] = data['TYPE'] == 'END-TRIAL'
+        times['trialend'] = data['PC-TIME'][idxes['trialend']]
+        idxes['GoCue'] = (data['MSG'] == 'GoCue') & (data['TYPE'] == 'TRANSITION')
+        times['GoCue'] = data['PC-TIME'][idxes['GoCue']]
+        
+        # HH20200729
+        idxes['ITI_start'] = (data['MSG'] == 'ITI') & (data['TYPE'] == 'TRANSITION')
+        times['ITI_start'] = data['PC-TIME'][idxes['ITI_start']]
+        
+        # HH20200811
+        idxes['Double_dipped'] = (data['MSG'] == 'Double_dipped') & (data['TYPE'] == 'TRANSITION')
+        times['Double_dipped'] = data['PC-TIME'][idxes['Double_dipped']]
+        
+        idxes['early_licks'] = (data['MSG'] == 'BackToBaseline') & (data['TYPE'] == 'TRANSITION')
+        times['early_licks'] = data['PC-TIME'][idxes['early_licks']]
+
+        idxes['reward_p_L'] = idxes['GoCue']
+        times['reward_p_L'] = data['PC-TIME'][idxes['reward_p_L']]
+        values['reward_p_L'] = data['reward_p_L'][idxes['reward_p_L']]
+        
+        idxes['reward_p_R'] = idxes['GoCue']
+        times['reward_p_R'] = data['PC-TIME'][idxes['reward_p_R']]
+        values['reward_p_R'] = data['reward_p_R'][idxes['reward_p_R']]
+        
+        idxes['motor_position_lateral'] = idxes['GoCue']
+        times['motor_position_lateral'] = data['PC-TIME'][idxes['motor_position_lateral']]
+        values['motor_position_lateral'] = data['var_motor:LickPort_Lateral_pos'][idxes['motor_position_lateral']]
+        
+        idxes['motor_position_rostrocaudal'] = idxes['GoCue']
+        times['motor_position_rostrocaudal'] = data['PC-TIME'][idxes['motor_position_rostrocaudal']]
+        values['motor_position_rostrocaudal'] = data['var_motor:LickPort_RostroCaudal_pos'][idxes['motor_position_rostrocaudal']]
+        
+        if get_static_variable(data, 'WaterPort_M_ch_in') !=[]:
+            idxes['reward_p_M'] = idxes['GoCue']
+            times['reward_p_M'] = data['PC-TIME'][idxes['reward_p_M']]
+            values['reward_p_M'] = data['reward_p_M'][idxes['reward_p_M']]
+            
+        idxes['p_reward_ratio'] = idxes['GoCue']
+        times['p_reward_ratio'] = times['reward_p_R']
+        values['p_reward_ratio'] = values['reward_p_R'] / (values['reward_p_R']+ values['reward_p_L'])
+        if 'reward_p_M' in values.keys() and len(values['reward_p_M'])>0:
+            values['p_reward_ratio_R'] = values['reward_p_R'] / (values['reward_p_R']+ values['reward_p_L'] + values['reward_p_M'])
+            values['p_reward_ratio_M'] = values['reward_p_M'] / (values['reward_p_R']+ values['reward_p_L'] + values['reward_p_M'])
+            values['p_reward_ratio_L'] = values['reward_p_L'] / (values['reward_p_R']+ values['reward_p_L'] + values['reward_p_M'])
+        return times, idxes, values
+#%%
 
 def save_pickles_for_online_analysis(projectdir = Path(defpath),projectnames_needed = None, experimentnames_needed = None,  setupnames_needed=None,load_only_last_day = False):
     dirstructure = dict()
@@ -398,10 +677,12 @@ def save_pickles_for_online_analysis(projectdir = Path(defpath),projectnames_nee
                                     else:
                                         doit = False
                                     if doit and os.path.exists(sessionname/ (sessionname.name+'.csv')):
-                                        df = load_and_parse_a_csv_file(sessionname/ (sessionname.name+'.csv'))
+                                        # df = load_and_parse_a_csv_file(sessionname/ (sessionname.name+'.csv')) #!!!
+                                        df = load_and_parse_a_csv_file_online(sessionname/ (sessionname.name+'.csv')) #!!!
                                         variables = dict()
                                         try:
-                                            variables['times'], variables['idxes'], variables['values'] = minethedata(df)  
+                                            # variables['times'], variables['idxes'], variables['values'] = minethedata(df)  
+                                            variables['times'], variables['idxes'], variables['values'] = minethedata_online(df)  
                                             variables['experimenter'] = df['experimenter'][0]
                                             variables['subject'] = df['subject'][0]
                                         except:
@@ -409,7 +690,8 @@ def save_pickles_for_online_analysis(projectdir = Path(defpath),projectnames_nee
                                         with open(setupname_export/ (sessionname.name+'.tmp'), 'wb') as outfile:
                                             pickle.dump(variables, outfile)
                                         shutil.move(setupname_export/ (sessionname.name+'.tmp'),setupname_export/ (sessionname.name+'.pkl'))
-                                        print(sessionname.name + '.pkl saved!')
+                                        # np.save(setupname_export/ (sessionname.name+'.npy'), variables)
+                                        print(sessionname.name + ' saved!')
 # =============================================================================
 #                                     else:
 #                                         print(sessionname.name+' skipped' )
@@ -443,10 +725,12 @@ def load_pickles_for_online_analysis(projectdir = Path(defpath),projectnames_nee
                                 sessiondatestoload = sessionnames[-5:]
                             for sessionname in os.listdir(setupname / 'sessions'):
                                 if sessionname[-3:] == 'pkl' and (not load_only_last_day or sessionname[:8] in sessiondatestoload): 
-                                    #print('opening '+ sessionname)
                                     with open(setupname / 'sessions'/ sessionname,'rb') as readfile:
                                         variables_new = pickle.load(readfile)
+                                    # variables_new = np.load(setupname / 'sessions'/ sessionname, allow_pickle=True)
+                                        
                                     if len(variables_new.keys()) > 0:
+                                        # print('opening '+ variables_new['subject'] + ' ' + sessionname)
                                         if  not subjectnames_needed or variables_new['subject'] in subjectnames_needed:
                                             if len(variables_out.keys()) == 0:
                                                 variables_out['times'] = dict()
