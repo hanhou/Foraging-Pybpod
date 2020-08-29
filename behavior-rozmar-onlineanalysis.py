@@ -1,7 +1,8 @@
 import behavior_rozmar as behavior_rozmar
 import sys, traceback
 import os
-from PyQt5.QtWidgets import QApplication, QWidget, QPushButton,  QLineEdit, QCheckBox, QHBoxLayout, QGroupBox, QDialog, QVBoxLayout, QGridLayout, QComboBox, QSizePolicy, qApp, QLabel
+from PyQt5.QtWidgets import QApplication, QWidget, QPushButton,  QLineEdit, QCheckBox, QHBoxLayout, \
+    QGroupBox, QDialog, QVBoxLayout, QGridLayout, QComboBox, QSizePolicy, qApp, QLabel, QFileDialog
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import pyqtSlot, QTimer, Qt
 
@@ -20,6 +21,8 @@ import time as time
 from datetime import datetime
 import json
 import threading
+import shutil
+
 try:
     import zaber.serial as zaber_serial
 except:
@@ -452,11 +455,18 @@ class App(QDialog):
 #         self.handles['filter_experimenter'].currentIndexChanged.connect(lambda: self.filterthedata('filter_experimenter'))
 # =============================================================================
         
-        self.handles['loadparams'] = QPushButton('Load parameters')
+        self.handles['loadparams'] = QPushButton('Restore')
         self.handles['loadparams'].setFocusPolicy(Qt.NoFocus)
         self.handles['loadparams'].clicked.connect(self.load_parameters)
         
-        
+        self.handles['loadparams_from_file'] = QPushButton('Load from file')
+        self.handles['loadparams_from_file'].setFocusPolicy(Qt.NoFocus)
+        self.handles['loadparams_from_file'].clicked.connect(self.load_parameters_from_file)
+            
+        self.handles['save_parameters_to_file'] = QPushButton('Save to file')
+        self.handles['save_parameters_to_file'].setFocusPolicy(Qt.NoFocus)
+        self.handles['save_parameters_to_file'].clicked.connect(self.save_parameters_to_file)
+
         self.handles['select_session'] = QComboBox(self)
         self.handles['select_session'].setFocusPolicy(Qt.NoFocus)
         self.handles['select_session'].currentIndexChanged.connect(self.filterthedata)
@@ -470,7 +480,6 @@ class App(QDialog):
         self.handles['set_lickport_position'].setFocusPolicy(Qt.NoFocus)
         self.handles['set_lickport_position'].clicked.connect(self.set_lickport_position)
         
-        
         layout.addWidget(self.handles['filter_project'] ,0,0)
         layout.addWidget(self.handles['filter_experiment'],0,1)
         layout.addWidget(self.handles['filter_setup'],0,2)
@@ -480,8 +489,13 @@ class App(QDialog):
         layout.addWidget(self.handles['load_the_data'],0,5)
         #layout.addWidget(self.handles['filter_experimenter'],0,5)
         layout.addWidget(self.handles['select_session'],0,6)
-        layout.addWidget(self.handles['loadparams'],0,7)
-        layout.addWidget(self.handles['set_lickport_position'],0,8)
+        layout.addWidget(self.handles['select_session'],0,6)
+        
+        layout.addWidget(QLabel('\tParameters'),0,7)
+        layout.addWidget(self.handles['loadparams'],0,8)
+        layout.addWidget(self.handles['loadparams_from_file'],0,9)
+        layout.addWidget(self.handles['save_parameters_to_file'],0,10)
+        layout.addWidget(self.handles['set_lickport_position'],0,11)
         self.horizontalGroupBox_filter.setLayout(layout)
         
         # ----- Online plotting -----
@@ -680,6 +694,7 @@ class App(QDialog):
         experiment_now = self.handles['filter_experiment'].currentText()
         setup_now = self.handles['filter_setup'].currentText()
         subject_now = self.handles['filter_subject'].currentText()
+        
         if project_now != 'all projects' and experiment_now != 'all experiments' and setup_now != 'all setups' and subject_now != 'all subjects':
             subject_var_file = os.path.join(defpath,project_now,'subjects',subject_now,'variables.json')
             setup_var_file = os.path.join(defpath,project_now,'experiments',experiment_now,'setups',setup_now,'variables.json')
@@ -763,6 +778,32 @@ class App(QDialog):
             self.variables['setup'] = variables_setup
             self.variables['subject_file'] = subject_var_file
             self.variables['setup_file'] = setup_var_file
+            
+    def load_parameters_from_file(self):
+        fname = QFileDialog.getOpenFileName(self, 'Open file', 
+                                           'C:\\Users\\labadmin\\Documents\\Pybpod\\Projects\\Foraging_homecage\\subjects',
+                                           "Json files (*.json)") 
+        with open(fname[0]) as json_file:
+            variables_subject = json.load(json_file)
+            
+        for key in self.handles['variables_subject'].keys():
+            if key in variables_subject.keys():
+                self.handles['variables_subject'][key].setText(str(variables_subject[key]))
+            else:  # Just in case there are missing parameters (due to updated parameter tables) 
+                self.handles['variables_subject'][key].setText("NA")
+                self.handles['variables_subject'][key].setStyleSheet('QLineEdit {background: grey;}')
+
+    def save_parameters_to_file(self):
+        project_now = self.handles['filter_project'].currentText()
+        subject_now = self.handles['filter_subject'].currentText()
+        subject_var_file = os.path.join(defpath,project_now,'subjects',subject_now,'variables.json')
+        
+        # Copy the current variable file to a new file
+        fname = QFileDialog.getSaveFileName(self, 'Open file', 
+                                           'C:\\Users\\labadmin\\Documents\\Pybpod\\Projects\\Foraging_homecage\\subjects',
+                                           "Json files (*.json)") 
+        shutil.copy(subject_var_file, fname[0])
+
             
     def check_parameters(self):
         project_now = self.handles['filter_project'].currentText()
