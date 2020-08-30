@@ -59,34 +59,41 @@ class App(QDialog):
         self.timer.setInterval(5000)          # Throw event timeout with an interval of 1000 milliseconds
         self.timer.timeout.connect(self.reloadthedata) # each time timer counts a second, call self.blink
         self.pickle_write_thread = None
-        self.variables_to_display = ['ValveOpenTime_L',
-                                     'ValveOpenTime_R',
-                                     'ValveOpenTime_M',
-                                     'Trialnumber_in_block',
-                                     'Trialnumber_in_block_max',
-                                     'Trialnumber_in_block_min',
-                                     'block_start_with_bias_check',
-                                     'block_number',
-                                     'difficulty_sum_reward_rate',
-                                     'difficulty_ratio_pair_num',
-                                     'delay',
-                                     'delay_min',
-                                     'delay_max',
-                                     'response_time',
-                                     'iti', 
-                                     'iti_min', # minimum ITI
-                                     'iti_max',
-                                     'increase_ITI_on_ignore_trials',
-                                     'auto_water',
-                                     'auto_water_time_multiplier',
-                                     'auto_water_min_unrewarder_trials_in_a_row',
-                                     'auto_water_min_ignored_trials_in_a_row',
-                                     'auto_train_min_rewarded_trial_num',
-                                     'early_lick_punishment',
-                                     'reward_rate_family',
-                                     'lickport_number',
-                                     'auto_stop_max_ignored_trials_in_a_row',
-                                     ]
+        self.variables_to_display = {'Valve Open Time': {'lickport_number': '# Lickport',
+                                                         'ValveOpenTime_L': 'L',
+                                                         'ValveOpenTime_R': 'R',
+                                                         'ValveOpenTime_M': 'M',
+                                                        },
+                                     'Base reward probability': {'difficulty_sum_reward_rate': 'sum',
+                                                      'reward_rate_family': 'family',
+                                                      'difficulty_ratio_pair_num': '# of pairs',
+                                                      },
+                                     'Block': {'Trialnumber_in_block': 'beta',
+                                               'Trialnumber_in_block_min': 'min',
+                                               'Trialnumber_in_block_max': 'max',
+                                               'auto_train_min_rewarded_trial_num': 'min reward each block',
+                                               # 'block_number',
+                                               },
+                                     'Delay period': {'delay': 'beta',
+                                                      'delay_min': 'min',
+                                                      'delay_max': 'max',
+                                                      'early_lick_punishment': 'early lick punishment',
+                                                      },
+                                     'ITI': {'iti': 'beta', 
+                                             'iti_min': 'min',
+                                             'iti_max': 'max',
+                                             },
+                                     'Auto water': {'auto_water': 'ON',
+                                                    'auto_water_time_multiplier': 'multiplier',
+                                                    'auto_water_min_unrewarder_trials_in_a_row': 'if unrewarded in a row',
+                                                    'auto_water_min_ignored_trials_in_a_row': 'if ignored in a row',
+                                                    },
+                                     'Misc': {'block_start_with_bias_check': 'start with bias check',
+                                              'increase_ITI_on_ignore_trials': 'increase ITI if ignored',
+                                              'auto_stop_max_ignored_trials_in_a_row': 'auto stop if ignored in a row',
+                                              'response_time': 'response time',
+                                             },
+                                     }
         free_water = {
                       'difficulty_ratio_pair_num' : 0,
                       'response_time' : 2.,
@@ -728,7 +735,6 @@ class App(QDialog):
                 row = 0
                 col = -1
                 self.handles['variables_setup']=dict()
-                self.handles['variables_subject']=dict()
                 for idx,key in enumerate(variables_setup.keys()):
                     if key in self.variables_to_display:
                         col +=1
@@ -742,21 +748,31 @@ class App(QDialog):
                         self.handles['variables_setup'][key].textChanged.connect(self.check_parameters)
                         layout_setup.addWidget(self.handles['variables_setup'][key] ,row,col)
                 self.horizontalGroupBox_variables_setup.setLayout(layout_setup)
+                
+                self.handles['variables_subject']=dict()
                 layout_subject = QGridLayout()
-                row = 0
-                col = -1
-                for idx,key in enumerate(variables_subject.keys()):   # Read all variables in json file
-                    if key in self.variables_to_display:   # But only show part of them
-                        col +=1
-                        if col > maxcol*2:
-                            col = 0
-                            row += 1
-                        layout_subject.addWidget(QLabel(key+':') ,row,col)
-                        col +=1
-                        self.handles['variables_subject'][key] =  QLineEdit(str(variables_subject[key]))
-                        self.handles['variables_subject'][key].returnPressed.connect(self.save_parameters)
-                        self.handles['variables_subject'][key].textChanged.connect(self.check_parameters)
-                        layout_subject.addWidget(self.handles['variables_subject'][key] ,row,col)
+                
+                for row, cat_name in enumerate(self.variables_to_display):
+                    # Category name
+                    layout_subject.addWidget(QLabel(cat_name +':'), row, 0, 1, 2)
+                    col = 1
+                    
+                    # Variables in this category
+                    for var_name in self.variables_to_display[cat_name]:
+                        var_name_alias = self.variables_to_display[cat_name][var_name]
+                        layout_subject.addWidget(QLabel(var_name_alias + ' = '), row, col, alignment=Qt.AlignRight)
+                        col += 1
+                        
+                        if var_name in variables_subject.keys():   # If we have this var_name (back compatibility)
+                            self.handles['variables_subject'][var_name] = QLineEdit(str(variables_subject[var_name]))
+                            self.handles['variables_subject'][var_name].returnPressed.connect(self.save_parameters)
+                            self.handles['variables_subject'][var_name].textChanged.connect(self.check_parameters)
+                        else:
+                            self.handles['variables_subject'][var_name] = QLineEdit("NA")
+                            self.handles['variables_subject'][var_name].setStyleSheet('QLineEdit {background: grey;}')
+                            
+                        layout_subject.addWidget(self.handles['variables_subject'][var_name], row, col, alignment=Qt.AlignRight)
+                        col += 1
                         
                 self.horizontalGroupBox_variables_subject.setLayout(layout_subject)
                 self.variables=dict()
@@ -780,9 +796,11 @@ class App(QDialog):
             self.variables['setup_file'] = setup_var_file
             
     def load_parameters_from_file(self):
+        project_now = self.handles['filter_project'].currentText()
         fname = QFileDialog.getOpenFileName(self, 'Open file', 
-                                           'C:\\Users\\labadmin\\Documents\\Pybpod\\Projects\\Foraging_homecage\\subjects',
+                                           os.path.join(defpath, project_now,'subjects'),
                                            "Json files (*.json)") 
+        if not fname[0]:  return
         with open(fname[0]) as json_file:
             variables_subject = json.load(json_file)
             
@@ -800,9 +818,10 @@ class App(QDialog):
         
         # Copy the current variable file to a new file
         fname = QFileDialog.getSaveFileName(self, 'Open file', 
-                                           'C:\\Users\\labadmin\\Documents\\Pybpod\\Projects\\Foraging_homecage\\subjects',
+                                           os.path.join(defpath, project_now,'subjects'),
                                            "Json files (*.json)") 
-        shutil.copy(subject_var_file, fname[0])
+        if fname[0]:
+            shutil.copy(subject_var_file, fname[0])
 
             
     def check_parameters(self):
