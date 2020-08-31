@@ -82,6 +82,7 @@ class App(QDialog):
                                      'ITI': {'iti': 'beta', 
                                              'iti_min': 'min',
                                              'iti_max': 'max',
+                                             'increase_ITI_on_ignore_trials': 'increase ITI if ignored',
                                              },
                                      'Auto water': {'auto_water': 'ON',
                                                     'auto_water_time_multiplier': 'multiplier',
@@ -89,9 +90,8 @@ class App(QDialog):
                                                     'auto_water_min_ignored_trials_in_a_row': 'if ignored in a row',
                                                     },
                                      'Misc': {'block_start_with_bias_check': 'start with bias check',
-                                              'increase_ITI_on_ignore_trials': 'increase ITI if ignored',
-                                              'auto_stop_max_ignored_trials_in_a_row': 'auto stop if ignored in a row',
                                               'response_time': 'response time',
+                                              'auto_stop_max_ignored_trials_in_a_row': 'auto stop if ignored in a row',
                                              },
                                      }
         free_water = {
@@ -1216,7 +1216,7 @@ class PlotCanvas(FigureCanvas):
         self.ax1.set_title(f'Total trials = {num_total_trials}, finished = {num_finished_trials} ({num_finished_trials/num_total_trials:.1%}). '
                      f'Rewarded = {num_rewarded_trials} ({reward_rate:.1%}). '
                      f'Efficiency: classic = {for_eff_classic:.1%}, optimal = {for_eff_optimal:.1%}\n'
-                     f'Early licks per trial = {early_licks_per_trial:.2f}. Double dipped trials = {num_double_dipping} ({double_dipping_rate:.1%})', fontsize=10)
+                     f'Early lick pulishment per trial = {early_licks_per_trial:.2f}. Double dipped trials = {num_double_dipping} ({double_dipping_rate:.1%})', fontsize=10)
         
         # ax.set_title('Lick and reward bias')
         self.draw()
