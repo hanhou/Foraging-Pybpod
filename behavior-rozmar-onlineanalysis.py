@@ -773,6 +773,9 @@ class App(QDialog):
                             
                         layout_subject.addWidget(self.handles['variables_subject'][var_name], row, col, alignment=Qt.AlignRight)
                         col += 1
+
+                self.handles['actual_reward_prob'] = QLabel('')
+                layout_subject.addWidget(self.handles['actual_reward_prob'], 1, 7, 1, 2)
                         
                 self.horizontalGroupBox_variables_subject.setLayout(layout_subject)
                 self.variables=dict()
@@ -790,6 +793,7 @@ class App(QDialog):
                 for key in self.handles['variables_setup'].keys():
                     self.handles['variables_setup'][key].setText(str(variables_setup[key]))
                     
+            self.show_actual_reward_prob()
             self.variables['subject'] = variables_subject
             self.variables['setup'] = variables_setup
             self.variables['subject_file'] = subject_var_file
@@ -810,6 +814,8 @@ class App(QDialog):
             else:  # Just in case there are missing parameters (due to updated parameter tables) 
                 self.handles['variables_subject'][key].setText("NA")
                 self.handles['variables_subject'][key].setStyleSheet('QLineEdit {background: grey;}')
+
+        self.check_parameters()
 
     def save_parameters_to_file(self):
         project_now = self.handles['filter_project'].currentText()
@@ -870,8 +876,8 @@ class App(QDialog):
                 else:   # If json file has missing parameters (backward compatibility). HH20200730
                     # self.handles['variables_subject'][key].setText("NA")
                     self.handles['variables_subject'][key].setStyleSheet('QLineEdit {background: grey;}')
-                    
-                    
+        
+        self.show_actual_reward_prob()
         qApp.processEvents()
         
     def save_parameters(self):
@@ -927,6 +933,29 @@ class App(QDialog):
                 if key in presetvars.keys():
                     self.handles['variables_'+dicttext][key].setText(str(presetvars[key]))        
         self.check_parameters()
+        
+    def show_actual_reward_prob(self):
+        # Show actual reward probability (same code as pybpod protocol)
+        reward_rate_family = float(self.handles['variables_subject']['reward_rate_family'].text())
+        difficulty_sum_reward_rate = float(self.handles['variables_subject']['difficulty_sum_reward_rate'].text())
+        difficulty_ratio_pair_num = int(self.handles['variables_subject']['difficulty_ratio_pair_num'].text())
+        
+        if difficulty_ratio_pair_num < 1:
+            reward_ratio_pairs = [[1,1]]   # For the very beginning of training
+        else:   
+            if reward_rate_family <= 1:
+                reward_ratio_pairs=[[.4,.05],[.3857,.0643],[.3375,.1125],[.225,.225]]#,        # 8:1, 6:1, 3:1, 1:1
+            elif reward_rate_family == 2:
+                reward_ratio_pairs=[[8/9,1/9],[6/7,1/7],[3/4,1/4],[2/3,1/3],[.5,.5]]#,        # 8:1, 6:1, 3:1, 2:1, 1:1
+            elif reward_rate_family == 3:
+                reward_ratio_pairs=[[1,0],[.9,.1],[.8,.2],[.7,.3],[.6,.4],[.5,.5]]#,
+            elif reward_rate_family == 4:       # Starting from 6:1, 3:1, 1:1 (Lau2005 = {6:1, 3:1})
+                reward_ratio_pairs=[[6, 1],[3, 1],[1, 1]]
+            reward_ratio_pairs = (np.array(reward_ratio_pairs).T/np.sum(reward_ratio_pairs, axis=1)*difficulty_sum_reward_rate).T
+            reward_ratio_pairs = np.round(reward_ratio_pairs[:difficulty_ratio_pair_num], 2).tolist()
+        
+        self.handles['actual_reward_prob'].setText(f'{reward_ratio_pairs}')
+    
             
 class PlotCanvas(FigureCanvas):
     def __init__(self, parent=None, width=5, height=4, dpi=100):
