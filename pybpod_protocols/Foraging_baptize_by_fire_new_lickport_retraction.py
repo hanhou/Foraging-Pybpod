@@ -269,11 +269,14 @@ if 'lickport_number' not in variables.keys() or variables['lickport_number'] == 
                 
         # If there is {1:1} in the reward family, ensure the session starts with one {1:1} block (as a natural bias check) 
         # -- maybe I should use a flag to toggle this
-        if_exist_ratio_one = np.any([ratio[0] == ratio[1] for ratio in reward_ratio_pairs])
-        if if_exist_ratio_one and (p_reward_L[0] != p_reward_R[0]):
+        # -- I decided to just move the first {1:1} block to the beginning, instead of adding an additional one
+        equal_blocks = np.where(np.array(p_reward_L) == np.array(p_reward_R))[0]
+        if len(equal_blocks):
+            # Find the first {1:1} block
+            first_equal_block = equal_blocks[0]
             # Insert {1:1} to the first block
-            p_reward_L.insert(0, variables['difficulty_sum_reward_rate'] / 2)
-            p_reward_R.insert(0, variables['difficulty_sum_reward_rate'] / 2)
+            p_reward_L.insert(0, p_reward_L.pop(first_equal_block))
+            p_reward_R.insert(0, p_reward_R.pop(first_equal_block))
             
                 
     p_reward_M=list(np.zeros(len(p_reward_L))) # 
