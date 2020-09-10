@@ -553,28 +553,41 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         sma = StateMachine(my_bpod)
         
         # ---- 1. Delay period ----
-        if variables['early_lick_punishment']:
-            # Lick before timeup of the delay timer ('baselinetime_now') --> Reset the delay timer
-            sma.add_state(
-                state_name='Start',
-                state_timer=baselinetime_now,
-                state_change_conditions={variables['WaterPort_L_ch_in']: 'BackToBaseline', variables['WaterPort_R_ch_in']: 'BackToBaseline',variables['WaterPort_M_ch_in']: 'BackToBaseline',EventName.Tup: 'GoCue'},
-                output_actions = [])
-            
-            # Add timeout (during which more early licks will be ignored), then restart the trial
-            sma.add_state(
-            	state_name='BackToBaseline',
-            	# state_timer=2,
-                state_timer=variables['delay'],  # Control timeout by delay itself
-            	state_change_conditions={EventName.Tup: 'Start'},
-            	output_actions = [])
-
-        else: # If NO early lick punishment: start the go cue after the FIXED delay period
+        if variables['early_lick_punishment'] == 0:
+            # If NO early lick punishment: start the go cue after the FIXED delay period
             sma.add_state(
                 state_name='Start',
                 state_timer=baselinetime_now,
                 state_change_conditions={EventName.Tup: 'GoCue'},
                 output_actions = [])
+        else:
+            # If early lick punishment, go to a state called BackToBaseline
+            sma.add_state(
+                state_name='Start',
+                state_timer=baselinetime_now,
+                state_change_conditions={variables['WaterPort_L_ch_in']: 'BackToBaseline', 
+                                         variables['WaterPort_R_ch_in']: 'BackToBaseline',
+                                         variables['WaterPort_M_ch_in']: 'BackToBaseline',
+                                         EventName.Tup: 'GoCue'},
+                output_actions = [])
+            # Define actual punishiment
+            if variables['early_lick_punishment'] > 0:
+                # Add timeout (during which more early licks will be ignored), then restart the trial
+                sma.add_state(
+                	state_name='BackToBaseline',
+                	# state_timer=2,
+                    # state_timer=variables['delay'],  # Control timeout by delay itself
+                    state_timer = float(variables['early_lick_punishment']), # As the timeout
+                	state_change_conditions={EventName.Tup: 'Start'},
+                	output_actions = [])
+            elif variables['early_lick_punishment'] < 0:  
+                # Abort the trial directly (avoid guessing during delay period)
+                sma.add_state(
+                	state_name='BackToBaseline',
+                    state_timer = 0,
+                	state_change_conditions={EventName.Tup: 'ITI'},
+                	output_actions = [])
+             
 
         # autowater comes here!! (for encouragement)
         if variables['auto_water'] and (unrewarded_trial_num_in_a_row >= variables['auto_water_min_unrewarder_trials_in_a_row'] or ignore_trial_num_in_a_row >=variables['auto_water_min_ignored_trials_in_a_row'] ):

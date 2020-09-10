@@ -77,7 +77,7 @@ class App(QDialog):
                                      'Delay period': {'delay': 'beta',
                                                       'delay_min': 'min',
                                                       'delay_max': 'max',
-                                                      'early_lick_punishment': 'early lick punishment',
+                                                      'early_lick_punishment': 'early lick punish (x>0:timeout;<0:abort)',
                                                       },
                                      'ITI': {'iti': 'beta', 
                                              'iti_min': 'min',
@@ -543,7 +543,7 @@ class App(QDialog):
         
         layout_plot_settings.addWidget(QLabel('Sliding window width (sec)'),0,4)
         self.handles['plot_timeback_runningwindow_in_sec'] = QLineEdit(self)
-        self.handles['plot_timeback_runningwindow_in_sec'].setText('60')  # Default value: fixed width 60s
+        self.handles['plot_timeback_runningwindow_in_sec'].setText('100')  # Default value: fixed width 100s
         self.handles['plot_timeback_runningwindow_in_sec'].setStyleSheet('font-weight: bold')
         self.handles['plot_timeback_runningwindow_in_sec'].returnPressed.connect(lambda: self.filterthedata(lastselected='window_in_sec'))
         layout_plot_settings.addWidget(self.handles['plot_timeback_runningwindow_in_sec'],0,5)
