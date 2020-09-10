@@ -208,7 +208,7 @@ else:
     }
     
 # ----- Generate reward probabilities for this session ------
-start_with_bias_check = variables['block_start_with_bias_check']
+start_with_bias_check = float(variables['block_start_with_bias_check'])
 #first_block_to_right = variables['block_first_to_right']
 if 'lickport_number' not in variables.keys() or variables['lickport_number'] == 2:
     lickportnum = 2
@@ -231,7 +231,7 @@ if 'lickport_number' not in variables.keys() or variables['lickport_number'] == 
         reward_ratio_pairs = reward_ratio_pairs[:variables['difficulty_ratio_pair_num']]
 
     blocknum = variables['block_number'] # number of blocks
-    if start_with_bias_check:
+    if start_with_bias_check == 1: # Backward compatibility ('True' previously --> hard bias check)
         p_reward_L = [0,1,0,1] #variables['difficulty_sum_reward_rate']/2# the first block is set to 50% reward rate 
         p_reward_R = [1,0,1,0] #variables['difficulty_sum_reward_rate']/2#the first block is set to 50% rewa 
         bias_check_blocknum = len(p_reward_L)
@@ -268,17 +268,16 @@ if 'lickport_number' not in variables.keys() or variables['lickport_number'] == 
                 got_stuck_n += 1
                 
         # If there is {1:1} in the reward family, ensure the session starts with one {1:1} block (as a natural bias check) 
-        # -- maybe I should use a flag to toggle this
+        # -- maybe I should use a flag to toggle this ==> if 'start_with_bias_check' == 0.5
         # -- I decided to just move the first {1:1} block to the beginning, instead of adding an additional one
         equal_blocks = np.where(np.array(p_reward_L) == np.array(p_reward_R))[0]
-        if len(equal_blocks):
+        if len(equal_blocks) and start_with_bias_check == 0.5:  # Do a soft bias check
             # Find the first {1:1} block
             first_equal_block = equal_blocks[0]
             # Insert {1:1} to the first block
             p_reward_L.insert(0, p_reward_L.pop(first_equal_block))
             p_reward_R.insert(0, p_reward_R.pop(first_equal_block))
             
-                
     p_reward_M=list(np.zeros(len(p_reward_L))) # 
 else:
     lickportnum = 3
@@ -321,7 +320,8 @@ else:
             else:
                 prob_change_is_fine = True
                 
-            if (len(p_reward_L) == 0 or pair_now[0] == pair_now[1] or not( p_reward_L[-1] == pair_now[0] and p_reward_R[-1] == pair_now[1] and p_reward_M[-1] == pair_now[2])) and prob_change_is_fine or len(reward_ratio_pairs_bag) == 0 or got_stuck_n > 10:
+            if (len(p_reward_L) == 0 or pair_now[0] == pair_now[1] or not( p_reward_L[-1] == pair_now[0] and p_reward_R[-1] == pair_now[1] and p_reward_M[-1] == pair_now[2])) and prob_change_is_fine or len(reward_ratio_pairs_bag) == 0 \
+                or got_stuck_n > 10:
                 p_reward_L.append(pair_now[0])
                 p_reward_R.append(pair_now[1])
                 p_reward_M.append(pair_now[2])
