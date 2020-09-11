@@ -293,7 +293,7 @@ else:
         reward_ratio_pairs = reward_ratio_pairs[:variables['difficulty_ratio_pair_num']]
         
     blocknum = variables['block_number'] # number of blocks
-    if start_with_bias_check:
+    if start_with_bias_check == 1:
         p_reward_L = [0,1,0,0,1,0] #variables['difficulty_sum_reward_rate']/2# the first block is set to 50% reward rate 
         p_reward_R = [1,0,0,1,0,0] #variables['difficulty_sum_reward_rate']/2#the first block is set to 50% rewa 
         p_reward_M = [0,0,1,0,0,1] #variables['difficulty_sum_reward_rate']/2#the first block is set to 50% rewa 
@@ -537,7 +537,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             baselinetime_now = variables['delay_max']
         
         # If bias check: at the begining of the session, force the mouse to navigate all the lickports in sequence (two rounds)    
-        if start_with_bias_check and blocki < bias_check_blocknum: 
+        if start_with_bias_check == 1 and blocki < bias_check_blocknum: 
             trialnum_now = 1  # Override block length = 1
             auto_train_min_rewarded_trial_num = bias_check_auto_train_min_rewarded_trial_num  # At least get XX reward (XX = 1); 
                                                                                               # Make sure the animal indeed chooses each port sequentially during bias check
@@ -582,13 +582,28 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                 	output_actions = [])
             elif variables['early_lick_punishment'] < 0:  
                 # Abort the trial directly (avoid guessing during delay period)
-                sma.add_state(
-                	state_name='BackToBaseline',
-                    state_timer = 0,
-                	state_change_conditions={EventName.Tup: 'ITI'},
-                	output_actions = [])
+                # -- Should not go to ITI, otherwise the block length etc. could be incorrect ---
+                # sma.add_state(
+                # 	state_name='BackToBaseline',
+                #     state_timer = 0,
+                # 	state_change_conditions={EventName.Tup: 'ITI'},
+                # 	output_actions = [])
              
-
+                # Still go to 'BackToBaseLine', but Retract lickports 
+                sma.add_state(
+                 	state_name='BackToBaseline',
+                    state_timer = abs(variables['early_lick_punishment']),
+                 	state_change_conditions={EventName.Tup: 'BackToStart'},
+                 	output_actions = [variables['retract_motor_signal']])
+                
+                # Time out for abs(variables['early_lick_punishment']) seconds and then protract lickports
+                sma.add_state(
+                	state_name='BackToStart',
+                	state_timer=0,
+                	state_change_conditions={EventName.Tup: 'Start'},
+                	output_actions = [variables['protract_motor_signal']]) #(Bpod.OutputChannels.SoftCode, 1)
+                
+            
         # autowater comes here!! (for encouragement)
         if variables['auto_water'] and (unrewarded_trial_num_in_a_row >= variables['auto_water_min_unrewarder_trials_in_a_row'] or ignore_trial_num_in_a_row >=variables['auto_water_min_ignored_trials_in_a_row'] ):
             # ------ 2. GoCue (with autowater) --------
@@ -929,7 +944,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         
         print('LickportMotors:',variables_motor)
         
-        if not(start_with_bias_check and blocki < bias_check_blocknum): 
+        if not(start_with_bias_check == 1 and blocki < bias_check_blocknum): 
             
             # If too many ignores, abort the whole session.
             
