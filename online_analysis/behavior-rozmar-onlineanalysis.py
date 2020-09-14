@@ -77,7 +77,7 @@ class App(QDialog):
                                      'Delay period': {'delay': 'beta',
                                                       'delay_min': 'min',
                                                       'delay_max': 'max',
-                                                      'early_lick_punishment': 'early lick punish (x>0:timeout; <0:abort)',
+                                                      'early_lick_punishment': 'early lick punish (<0: retraction)',
                                                       },
                                      'ITI': {'iti': 'beta', 
                                              'iti_min': 'min',
