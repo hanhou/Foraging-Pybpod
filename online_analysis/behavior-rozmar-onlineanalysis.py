@@ -357,6 +357,7 @@ class App(QDialog):
                 # -- Update plots --
                 if type(self.data_now) == dict and len(self.data_now) > 0:
                     print('Plotting...')
+                    # Update plots
                     self.handles['axes'].update_plots(times, values, win_width * np.timedelta64(1,'s'))
                     qApp.processEvents()
                     print('Plotting done\n-------------------')
@@ -397,6 +398,11 @@ class App(QDialog):
                 values_now = values_old[key]
                 values[key] = values_now[order]
                 values[key] = values[key][needed]
+            
+            # Retreive random numbers
+            if 'reward_p' in key:
+                random_number_name = 'random_number_' + key[-1]
+                values[random_number_name] = data['values'][random_number_name][needed]  # Borrow reward_p's needed
         
         return times, values        
 
@@ -1211,7 +1217,13 @@ class PlotCanvas(FigureCanvas):
             ax.set_yticks([0,1])
             ax.set_yticklabels(['L', 'R'])
             ax.set_ylim(-.1,1.1)
-            
+
+            # Plot reward refills to confirm
+            # refill_L = values['random_number_L'] <= values['reward_p_L']
+            # refill_R = values['random_number_R'] <= values['reward_p_R']
+            # ax.eventplot(times['reward_p_L'][refill_L], colors='g', lineoffsets=-0.1, linelengths=0.1, linewidth=2)
+            # ax.eventplot(times['reward_p_R'][refill_R], colors='g', lineoffsets=1.1, linelengths=0.1, linewidth=2)
+
         # Trial numbers info
         num_total_trials = times['trialstart'].size
         if if_3lp:
@@ -1238,13 +1250,17 @@ class PlotCanvas(FigureCanvas):
         reward_rate = num_rewarded_trials / num_finished_trials if num_finished_trials else np.nan
         
         if not if_3lp:
-            for_eff_classic, for_eff_optimal = self._foraging_eff(reward_rate, values['reward_p_L'], values['reward_p_R'])
+            for_eff_classic, for_eff_optimal, for_eff_optimal_actual = self._foraging_eff(reward_rate, 
+                                                                  values['reward_p_L'], 
+                                                                  values['reward_p_R'], 
+                                                                  values['random_number_L'], 
+                                                                  values['random_number_R'])
         else:
-            for_eff_classic, for_eff_optimal = [np.nan] * 2  # Not well-defined for 3lp (so far)
+            for_eff_classic, for_eff_optimal, for_eff_optimal_actual = [np.nan] * 3  # Not well-defined for 3lp (so far)
         
         self.ax1.set_title(f'Total trials = {num_total_trials}, finished = {num_finished_trials} ({num_finished_trials/num_total_trials:.1%}). '
                      f'Rewarded = {num_rewarded_trials} ({reward_rate:.1%}). '
-                     f'Efficiency: classic = {for_eff_classic:.1%}, optimal = {for_eff_optimal:.1%}\n'
+                     f'Efficiency: classic = {for_eff_classic:.1%}, optimal(actual) = {for_eff_optimal:.1%}({for_eff_optimal_actual:.1%})\n'
                      f'Early lick pulishment per trial = {early_licks_per_trial:.2f}. Double dipped trials = {num_double_dipping} ({double_dipping_rate:.1%})', fontsize=10)
         
         # ax.set_title('Lick and reward bias')
@@ -1318,11 +1334,11 @@ class PlotCanvas(FigureCanvas):
         self.draw()
         
             
-    def _foraging_eff(self, reward_rate, p_Ls, p_Rs):  # Calculate foraging efficiency (only for 2lp)
+    def _foraging_eff(self, reward_rate, p_Ls, p_Rs, random_number_L, random_number_R):  # Calculate foraging efficiency (only for 2lp)
         # Classic method (Corrado2005)
         for_eff_classic = reward_rate / (np.nanmean(p_Ls + p_Rs))
         
-        # Optimal (there is no simple way of only considering finished trials in the online script,
+        # --- Optimal-aver (there is no simple way of only considering finished trials in the online script,
         # so here I assume all the trials are not ignored)
         p_stars = np.zeros_like(p_Ls)
         for i, (p_L, p_R) in enumerate(zip(p_Ls, p_Rs)):   # Sum over all ps 
@@ -1335,7 +1351,40 @@ class PlotCanvas(FigureCanvas):
                 p_stars[i] = p_max
         for_eff_optimal = reward_rate / np.nanmean(p_stars)
         
-        return for_eff_classic, for_eff_optimal
+        # --- Optimal-actual (uses the actual random numbers by simulation)
+        block_trans = np.where(np.diff(np.hstack([np.inf, p_Ls, np.inf])))[0].tolist()
+        reward_refills = [p_Ls >= random_number_L, p_Rs >= random_number_R]
+        reward_optimal_actual = 0
+        # Generate optimal choice pattern
+        for b_start, b_end in zip(block_trans[:-1], block_trans[1:]):
+            p_max = np.max([p_Ls[b_start], p_Rs[b_start]])
+            p_min = np.min([p_Ls[b_start], p_Rs[b_start]])
+            side_max = np.argmax([p_Ls[b_start], p_Rs[b_start]])
+            
+            reward_refill = np.vstack([reward_refills[1 - side_max][b_start:b_end], 
+                             reward_refills[side_max][b_start:b_end]]).astype(int)  # Max = 1, Min = 0
+            
+            # Get choice pattern
+            if p_min > 0:   
+                m_star = np.floor(np.log(1-p_max)/np.log(1-p_min))
+                this_choice = np.array((([1]*int(m_star)+[0]) * 10000) [:b_end-b_start])
+            else:
+                this_choice = np.array([1] * (b_end-b_start))
+                
+            # Do simulation
+            reward_remain = [0,0]
+            for t in range(b_end - b_start):
+                reward_available = reward_remain | reward_refill[:, t]
+                reward_optimal_actual += reward_available[this_choice[t]]
+                reward_remain = reward_available.copy()
+                reward_remain[this_choice[t]] = 0
+            
+            if reward_optimal_actual:                
+                for_eff_optimal_actual = reward_rate / (reward_optimal_actual / len(p_Ls))
+            else:
+                for_eff_optimal_actual = np.nan
+        
+        return for_eff_classic, for_eff_optimal, for_eff_optimal_actual
         
 if __name__ == '__main__':
     app = QApplication(sys.argv)

@@ -211,6 +211,10 @@ def load_and_parse_a_csv_file_online(csvfilename):
     df['experimenter'] = experimenter
     df['subject'] = subject
     
+    # Get random seed
+    seed_idx = (df[df['MSG'] == 'Random seed:']).index.to_numpy()[0]
+    df['random_seed'] = int(df.loc[seed_idx + 1, 'MSG'])
+    
     # adding trial numbers in session
     idx = (df[df['TYPE'] == 'TRIAL']).index.to_numpy()
     idx = np.concatenate(([0],idx,[len(df)]),0)
@@ -592,6 +596,14 @@ def minethedata_online(data):
         times['reward_p_R'] = data['PC-TIME'][idxes['reward_p_R']]
         values['reward_p_R'] = data['reward_p_R'][idxes['reward_p_R']]
         
+        # HH20200912 Use random seed to reproduce random numbers
+        random_seed = data['random_seed'][0]
+        np.random.seed(random_seed)
+        values['random_number_L'] = pd.Series(data=np.random.uniform(0.,1.,2000)[:len(values['reward_p_L'])],
+                                              index=values['reward_p_L'].index)   # Borrow reward_p's index
+        values['random_number_R'] = pd.Series(data=np.random.uniform(0.,1.,2000)[:len(values['reward_p_R'])],
+                                              index=values['reward_p_R'].index)
+        
         idxes['motor_position_lateral'] = idxes['GoCue']
         times['motor_position_lateral'] = data['PC-TIME'][idxes['motor_position_lateral']]
         values['motor_position_lateral'] = data['var_motor:LickPort_Lateral_pos'][idxes['motor_position_lateral']]
@@ -604,6 +616,8 @@ def minethedata_online(data):
             idxes['reward_p_M'] = idxes['GoCue']
             times['reward_p_M'] = data['PC-TIME'][idxes['reward_p_M']]
             values['reward_p_M'] = data['reward_p_M'][idxes['reward_p_M']]
+            values['random_number_M'] = pd.Series(data=np.random.uniform(0.,1.,2000)[:len(values['reward_p_M'])],
+                                                  index=values['reward_p_M'].index)
             
         idxes['p_reward_ratio'] = idxes['GoCue']
         times['p_reward_ratio'] = times['reward_p_R']
@@ -750,5 +764,5 @@ def load_pickles_for_online_analysis(projectdir = Path(defpath),projectnames_nee
                                                     variables_out['times']['alltimes'] = np.concatenate((variables_out['times']['alltimes'],variables_new['times'][key].values))
                                                 for key in variables_new['values'].keys():
                                                     variables_out['values'][key] = np.concatenate((variables_out['values'][key],variables_new['values'][key].values))
-                                            
+                                           
     return variables_out
