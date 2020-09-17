@@ -232,7 +232,7 @@ class App(QDialog):
             #                                         projectnames_needed = selected['project'],
             #                                         experimentnames_needed = selected['experiment'],
             #                                         setupnames_needed = selected['setup'],
-            #                                         load_only_last_day = True)
+            #                                         load_only_last_day = load_only_last_day)
             try:
                 self.data = behavior_rozmar.load_pickles_for_online_analysis(projectdir = self.dirs['projectdir'],
                                                         projectnames_needed = selected['project'],
@@ -402,7 +402,8 @@ class App(QDialog):
             # Retreive random numbers
             if 'reward_p' in key:
                 random_number_name = 'random_number_' + key[-1]
-                values[random_number_name] = data['values'][random_number_name][needed]  # Borrow reward_p's needed
+                if random_number_name in values.keys():
+                    values[random_number_name] = data['values'][random_number_name][needed]  # Borrow reward_p's needed
         
         return times, values        
 
@@ -942,25 +943,28 @@ class App(QDialog):
         
     def show_actual_reward_prob(self):
         # Show actual reward probability (same code as pybpod protocol)
-        reward_rate_family = float(self.handles['variables_subject']['reward_rate_family'].text())
-        difficulty_sum_reward_rate = float(self.handles['variables_subject']['difficulty_sum_reward_rate'].text())
-        difficulty_ratio_pair_num = int(self.handles['variables_subject']['difficulty_ratio_pair_num'].text())
-        
-        if difficulty_ratio_pair_num < 1:
-            reward_ratio_pairs = [[1,1]]   # For the very beginning of training
-        else:   
-            if reward_rate_family <= 1:
-                reward_ratio_pairs=[[.4,.05],[.3857,.0643],[.3375,.1125],[.225,.225]]#,        # 8:1, 6:1, 3:1, 1:1
-            elif reward_rate_family == 2:
-                reward_ratio_pairs=[[8/9,1/9],[6/7,1/7],[3/4,1/4],[2/3,1/3],[.5,.5]]#,        # 8:1, 6:1, 3:1, 2:1, 1:1
-            elif reward_rate_family == 3:
-                reward_ratio_pairs=[[1,0],[.9,.1],[.8,.2],[.7,.3],[.6,.4],[.5,.5]]#,
-            elif reward_rate_family == 4:       # Starting from 6:1, 3:1, 1:1 (Lau2005 = {6:1, 3:1})
-                reward_ratio_pairs=[[6, 1],[3, 1],[1, 1]]
-            reward_ratio_pairs = (np.array(reward_ratio_pairs).T/np.sum(reward_ratio_pairs, axis=1)*difficulty_sum_reward_rate).T
-            reward_ratio_pairs = np.round(reward_ratio_pairs[:difficulty_ratio_pair_num], 2).tolist()
-        
-        self.handles['actual_reward_prob'].setText(f'{reward_ratio_pairs}')
+        try:
+            reward_rate_family = float(self.handles['variables_subject']['reward_rate_family'].text())
+            difficulty_sum_reward_rate = float(self.handles['variables_subject']['difficulty_sum_reward_rate'].text())
+            difficulty_ratio_pair_num = int(self.handles['variables_subject']['difficulty_ratio_pair_num'].text())
+            
+            if difficulty_ratio_pair_num < 1:
+                reward_ratio_pairs = [[1,1]]   # For the very beginning of training
+            else:   
+                if reward_rate_family <= 1:
+                    reward_ratio_pairs=[[.4,.05],[.3857,.0643],[.3375,.1125],[.225,.225]]#,        # 8:1, 6:1, 3:1, 1:1
+                elif reward_rate_family == 2:
+                    reward_ratio_pairs=[[8/9,1/9],[6/7,1/7],[3/4,1/4],[2/3,1/3],[.5,.5]]#,        # 8:1, 6:1, 3:1, 2:1, 1:1
+                elif reward_rate_family == 3:
+                    reward_ratio_pairs=[[1,0],[.9,.1],[.8,.2],[.7,.3],[.6,.4],[.5,.5]]#,
+                elif reward_rate_family == 4:       # Starting from 6:1, 3:1, 1:1 (Lau2005 = {6:1, 3:1})
+                    reward_ratio_pairs=[[6, 1],[3, 1],[1, 1]]
+                reward_ratio_pairs = (np.array(reward_ratio_pairs).T/np.sum(reward_ratio_pairs, axis=1)*difficulty_sum_reward_rate).T
+                reward_ratio_pairs = np.round(reward_ratio_pairs[:difficulty_ratio_pair_num], 2).tolist()
+            
+            self.handles['actual_reward_prob'].setText(f'{reward_ratio_pairs}')
+        except:
+            pass
     
             
 class PlotCanvas(FigureCanvas):
@@ -1250,11 +1254,17 @@ class PlotCanvas(FigureCanvas):
         reward_rate = num_rewarded_trials / num_finished_trials if num_finished_trials else np.nan
         
         if not if_3lp:
-            for_eff_classic, for_eff_optimal, for_eff_optimal_actual = self._foraging_eff(reward_rate, 
-                                                                  values['reward_p_L'], 
-                                                                  values['reward_p_R'], 
-                                                                  values['random_number_L'], 
-                                                                  values['random_number_R'])
+            if 'random_number_L' in values.keys():
+                for_eff_classic, for_eff_optimal, for_eff_optimal_actual = self._foraging_eff(reward_rate, 
+                                                                      values['reward_p_L'], 
+                                                                      values['reward_p_R'], 
+                                                                      values['random_number_L'], 
+                                                                      values['random_number_R'])
+            else:
+                for_eff_classic, for_eff_optimal, for_eff_optimal_actual = self._foraging_eff(reward_rate, 
+                                                      values['reward_p_L'], 
+                                                      values['reward_p_R'])
+
         else:
             for_eff_classic, for_eff_optimal, for_eff_optimal_actual = [np.nan] * 3  # Not well-defined for 3lp (so far)
         
@@ -1334,7 +1344,7 @@ class PlotCanvas(FigureCanvas):
         self.draw()
         
             
-    def _foraging_eff(self, reward_rate, p_Ls, p_Rs, random_number_L, random_number_R):  # Calculate foraging efficiency (only for 2lp)
+    def _foraging_eff(self, reward_rate, p_Ls, p_Rs, random_number_L=None, random_number_R=None):  # Calculate foraging efficiency (only for 2lp)
         # Classic method (Corrado2005)
         for_eff_classic = reward_rate / (np.nanmean(p_Ls + p_Rs))
         
@@ -1351,6 +1361,9 @@ class PlotCanvas(FigureCanvas):
                 p_stars[i] = p_max
         for_eff_optimal = reward_rate / np.nanmean(p_stars)
         
+        if random_number_L is None:
+            return for_eff_classic, for_eff_optimal, np.nan
+            
         # --- Optimal-actual (uses the actual random numbers by simulation)
         block_trans = np.where(np.diff(np.hstack([np.inf, p_Ls, np.inf])))[0].tolist()
         reward_refills = [p_Ls >= random_number_L, p_Rs >= random_number_R]
