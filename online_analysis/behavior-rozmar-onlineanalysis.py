@@ -402,7 +402,7 @@ class App(QDialog):
             # Retreive random numbers
             if 'reward_p' in key:
                 random_number_name = 'random_number_' + key[-1]
-                if random_number_name in values.keys():
+                if random_number_name in data['values'].keys():
                     values[random_number_name] = data['values'][random_number_name][needed]  # Borrow reward_p's needed
         
         return times, values        
