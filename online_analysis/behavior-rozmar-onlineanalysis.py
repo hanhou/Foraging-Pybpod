@@ -1142,6 +1142,8 @@ class PlotCanvas(FigureCanvas):
 
         choice_left_num = np.zeros(len(win_centers))
         choice_right_num = np.zeros(len(win_centers))
+        reward_left_num = np.zeros(len(win_centers))
+        reward_right_num = np.zeros(len(win_centers))
         
         if_3lp = 'lick_M' in times.keys() and np.nansum(values['reward_p_M']) > 0  # Better way of determining whether it's a 3lp task
         
@@ -1162,10 +1164,14 @@ class PlotCanvas(FigureCanvas):
                 # Causal sliding window (only trials before timenow contribute)
                 choice_left_num[idx] = sum((timenow - win_width < times['choice_L']) & (times['choice_L'] < timenow))
                 choice_right_num[idx] = sum((timenow - win_width < times['choice_R']) & (times['choice_R'] < timenow))
+                reward_left_num[idx] = sum((timenow - win_width < times['reward_L']) & (times['reward_L'] < timenow))
+                reward_right_num[idx] = sum((timenow - win_width < times['reward_R']) & (times['reward_R'] < timenow))
             else:
                 # Non-causal
                 choice_left_num[idx] = sum((timenow - win_width/2 < times['choice_L']) & (times['choice_L'] < timenow + win_width/2))
                 choice_right_num[idx] = sum((timenow - win_width/2 < times['choice_R']) & (times['choice_R'] < timenow + win_width/2))
+                reward_left_num[idx] = sum((timenow - win_width < times['reward_L']) & (times['reward_L'] < timenow))
+                reward_right_num[idx] = sum((timenow - win_width < times['reward_R']) & (times['reward_R'] < timenow))
             
             if if_3lp: #'lick_M' in times.keys():
                 # lick_middle_num[idx] = sum((timenow+win_width > times['lick_M']) & (timenow-win_width<times['lick_M']))
@@ -1210,12 +1216,14 @@ class PlotCanvas(FigureCanvas):
             # ax.set_yticklabels(['{:.0%}'.format(x) for x in vals])
         else:  # 2 lick port
             #bias_lick_R = lick_right_num/(lick_right_num+lick_left_num)
+            bias_reward_R = reward_right_num/(reward_right_num+reward_left_num)
             bias_choice_R = choice_right_num/(choice_right_num+choice_left_num)
             #ax.plot(win_centers, bias_lick_R, 'k-',label = 'Lick bias')
             # idxes = times['p_reward_ratio'] > startime
             ax.plot(times['reward_p_L'], values['reward_p_L'], 'r-', lw=0.7, label = 'p_L')
             ax.plot(times['reward_p_R'], values['reward_p_R'], 'b-', lw=0.7, label = 'p_R')
             ax.plot(times['p_reward_ratio'], values['p_reward_ratio'], 'y-', label = 'p_R_frac')
+            ax.plot(win_centers, bias_reward_R, 'g-', lw=1, label = 'reward_frac')
             ax.plot(win_centers, bias_choice_R, 'k-', lw=2, label = 'choice_frac')
             ax.legend(loc='lower left', fontsize=8)
             ax.set_yticks([0,1])
