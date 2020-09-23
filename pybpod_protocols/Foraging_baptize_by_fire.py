@@ -211,6 +211,7 @@ else:
 start_with_bias_check = float(variables['block_start_with_bias_check'])
 #first_block_to_right = variables['block_first_to_right']
 if 'lickport_number' not in variables.keys() or variables['lickport_number'] == 2:
+    #%%
     lickportnum = 2
     got_stuck_n = 0
     
@@ -235,46 +236,83 @@ if 'lickport_number' not in variables.keys() or variables['lickport_number'] == 
         p_reward_R = [1,0,1,0] #variables['difficulty_sum_reward_rate']/2#the first block is set to 50% rewa 
         bias_check_blocknum = len(p_reward_L)
     else:
-        p_reward_L=list()#[.225] #list()#[.225] #list()# the first block is set to 50% reward rate
-        p_reward_R=list()#[.225] #list()#[.225] #list()# list()#the first block is set to 50% reward rate
-#%
-        reward_ratio_pairs_bag = list()
         
-        while len(p_reward_L) < blocknum: # reward rate pairs are chosen randomly
-            if len(reward_ratio_pairs_bag) == 0:
-                for pair in reward_ratio_pairs:
-                    reward_ratio_pairs_bag.append(pair)
-                    if pair[0] != pair[1]: # This "if" prevents there from being two {1:1} in the bag! HH20200813
-                        reward_ratio_pairs_bag.append(pair[::-1])
-                np.random.shuffle(reward_ratio_pairs_bag)
+        # -- New logic of block generation --
+        # 1. Still use the idea of "bag" for balanced sampling
+        # 2. Really ensure always flip side, including across the "bag borders"
+        # 3. Ensure no consecutive {1:1} blocks
+        p_reward_L = []
+        p_reward_R = [] 
+        start_side = np.random.randint(2)  # To avoid the border problem, all bags will have the same start side, which is randomized once for each session
+
+        while len(p_reward_L) < blocknum:
+            # Fill in the bag for this round
+            this_bag = [[],[]]
+            for side in [0,1]:
+                this_bag[side] = [pair[::-1 if side else 1] for pair in reward_ratio_pairs if pair[0]!=pair[1]]
+                np.random.shuffle(this_bag[side])
+            this_bag = np.concatenate(np.swapaxes(this_bag, 0, 1))
+            
+            # Handle {1:1}: insert only one {1:1} to the bag; avoid consecutive two {1:1}s across the border
+            if any([pair[0] == pair[1] for pair in reward_ratio_pairs]):
+                if start_with_bias_check == 0.5 and len(p_reward_L)==0:   # Start session with soft bias check
+                    insert_pos = 0
+                else:  # Random insert
+                    insert_pos = np.random.randint(int(len(p_reward_L)>0 and p_reward_L[-1] == p_reward_R[-1]),  # If the last bag ends with {1:1}, then randint starts from 1
+                                               len(this_bag) + 1)
+                this_bag = np.insert(this_bag, insert_pos, [variables['difficulty_sum_reward_rate']/2] * 2, axis=0)
                 
-            pair_now = reward_ratio_pairs_bag.pop(0)
-            if highest_probability_port_must_change and len(p_reward_L) > 0:
-                if not (p_reward_L[-1] == p_reward_R[-1] or pair_now[0] == pair_now[1]) and np.argmax([p_reward_L[-1],p_reward_R[-1]]) == np.argmax(pair_now):
-                    prob_change_is_fine = False
-                else:
-                    prob_change_is_fine = True
-            else:
-                prob_change_is_fine = True
+            if not highest_probability_port_must_change:
+                np.random.shuffle(this_bag)
                 
-            if (len(p_reward_L) == 0 or p_reward_L[-1] != pair_now[0] or pair_now[0] == pair_now[1]) and prob_change_is_fine or got_stuck_n > 10:
-                p_reward_L.append(pair_now[0])
-                p_reward_R.append(pair_now[1])
-                got_stuck_n = 0
-            else:
-                reward_ratio_pairs_bag.append(pair_now)   
-                got_stuck_n += 1
+            # Insert to p_reward
+            p_reward_L.extend(np.array(this_bag)[:, start_side])
+            p_reward_R.extend(np.array(this_bag)[:, 1-start_side])
+            
+        p_reward_L = p_reward_L[:blocknum]
+        p_reward_R = p_reward_R[:blocknum]
+        
+        # p_reward_L=list()#[.225] #list()#[.225] #list()# the first block is set to 50% reward rate
+        # p_reward_R=list()#[.225] #list()#[.225] #list()# list()#the first block is set to 50% reward rate
+        # reward_ratio_pairs_bag = list()
+        
+        # while len(p_reward_L) < blocknum: # reward rate pairs are chosen randomly
+        #     if len(reward_ratio_pairs_bag) == 0:
+        #         for pair in reward_ratio_pairs:
+        #             reward_ratio_pairs_bag.append(pair)
+        #             if pair[0] != pair[1]: # This "if" prevents there from being two {1:1} in the bag! HH20200813
+        #                 reward_ratio_pairs_bag.append(pair[::-1])
+        #         np.random.shuffle(reward_ratio_pairs_bag)
+                
+        #     pair_now = reward_ratio_pairs_bag.pop(0)
+        #     if highest_probability_port_must_change and len(p_reward_L) > 0:
+        #         if not (p_reward_L[-1] == p_reward_R[-1] or pair_now[0] == pair_now[1]) and np.argmax([p_reward_L[-1],p_reward_R[-1]]) == np.argmax(pair_now):
+        #             prob_change_is_fine = False
+        #         else:
+        #             prob_change_is_fine = True
+        #     else:
+        #         prob_change_is_fine = True
+                
+        #     if (len(p_reward_L) == 0 or p_reward_L[-1] != pair_now[0] or pair_now[0] == pair_now[1]) and prob_change_is_fine or got_stuck_n > 10:
+        #         p_reward_L.append(pair_now[0])
+        #         p_reward_R.append(pair_now[1])
+        #         got_stuck_n = 0
+        #     else:
+        #         reward_ratio_pairs_bag.append(pair_now)   
+        #         got_stuck_n += 1
                 
         # If there is {1:1} in the reward family, ensure the session starts with one {1:1} block (as a natural bias check) 
         # -- maybe I should use a flag to toggle this ==> if 'start_with_bias_check' == 0.5
         # -- Adding a equal probability block
         # equal_blocks = np.where(np.array(p_reward_L) == np.array(p_reward_R))[0]
-        if start_with_bias_check == 0.5 and p_reward_L[0] != p_reward_R[0]:  # Start with a soft bias check
-            # Find the first {1:1} block
-            # first_equal_block = equal_blocks[0]
+        if start_with_bias_check == 0.5 and not any([pair[0] == pair[1] for pair in reward_ratio_pairs]):  # Otherwise soft bias check has been added above
             # Insert {1:1} to the first block
             p_reward_L.insert(0, variables['difficulty_sum_reward_rate'] / 2)
             p_reward_R.insert(0, variables['difficulty_sum_reward_rate'] / 2)
+            
+    # plt.plot(p_reward_L, 'o-')
+            
+    #%%
             
     p_reward_M=list(np.zeros(len(p_reward_L))) # 
 else:
