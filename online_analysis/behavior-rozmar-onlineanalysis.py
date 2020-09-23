@@ -92,6 +92,7 @@ class App(QDialog):
                                      'Misc': {'block_start_with_bias_check': 'start with bias check (1:hard; 0.5:soft)',
                                               'response_time': 'response time',
                                               'auto_stop_max_ignored_trials_in_a_row': 'auto stop if ignored in a row',
+                                              'fixation_reward': 'fixation reward',
                                              },
                                      }
         free_water = {

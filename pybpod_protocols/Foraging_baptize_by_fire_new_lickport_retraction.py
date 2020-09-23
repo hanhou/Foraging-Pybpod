@@ -678,10 +678,21 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             sma.add_state(
             	state_name='GoCue',
                 state_timer=variables['response_time'],
-            	state_change_conditions={variables['WaterPort_L_ch_in']: 'Choice_L', variables['WaterPort_R_ch_in']: 'Choice_R', variables['WaterPort_M_ch_in']: 'Choice_M', EventName.Tup: 'ITI'},
+            	state_change_conditions={variables['WaterPort_L_ch_in']: 'Choice_L_fixation_reward', 
+                                         variables['WaterPort_R_ch_in']: 'Choice_R_fixation_reward', 
+                                         variables['WaterPort_M_ch_in']: 'Choice_M_fixation_reward', 
+                                         EventName.Tup: 'ITI'},
             	output_actions = [(variables['GoCue_ch'],255)])   # Set PWM5 to 100% duty cycle (always on), which triggers the wav trigger board
                                                                   # Make sure that the sd card in the wav-trigger board is set properly 
                                                                   # such that it will be triggered by the ONSET of PWM signal!!
+            
+            # Give the mouse a small amount of water for successful holding in the delay period
+            for lickport in ['L', 'R', 'M']:
+                sma.add_state(
+                	state_name=f'Choice_{lickport}_fixation_reward',
+                    state_timer=variables['fixation_reward'] if 'fixation_reward' in variables.keys() else 0,
+                	state_change_conditions={EventName.Tup: f'Choice_{lickport}'},  # Go to the real score
+                	output_actions = [('Valve',variables[f'WaterPort_{lickport}_ch_out'])])  
         
         # ----- 3. Reward delivery -----
         # Note that the states 'Choice_X' are shared with the autowater mode. 
