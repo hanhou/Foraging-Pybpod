@@ -328,6 +328,12 @@ class App(QDialog):
                     
                     if timeskey in values.keys():
                         values[timeskey]= values[timeskey][neededidx]
+                    
+                    # Borrow reward_p's time range
+                    if 'reward_p' in timeskey:
+                        random_number_name = 'random_number_' + timeskey[-1]
+                        if random_number_name in values.keys():
+                            values[random_number_name]= values[random_number_name][neededidx]
                         
                 # --- Determine the sliding windows for plotting --
                 if lastselected == 'window_number':
