@@ -782,8 +782,10 @@ class App(QDialog):
                             self.handles['variables_subject'][var_name] = QLineEdit(str(variables_subject[var_name]))
                             self.handles['variables_subject'][var_name].returnPressed.connect(self.save_parameters)
                             self.handles['variables_subject'][var_name].textChanged.connect(self.check_parameters)
-                        else:
+                        else:   
                             self.handles['variables_subject'][var_name] = QLineEdit("NA")
+                            self.handles['variables_subject'][var_name].returnPressed.connect(self.save_parameters)
+                            self.handles['variables_subject'][var_name].textChanged.connect(self.check_parameters)
                             self.handles['variables_subject'][var_name].setStyleSheet('QLineEdit {background: grey;}')
                             
                         layout_subject.addWidget(self.handles['variables_subject'][var_name], row, col, alignment=Qt.AlignRight)
