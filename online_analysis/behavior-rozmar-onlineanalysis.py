@@ -72,12 +72,14 @@ class App(QDialog):
                                                'Trialnumber_in_block_min': 'min',
                                                'Trialnumber_in_block_max': 'max',
                                                'auto_train_min_rewarded_trial_num': 'min reward each block',
+                                               'change_to_go_next_block': 'Next block NOW (0->1)',
                                                # 'block_number',
                                                },
                                      'Delay period': {'delay': 'beta',
                                                       'delay_min': 'min',
                                                       'delay_max': 'max',
                                                       'early_lick_punishment': 'early lick punish (<0: retraction)',
+                                                      'fixation_reward': 'fixation reward',
                                                       },
                                      'ITI': {'iti': 'beta', 
                                              'iti_min': 'min',
@@ -89,10 +91,9 @@ class App(QDialog):
                                                     'auto_water_min_unrewarder_trials_in_a_row': 'if unrewarded in a row',
                                                     'auto_water_min_ignored_trials_in_a_row': 'if ignored in a row',
                                                     },
-                                     'Misc': {'block_start_with_bias_check': 'start with bias check (1:hard; 0.5:soft)',
+                                     'Misc': {'block_start_with_bias_check': 'bias check (1:hard; 0.5:soft)',
                                               'response_time': 'response time',
                                               'auto_stop_max_ignored_trials_in_a_row': 'auto stop if ignored in a row',
-                                              'fixation_reward': 'fixation reward',
                                              },
                                      }
         free_water = {
@@ -781,8 +782,10 @@ class App(QDialog):
                             self.handles['variables_subject'][var_name] = QLineEdit(str(variables_subject[var_name]))
                             self.handles['variables_subject'][var_name].returnPressed.connect(self.save_parameters)
                             self.handles['variables_subject'][var_name].textChanged.connect(self.check_parameters)
-                        else:
+                        else:   
                             self.handles['variables_subject'][var_name] = QLineEdit("NA")
+                            self.handles['variables_subject'][var_name].returnPressed.connect(self.save_parameters)
+                            self.handles['variables_subject'][var_name].textChanged.connect(self.check_parameters)
                             self.handles['variables_subject'][var_name].setStyleSheet('QLineEdit {background: grey;}')
                             
                         layout_subject.addWidget(self.handles['variables_subject'][var_name], row, col, alignment=Qt.AlignRight)
