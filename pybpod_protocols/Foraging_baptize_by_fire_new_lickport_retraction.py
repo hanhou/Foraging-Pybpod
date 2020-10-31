@@ -519,6 +519,11 @@ random_values_M = np.random.uniform(0.,1.,2000).tolist()
 print('Random seed:', str(randomseedvalue))    
 
 # ===============  Session start ====================
+# Initialization for manual block switch
+if 'change_to_go_next_block' not in variables.keys():
+    variables['change_to_go_next_block'] = 0  # Which never changes (backward compatibility)
+change_to_go_next_block_previous = variables['change_to_go_next_block']
+
 # For each block
 for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R'], variables['reward_probabilities_L'],variables['reward_probabilities_M'])):
     
@@ -552,6 +557,14 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             variables_subject = variables_subject_new.copy()
             print('Variables updated:',variables)  # Print to csv after each parameter update
             auto_train_min_rewarded_trial_num =  variables['auto_train_min_rewarded_trial_num']
+        
+        # Manual override to go to the next block immediately if variables['change_to_go_next_block'] has changed from 0 to 1
+        if change_to_go_next_block_previous == 0 and variables['change_to_go_next_block'] == 1:
+            change_to_go_next_block_previous = variables['change_to_go_next_block']
+            print('Go to next block NOW (manual override)!')
+            break  # Go to the next block NOW
+        change_to_go_next_block_previous = variables['change_to_go_next_block']
+
         
         triali += 1  # First trial number = 0; 
                      # By incrementing triali here, the trial number will include ignored trials.
