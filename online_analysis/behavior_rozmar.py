@@ -24,7 +24,7 @@ def loaddirstucture(projectdir = Path(defpath),projectnames_needed = None, exper
     if type(projectdir) != type(Path()):
         projectdir = Path(projectdir)
     for projectname in projectdir.iterdir():
-        if projectname.is_dir() and (not projectnames_needed or projectname.name in projectnames_needed):
+        if projectname.is_dir() and (not projectnames_needed or projectname.name in projectnames_needed) and os.path.isdir(projectname / 'subjects'):
             dirstructure[projectname.name] = dict()
             projectnames.append(projectname.name)
             
