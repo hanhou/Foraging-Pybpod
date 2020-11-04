@@ -67,12 +67,12 @@ class App(QDialog):
                                      'Base reward probability': {'difficulty_sum_reward_rate': 'sum',
                                                       'reward_rate_family': 'family',
                                                       'difficulty_ratio_pair_num': '# of pairs',
+                                                      'block_start_with_bias_check': 'bias check (1:hard; 0.5:soft)',
                                                       },
                                      'Block': {'Trialnumber_in_block': 'beta',
                                                'Trialnumber_in_block_min': 'min',
                                                'Trialnumber_in_block_max': 'max',
                                                'auto_train_min_rewarded_trial_num': 'min reward each block',
-                                               'change_to_go_next_block': 'Next block NOW (0->1)',
                                                # 'block_number',
                                                },
                                      'Delay period': {'delay': 'beta',
@@ -91,10 +91,16 @@ class App(QDialog):
                                                     'auto_water_min_unrewarder_trials_in_a_row': 'if unrewarded in a row',
                                                     'auto_water_min_ignored_trials_in_a_row': 'if ignored in a row',
                                                     },
-                                     'Misc': {'block_start_with_bias_check': 'bias check (1:hard; 0.5:soft)',
-                                              'response_time': 'response time',
-                                              'auto_stop_max_ignored_trials_in_a_row': 'auto stop if ignored in a row',
+                                     'Misc': {
+                                              'response_time': 'RT',
+                                              'auto_stop_max_ignored_trials_in_a_row': 'auto stop ignores >',
                                              },
+                                     'Advanced block':{
+                                              'auto_block_switch_type': 'Auto (0:off; 1:later only; 2:full)',
+                                              'auto_block_switch_threshold': 'auto switch threshold',
+                                              'auto_block_switch_points': 'points in a row',
+                                              'change_to_go_next_block': 'Next block NOW! (0->1)',
+                                             }
                                      }
         free_water = {
                       'difficulty_ratio_pair_num' : 0,
@@ -770,7 +776,7 @@ class App(QDialog):
                 for row, cat_name in enumerate(self.variables_to_display):
                     # Category name
                     layout_subject.addWidget(QLabel(cat_name +':'), row, 0, 1, 2)
-                    col = 1
+                    col = 2
                     
                     # Variables in this category
                     for var_name in self.variables_to_display[cat_name]:
@@ -792,7 +798,12 @@ class App(QDialog):
                         col += 1
 
                 self.handles['actual_reward_prob'] = QLabel('')
-                layout_subject.addWidget(self.handles['actual_reward_prob'], 1, 7, 1, 2)
+                layout_subject.addWidget(self.handles['actual_reward_prob'], 1, 10, 1, 2)
+
+                self.handles['success_switched'] = QLabel('')
+                layout_subject.addWidget(self.handles['success_switched'], 7, 10, 1, 2)
+                
+                self.cache_auto_train_min_rewarded_trial_num = int(self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].text())
                         
                 self.horizontalGroupBox_variables_subject.setLayout(layout_subject)
                 self.variables=dict()
@@ -894,6 +905,7 @@ class App(QDialog):
                     # self.handles['variables_subject'][key].setText("NA")
                     self.handles['variables_subject'][key].setStyleSheet('QLineEdit {background: grey;}')
         
+        self.cache_auto_train_min_rewarded_trial_num = int(self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].text())
         self.show_actual_reward_prob()
         qApp.processEvents()
         
@@ -1245,6 +1257,51 @@ class PlotCanvas(FigureCanvas):
             # refill_R = values['random_number_R'] <= values['reward_p_R']
             # ax.eventplot(times['reward_p_L'][refill_L], colors='g', lineoffsets=-0.1, linelengths=0.1, linewidth=2)
             # ax.eventplot(times['reward_p_R'][refill_R], colors='g', lineoffsets=1.1, linelengths=0.1, linewidth=2)
+            
+            # === Automatic block control using the current choice ratio ===
+            subject_variables = self.parent().parent().variables['subject']
+            subject_handles = self.parent().parent().handles['variables_subject']
+            auto_block_switch_type = subject_variables['auto_block_switch_type']
+            auto_block_switch_threshold = subject_variables['auto_block_switch_threshold']
+            auto_block_switch_points = subject_variables['auto_block_switch_points']
+                                              
+            # Get the current side
+            p_reward = values['p_reward_ratio'][~np.isnan(values['p_reward_ratio'])]
+            if p_reward[-1] == 0.5:
+                self.success_switch = True
+            else: 
+                idx_now = len(p_reward)
+                idx_last_switch = np.where(np.diff(p_reward))[0][-1]
+                
+                if idx_now - idx_last_switch < 5 or not hasattr(self, 'success_switch'):  # Keep false immediately after block transition
+                    self.success_switch = False                    
+                elif 1 or not self.success_switch:   # To ensure that the switch never goes back to false after once being true
+                    recent_choice = bias_choice_R[-auto_block_switch_points:]
+                    if p_reward[-1] > 0.5:  # Rightward block
+                        self.success_switch = np.all(recent_choice >= auto_block_switch_threshold) 
+                    else:
+                        self.success_switch = np.all(recent_choice <= 1 - auto_block_switch_threshold) 
+                
+            # If Auto control is on
+            if auto_block_switch_type == 1:
+                real_cached_min_reward = self.parent().parent().cache_auto_train_min_rewarded_trial_num  # Cache the value
+                if self.success_switch:   # Set min_reward to user-defined number (not delayed)
+                    subject_handles['auto_train_min_rewarded_trial_num'].setText(str(self.parent().parent().cache_auto_train_min_rewarded_trial_num))
+                else:   # Not success switch, then delay the block switch by setting "auto_train_min" to a huge number
+                    subject_handles['auto_train_min_rewarded_trial_num'].setText('999')
+                # Save parameters
+                self.parent().parent().save_parameters()
+                self.parent().parent().cache_auto_train_min_rewarded_trial_num = real_cached_min_reward # Really restore the cached value
+            
+            # Always show success switch
+            tmpstr= f'(cached {self.parent().parent().cache_auto_train_min_rewarded_trial_num})' if auto_block_switch_type == 1 else ''
+            if self.success_switch:
+                self.parent().parent().handles['success_switched'].setText(f'Behavior switched? YES!! {tmpstr}')
+            else:
+                self.parent().parent().handles['success_switched'].setText(f'Behavior switched? NO... {tmpstr}')
+                
+            #self.parent().parent().handles['variables_subject']['auto_block_switch_type'].
+            
 
         # Trial numbers info
         num_total_trials = times['trialstart'].size
