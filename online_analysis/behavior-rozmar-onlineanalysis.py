@@ -803,7 +803,7 @@ class App(QDialog):
                 self.handles['success_switched'] = QLabel('')
                 layout_subject.addWidget(self.handles['success_switched'], 7, 10, 1, 2)
                 
-                self.cache_auto_train_min_rewarded_trial_num = int(self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].text())
+                # self.cache_auto_train_min_rewarded_trial_num = int(self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].text())
                         
                 self.horizontalGroupBox_variables_subject.setLayout(layout_subject)
                 self.variables=dict()
@@ -818,7 +818,7 @@ class App(QDialog):
                         self.handles['variables_subject'][key].setText("NA")
                         self.handles['variables_subject'][key].setStyleSheet('QLineEdit {background: grey;}')
                     
-                for key in self.handles['variables_setup'].keys():
+                for key in self.handles['variables_setup'].keys(): 
                     self.handles['variables_setup'][key].setText(str(variables_setup[key]))
                     
             self.show_actual_reward_prob()
@@ -905,7 +905,31 @@ class App(QDialog):
                     # self.handles['variables_subject'][key].setText("NA")
                     self.handles['variables_subject'][key].setStyleSheet('QLineEdit {background: grey;}')
         
-        self.cache_auto_train_min_rewarded_trial_num = int(self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].text())
+        # self.cache_auto_train_min_rewarded_trial_num = int(self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].text())
+        if int(self.handles['variables_subject']['auto_block_switch_type'].text()):
+            self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].setEnabled(False)
+            self.handles['variables_subject']['auto_block_switch_threshold'].setEnabled(True)
+            self.handles['variables_subject']['auto_block_switch_points'].setEnabled(True)
+        else:
+            self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].setEnabled(True)
+            self.handles['variables_subject']['auto_block_switch_threshold'].setEnabled(False)
+            self.handles['variables_subject']['auto_block_switch_points'].setEnabled(False)
+            self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].setText('0')
+        
+        if self.handles['variables_subject']['auto_water'].text() == 'True':
+            self.handles['variables_subject']['auto_water_time_multiplier'].setEnabled(True)
+            self.handles['variables_subject']['auto_water_min_ignored_trials_in_a_row'].setEnabled(True)
+            self.handles['variables_subject']['auto_water_min_unrewarder_trials_in_a_row'].setEnabled(True)
+        else:
+            self.handles['variables_subject']['auto_water_time_multiplier'].setEnabled(False)
+            self.handles['variables_subject']['auto_water_min_ignored_trials_in_a_row'].setEnabled(False)
+            self.handles['variables_subject']['auto_water_min_unrewarder_trials_in_a_row'].setEnabled(False)
+            
+        if int(self.handles['variables_subject']['lickport_number'].text()) == 2:
+            self.handles['variables_subject']['ValveOpenTime_M'].setEnabled(False)
+        else:
+            self.handles['variables_subject']['ValveOpenTime_M'].setEnabled(True)
+            
         self.show_actual_reward_prob()
         qApp.processEvents()
         
@@ -1271,7 +1295,10 @@ class PlotCanvas(FigureCanvas):
                 self.success_switch = True
             else: 
                 idx_now = len(p_reward)
-                idx_last_switch = np.where(np.diff(p_reward))[0][-1]
+                if len(np.where(np.diff(p_reward))[0]):
+                    idx_last_switch = np.where(np.diff(p_reward))[0][-1]
+                else:
+                    idx_last_switch = 0
                 
                 if idx_now - idx_last_switch < 5 or not hasattr(self, 'success_switch'):  # Keep false immediately after block transition
                     self.success_switch = False                    
@@ -1282,27 +1309,6 @@ class PlotCanvas(FigureCanvas):
                     else:
                         self.success_switch = np.all(recent_choice <= 1 - auto_block_switch_threshold) 
                 
-            # If Auto control is on
-            if auto_block_switch_type == 1:
-                real_cached_min_reward = self.parent().parent().cache_auto_train_min_rewarded_trial_num  # Cache the value
-                if self.success_switch:   # Set min_reward to user-defined number (not delayed)
-                    subject_handles['auto_train_min_rewarded_trial_num'].setText(str(self.parent().parent().cache_auto_train_min_rewarded_trial_num))
-                else:   # Not success switch, then delay the block switch by setting "auto_train_min" to a huge number
-                    subject_handles['auto_train_min_rewarded_trial_num'].setText('999')
-                # Save parameters
-                self.parent().parent().save_parameters()
-                self.parent().parent().cache_auto_train_min_rewarded_trial_num = real_cached_min_reward # Really restore the cached value
-            
-            # Always show success switch
-            tmpstr= f'(cached {self.parent().parent().cache_auto_train_min_rewarded_trial_num})' if auto_block_switch_type == 1 else ''
-            if self.success_switch:
-                self.parent().parent().handles['success_switched'].setText(f'Behavior switched? YES!! {tmpstr}')
-            else:
-                self.parent().parent().handles['success_switched'].setText(f'Behavior switched? NO... {tmpstr}')
-                
-            #self.parent().parent().handles['variables_subject']['auto_block_switch_type'].
-            
-
         # Trial numbers info
         num_total_trials = times['trialstart'].size
         if if_3lp:
@@ -1350,6 +1356,33 @@ class PlotCanvas(FigureCanvas):
         
         # ax.set_title('Lick and reward bias')
         self.draw()
+        
+        # If Auto control is on
+        if not hasattr(self, 'last_success_switch'):
+            self.last_success_switch = -100
+        
+        if not if_3lp:
+            if auto_block_switch_type == 1:
+                # real_cached_min_reward = self.parent().parent().cache_auto_train_min_rewarded_trial_num  # Cache the value
+                if self.success_switch:   # Set min_reward to user-defined number (not delayed)
+                    # subject_handles['auto_train_min_rewarded_trial_num'].setText(str(self.parent().parent().cache_auto_train_min_rewarded_trial_num))
+                    subject_handles['auto_train_min_rewarded_trial_num'].setText('0')
+                else:   # Not success switch, then delay the block switch by setting "auto_train_min" to a huge number
+                    subject_handles['auto_train_min_rewarded_trial_num'].setText('999')
+                # Save parameters
+                if self.success_switch != self.last_success_switch:
+                    self.parent().parent().save_parameters()
+                self.last_success_switch = self.success_switch
+                # self.parent().parent().cache_auto_train_min_rewarded_trial_num = real_cached_min_reward # Really restore the cached value
+            
+            # Always show success switch
+            # tmpstr= f'(cached {self.parent().parent().cache_auto_train_min_rewarded_trial_num})' if auto_block_switch_type == 1 else ''
+            if self.success_switch:
+                self.parent().parent().handles['success_switched'].setText('Behavior switched? YES!!')
+            else:
+                self.parent().parent().handles['success_switched'].setText('Behavior switched? NO...')
+                
+
         
     def plot_matching(self, times, win_width):       
         # ========== Choice fraction vs Reward fraction (only lickport R and lickport L pairswise matching) =======
