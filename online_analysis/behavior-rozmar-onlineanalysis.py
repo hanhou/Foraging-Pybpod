@@ -96,7 +96,7 @@ class App(QDialog):
                                               'auto_stop_max_ignored_trials_in_a_row': 'auto stop ignores >',
                                              },
                                      'Advanced block':{
-                                              'auto_block_switch_type': 'Auto (0:off; 1:later only; 2:full)',
+                                              'auto_block_switch_type': 'Auto (0:off;1:now;2:once)',
                                               'auto_block_switch_threshold': 'auto switch threshold',
                                               'auto_block_switch_points': 'points in a row',
                                               'change_to_go_next_block': 'Next block NOW! (0->1)',
@@ -1282,33 +1282,6 @@ class PlotCanvas(FigureCanvas):
             # ax.eventplot(times['reward_p_L'][refill_L], colors='g', lineoffsets=-0.1, linelengths=0.1, linewidth=2)
             # ax.eventplot(times['reward_p_R'][refill_R], colors='g', lineoffsets=1.1, linelengths=0.1, linewidth=2)
             
-            # === Automatic block control using the current choice ratio ===
-            subject_variables = self.parent().parent().variables['subject']
-            subject_handles = self.parent().parent().handles['variables_subject']
-            auto_block_switch_type = subject_variables['auto_block_switch_type']
-            auto_block_switch_threshold = subject_variables['auto_block_switch_threshold']
-            auto_block_switch_points = subject_variables['auto_block_switch_points']
-                                              
-            # Get the current side
-            p_reward = values['p_reward_ratio'][~np.isnan(values['p_reward_ratio'])]
-            if p_reward[-1] == 0.5:
-                self.success_switch = True
-            else: 
-                idx_now = len(p_reward)
-                if len(np.where(np.diff(p_reward))[0]):
-                    idx_last_switch = np.where(np.diff(p_reward))[0][-1]
-                else:
-                    idx_last_switch = 0
-                
-                if idx_now - idx_last_switch < 5 or not hasattr(self, 'success_switch'):  # Keep false immediately after block transition
-                    self.success_switch = False                    
-                elif 1 or not self.success_switch:   # To ensure that the switch never goes back to false after once being true
-                    recent_choice = bias_choice_R[-auto_block_switch_points:]
-                    if p_reward[-1] > 0.5:  # Rightward block
-                        self.success_switch = np.all(recent_choice >= auto_block_switch_threshold) 
-                    else:
-                        self.success_switch = np.all(recent_choice <= 1 - auto_block_switch_threshold) 
-                
         # Trial numbers info
         num_total_trials = times['trialstart'].size
         if if_3lp:
@@ -1357,32 +1330,68 @@ class PlotCanvas(FigureCanvas):
         # ax.set_title('Lick and reward bias')
         self.draw()
         
-        # If Auto control is on
-        if not hasattr(self, 'last_success_switch'):
-            self.last_success_switch = -100
-        
+        # === Automatic block control using the current choice ratio ===
         if not if_3lp:
-            if auto_block_switch_type == 1:
+            subject_variables = self.parent().parent().variables['subject']
+            subject_handles = self.parent().parent().handles['variables_subject']
+            auto_block_switch_type = subject_variables['auto_block_switch_type']
+            auto_block_switch_threshold = subject_variables['auto_block_switch_threshold']
+            auto_block_switch_points = subject_variables['auto_block_switch_points']
+                                              
+            # Get the current side
+            p_reward = values['p_reward_ratio'][~np.isnan(values['p_reward_ratio'])]
+            if p_reward[-1] == 0.5:
+                self.success_switch_now = True
+            else: 
+                idx_now = len(p_reward)
+                if len(np.where(np.diff(p_reward))[0]):
+                    idx_last_switch = np.where(np.diff(p_reward))[0][-1]
+                else:
+                    idx_last_switch = 0
+                
+                if idx_now - idx_last_switch < 5 or not hasattr(self, 'success_switch_now'):  # Keep false immediately after block transition
+                    self.success_switch_now = False 
+                    self.success_switch_once = False                    
+                else:
+                    if not self.success_switch_once and self.success_switch_now:
+                        self.success_switch_once = True
+                    
+                    recent_choice = bias_choice_R[-auto_block_switch_points:]
+                    if p_reward[-1] > 0.5:  # Rightward block
+                        self.success_switch_now = np.all(recent_choice >= auto_block_switch_threshold) 
+                    else:
+                        self.success_switch_now = np.all(recent_choice <= 1 - auto_block_switch_threshold) 
+                        
+            # Always show success switch
+            # tmpstr= f'(cached {self.parent().parent().cache_auto_train_min_rewarded_trial_num})' if auto_block_switch_type == 1 else ''
+            tmpstr= 'is on the correct side now' if auto_block_switch_type == 1 else 'has been on the correct side'
+            if not auto_block_switch_type:
+                self.parent().parent().handles['success_switched'].setText('')
+            else:
+                if self.success_switch_now:
+                    self.parent().parent().handles['success_switched'].setText(f'Behavior {tmpstr}? YES!!')
+                else:
+                    self.parent().parent().handles['success_switched'].setText(f'Behavior {tmpstr}? NO...')
+
+            # If auto control is on
+            if auto_block_switch_type >= 1:
+                if not hasattr(self, 'last_success_switch'):
+                    self.last_success_switch = -100
+                    
+                flag = self.success_switch_now if auto_block_switch_type == 1 else self.success_switch_once
+
                 # real_cached_min_reward = self.parent().parent().cache_auto_train_min_rewarded_trial_num  # Cache the value
-                if self.success_switch:   # Set min_reward to user-defined number (not delayed)
+                if flag:   # Set min_reward to user-defined number (not delayed)
                     # subject_handles['auto_train_min_rewarded_trial_num'].setText(str(self.parent().parent().cache_auto_train_min_rewarded_trial_num))
                     subject_handles['auto_train_min_rewarded_trial_num'].setText('0')
                 else:   # Not success switch, then delay the block switch by setting "auto_train_min" to a huge number
                     subject_handles['auto_train_min_rewarded_trial_num'].setText('999')
                 # Save parameters
-                if self.success_switch != self.last_success_switch:
+                if flag != self.last_success_switch:
                     self.parent().parent().save_parameters()
-                self.last_success_switch = self.success_switch
+                self.last_success_switch = flag
                 # self.parent().parent().cache_auto_train_min_rewarded_trial_num = real_cached_min_reward # Really restore the cached value
             
-            # Always show success switch
-            # tmpstr= f'(cached {self.parent().parent().cache_auto_train_min_rewarded_trial_num})' if auto_block_switch_type == 1 else ''
-            if self.success_switch:
-                self.parent().parent().handles['success_switched'].setText('Behavior switched? YES!!')
-            else:
-                self.parent().parent().handles['success_switched'].setText('Behavior switched? NO...')
-                
-
         
     def plot_matching(self, times, win_width):       
         # ========== Choice fraction vs Reward fraction (only lickport R and lickport L pairswise matching) =======
