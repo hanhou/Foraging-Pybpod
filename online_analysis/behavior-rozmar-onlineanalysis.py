@@ -1368,28 +1368,21 @@ class PlotCanvas(FigureCanvas):
             if not auto_block_switch_type:
                 self.parent().parent().handles['success_switched'].setText('')
             else:
-                if self.success_switch_now:
+                actual_sucess_flag = self.success_switch_now if auto_block_switch_type == 1 else self.success_switch_once
+                if actual_sucess_flag:
+                    subject_handles['auto_train_min_rewarded_trial_num'].setText('0')
                     self.parent().parent().handles['success_switched'].setText(f'Behavior {tmpstr}? YES!!')
                 else:
+                    subject_handles['auto_train_min_rewarded_trial_num'].setText('999')
                     self.parent().parent().handles['success_switched'].setText(f'Behavior {tmpstr}? NO...')
 
-            # If auto control is on
-            if auto_block_switch_type >= 1:
                 if not hasattr(self, 'last_success_switch'):
                     self.last_success_switch = -100
                     
-                flag = self.success_switch_now if auto_block_switch_type == 1 else self.success_switch_once
-
-                # real_cached_min_reward = self.parent().parent().cache_auto_train_min_rewarded_trial_num  # Cache the value
-                if flag:   # Set min_reward to user-defined number (not delayed)
-                    # subject_handles['auto_train_min_rewarded_trial_num'].setText(str(self.parent().parent().cache_auto_train_min_rewarded_trial_num))
-                    subject_handles['auto_train_min_rewarded_trial_num'].setText('0')
-                else:   # Not success switch, then delay the block switch by setting "auto_train_min" to a huge number
-                    subject_handles['auto_train_min_rewarded_trial_num'].setText('999')
-                # Save parameters
-                if flag != self.last_success_switch:
+                # Save parameters only when the success flag changed
+                if actual_sucess_flag != self.last_success_switch:
                     self.parent().parent().save_parameters()
-                self.last_success_switch = flag
+                self.last_success_switch = actual_sucess_flag
                 # self.parent().parent().cache_auto_train_min_rewarded_trial_num = real_cached_min_reward # Really restore the cached value
             
         
