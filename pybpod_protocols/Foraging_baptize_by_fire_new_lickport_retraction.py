@@ -545,7 +545,12 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         # Update variables if variables changed in json file DURING RUNNING (from behavior_online_analysis GUI)
         # Note: those who control block structure will not take effect unless rerunning the protocol!!! (eg: reward probs)
         with open(subjectfile) as json_file:
-            variables_subject_new = json.load(json_file)
+            try:
+                variables_subject_new = json.load(json_file)
+            except:
+                print('Loading variables_subject_new failed... Will try again on next trial')  # Just in case file write is unfinished.
+                pass
+                        
         with open(setupfile) as json_file:
             variables_setup_new = json.load(json_file)
         if variables_setup_new != variables_setup or variables_subject_new != variables_subject:
