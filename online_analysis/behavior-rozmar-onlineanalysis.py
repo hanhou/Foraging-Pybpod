@@ -906,16 +906,16 @@ class App(QDialog):
                     self.handles['variables_subject'][key].setStyleSheet('QLineEdit {background: grey;}')
         
         # self.cache_auto_train_min_rewarded_trial_num = int(self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].text())
-        if int(self.handles['variables_subject']['auto_block_switch_type'].text()):
-            self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].setEnabled(False)
-            self.handles['variables_subject']['auto_block_switch_threshold'].setEnabled(True)
-            self.handles['variables_subject']['auto_block_switch_points'].setEnabled(True)
-        else:
+        if self.handles['variables_subject']['auto_block_switch_type'].text() == 'NA' or not int(self.handles['variables_subject']['auto_block_switch_type'].text()):
             self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].setEnabled(True)
             self.handles['variables_subject']['auto_block_switch_threshold'].setEnabled(False)
             self.handles['variables_subject']['auto_block_switch_points'].setEnabled(False)
-            self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].setText('0')
-        
+            # self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].setText('0')
+
+        else:
+            self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].setEnabled(False)
+            self.handles['variables_subject']['auto_block_switch_threshold'].setEnabled(True)
+            self.handles['variables_subject']['auto_block_switch_points'].setEnabled(True)        
         if self.handles['variables_subject']['auto_water'].text() == 'True':
             self.handles['variables_subject']['auto_water_time_multiplier'].setEnabled(True)
             self.handles['variables_subject']['auto_water_min_ignored_trials_in_a_row'].setEnabled(True)

@@ -68,6 +68,7 @@ def retract_protract_motor(positiontomove):
             except zaber_serial.binaryserial.serial.SerialException:
                 print('can''t access Zaber ' + str(zabertry_i))
                 time.sleep(.01)
+                
 def read_motor_position(comport):
     if usedummyzaber:
         print('dummy zaber reading position')
@@ -104,6 +105,7 @@ def read_motor_position(comport):
             except zaber_serial.binaryserial.serial.SerialException:
                 print('can''t access Zaber ' + str(zabertry_i))
                 time.sleep(.01)
+                
 def set_motor_speed():
     if usedummyzaber:
         print('dummy zaber speed set')
