@@ -44,7 +44,7 @@ class App(QDialog):
         self.title = 'behavior - online analysis'
         self.left = 20 # 10
         self.top = 30 # 10
-        self.width = 1400 # 1024
+        self.width = 1300 # 1024
         self.height = 900  # 768
         self.dirs['projectdir'] =  defpath
         self.loaddirectorystructure()
@@ -261,8 +261,11 @@ class App(QDialog):
                 lat_values = self.data['values']['motor_position_lateral'][order]
                 rc_values = self.data['values']['motor_position_rostrocaudal'][order]
                 
-                bigdiff_idxes = np.concatenate([np.diff(rc_times)>np.timedelta64(6,'h'),[True]])
-                uniquedays_str = np.asarray(np.asarray(rc_times[bigdiff_idxes],dtype = 'datetime64[D]'),dtype = str) 
+                # bigdiff_idxes = np.concatenate([np.diff(rc_times)>np.timedelta64(6,'h'),[True]])
+                # uniquedays_str = np.asarray(np.asarray(rc_times[bigdiff_idxes],dtype = 'datetime64[D]'),dtype = str) 
+                bigdiff_idxes = np.concatenate([[True], np.diff(rc_times)>np.timedelta64(6,'h')])
+                uniquedays_str = np.asarray(np.asarray(rc_times[1:][bigdiff_idxes[:-1]],dtype = 'datetime64[D]'),dtype = str) 
+                
                 rc_positions = rc_values[bigdiff_idxes]
                 lateral_positions = lat_values[bigdiff_idxes]
                 self.motorpositions_previous = self.motorpositions
@@ -403,10 +406,20 @@ class App(QDialog):
             order = np.argsort(times_now)
             times[key] = times_now[order]
             days[key] = np.asarray(times_now[order],dtype = 'datetime64[D]')
+            
             if len(days[key])>0:
-                needed = days[key] == np.datetime64(session)
+                # needed = days[key] == np.datetime64(session)
+                same_day_this_session = times[key][days[key] == np.datetime64(session)]
+                if len(same_day_this_session):
+                    start_time_this_session = same_day_this_session[0]
+                    # Take care of the situation where one training session crosses two days...
+                    needed = np.logical_and(times[key] >= start_time_this_session, (times[key] - start_time_this_session) < np.timedelta64(6,'h'))
+                else:
+                    needed = []
+                
             else:
                 needed = []
+                
             times[key] = times[key][needed]
             if key in values_old.keys():
                 values_now = values_old[key]
@@ -911,11 +924,11 @@ class App(QDialog):
             self.handles['variables_subject']['auto_block_switch_threshold'].setEnabled(False)
             self.handles['variables_subject']['auto_block_switch_points'].setEnabled(False)
             # self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].setText('0')
-
         else:
             self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].setEnabled(False)
             self.handles['variables_subject']['auto_block_switch_threshold'].setEnabled(True)
-            self.handles['variables_subject']['auto_block_switch_points'].setEnabled(True)        
+            self.handles['variables_subject']['auto_block_switch_points'].setEnabled(True)  
+            
         if self.handles['variables_subject']['auto_water'].text() == 'True':
             self.handles['variables_subject']['auto_water_time_multiplier'].setEnabled(True)
             self.handles['variables_subject']['auto_water_min_ignored_trials_in_a_row'].setEnabled(True)
@@ -1339,13 +1352,13 @@ class PlotCanvas(FigureCanvas):
             auto_block_switch_points = subject_variables['auto_block_switch_points']
                                               
             # Get the current side
-            p_reward = values['p_reward_ratio'][~np.isnan(values['p_reward_ratio'])]
-            if p_reward[-1] == 0.5:
+            p_reward_ratio = values['p_reward_ratio'][~np.isnan(values['p_reward_ratio'])]
+            if p_reward_ratio[-1] == 0.5:
                 self.success_switch_now = True
             else: 
-                idx_now = len(p_reward)
-                if len(np.where(np.diff(p_reward))[0]):
-                    idx_last_switch = np.where(np.diff(p_reward))[0][-1]
+                idx_now = len(p_reward_ratio)
+                if len(np.where(np.diff(p_reward_ratio))[0]):
+                    idx_last_switch = np.where(np.diff(p_reward_ratio))[0][-1]
                 else:
                     idx_last_switch = 0
                 
@@ -1357,7 +1370,7 @@ class PlotCanvas(FigureCanvas):
                         self.success_switch_once = True
                     
                     recent_choice = bias_choice_R[-auto_block_switch_points:]
-                    if p_reward[-1] > 0.5:  # Rightward block
+                    if p_reward_ratio[-1] > 0.5:  # Rightward block
                         self.success_switch_now = np.all(recent_choice >= auto_block_switch_threshold) 
                     else:
                         self.success_switch_now = np.all(recent_choice <= 1 - auto_block_switch_threshold) 

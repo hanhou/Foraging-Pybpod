@@ -742,6 +742,7 @@ def load_pickles_for_online_analysis(projectdir = Path(defpath),projectnames_nee
                                     sessionnames.append(sessionname[:8])#only the date
                                 sessionnames = np.sort(np.unique(sessionnames))
                                 sessiondatestoload = sessionnames[-5:]
+                                
                             for sessionname in os.listdir(setupname / 'sessions'):
                                 if sessionname[-3:] == 'pkl' and (not load_only_last_day or sessionname[:8] in sessiondatestoload): 
                                     with open(setupname / 'sessions'/ sessionname,'rb') as readfile:
