@@ -923,7 +923,8 @@ class App(QDialog):
             self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].setEnabled(True)
             self.handles['variables_subject']['auto_block_switch_threshold'].setEnabled(False)
             self.handles['variables_subject']['auto_block_switch_points'].setEnabled(False)
-            # self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].setText('0')
+            if self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].text() == '999':
+                self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].setText('0')
         else:
             self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].setEnabled(False)
             self.handles['variables_subject']['auto_block_switch_threshold'].setEnabled(True)
