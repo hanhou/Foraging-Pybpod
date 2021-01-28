@@ -393,7 +393,7 @@ print(variables)
 variables_subject = variables.copy()
 
 
-# =================== Define rig-specific variables (ports, etc.) =========================
+# =================== Define rig-specific vSariables (ports, etc.) =========================
 variables = dict()
 setupfile = os.path.join(setuppath,'variables.json')
 if os.path.exists(setupfile):
@@ -436,18 +436,18 @@ else:
     elif setup_name == 'Tower-3':
         # for setup: Tower - 3
         variables['GoCue_ch'] = OutputChannel.PWM5
-        variables['WaterPort_L_ch_out'] = 1
-        variables['WaterPort_L_ch_in'] = EventName.Port1In
-        variables['WaterPort_R_ch_out'] = 2
-        variables['WaterPort_R_ch_in'] = EventName.Port2In
+        variables['WaterPort_L_ch_out'] = 7
+        variables['WaterPort_L_ch_in'] = EventName.Port7In
+        variables['WaterPort_R_ch_out'] = 8
+        variables['WaterPort_R_ch_in'] = EventName.Port8In
         variables['WaterPort_M_ch_out'] = 3
         variables['WaterPort_M_ch_in'] = EventName.Port3In
 # =============================================================================
 #         variables['Choice_cue_L_ch'] = OutputChannel.PWM1
 #         variables['Choice_cue_R_ch'] = OutputChannel.PWM2
 # =============================================================================
-        variables['comport_motor'] = 'COM7'
-        variables['retract_motor_signal'] = (OutputChannel.PWM7, 255)
+        variables['comport_motor'] = 'COM9'
+        variables['retract_motor_signal'] = (OutputChannel.PWM2, 255)
         variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
     elif setup_name == 'Voltage-1p-rig':
         # for setup: Tower - 3
