@@ -405,9 +405,9 @@ else:
         # for setup: Tower - 1
         variables['GoCue_ch'] = OutputChannel.PWM5
         variables['WaterPort_L_ch_out'] = 7
-        variables['WaterPort_L_ch_in'] = EventName.Port1In
+        variables['WaterPort_L_ch_in'] = EventName.Port7In
         variables['WaterPort_R_ch_out'] = 8
-        variables['WaterPort_R_ch_in'] = EventName.Port2In
+        variables['WaterPort_R_ch_in'] = EventName.Port8In
         variables['WaterPort_M_ch_out'] = 3
         variables['WaterPort_M_ch_in'] = EventName.Port3In
 # =============================================================================
