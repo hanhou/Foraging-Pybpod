@@ -2,6 +2,7 @@ from pybpodapi.bpod import Bpod
 from pybpodapi.state_machine import StateMachine
 from pybpodapi.bpod.hardware.events import EventName
 from pybpodapi.bpod.hardware.output_channels import OutputChannel
+from pybpodgui_plugin_waveplayer.module_api import WavePlayerModule
 from pybpodapi.com.messaging.trial import Trial
 from datetime import datetime
 from itertools import permutations
@@ -15,6 +16,7 @@ import os, sys
 usedummyzaber = False # for testing without motor movement - only for debugging
 bias_check_auto_train_min_rewarded_trial_num = 1
 highest_probability_port_must_change = True
+
 def notify_experimenter(metadata,path):
     filepath = os.path.join(path,'notifications.json')
     metadata['datetime'] = datetime.now().strftime("%Y/%m/%d, %H:%M:%S")
@@ -121,7 +123,12 @@ def set_motor_speed():
             except zaber_serial.binaryserial.serial.SerialException:
                 print('can''t access Zaber ' + str(zabertry_i))
                 time.sleep(.01)
-
+                
+def gen_sin_wave(sampling_rate, freq, duration):
+    # Duration in seconds
+    dt = 1 / sampling_rate;
+    t = np.arange(0, duration, dt);
+    return np.sin(2 * np.pi * freq * t)
 
 # ======================================================================================
 # Main function starts here
@@ -166,9 +173,38 @@ for dirnow in pathlist:
         setuppath = pathnow
     pathnow = os.path.join(pathnow,dirnow)
     
-    
+# ================ Define WavePlayer ==============
+WAV_PORTS_SPEAKER = 1  # [0000 0001], first channel only
+WAV_NUM_GO_CUE, SER_CMD_GO_CUE = 0, 1    # Waveform starts from 0, serial command starts from 1...
+
+# --- Waveforms ---
+amplitude   = 2.0
+duration    = 0.1 # seconds
+freq        = 2000 # of cycles per second (Hz) (frequency of the sine waves)
+sampling_rate  = 100000 # of samples per second
+go_cue_waveform    = amplitude * gen_sin_wave(sampling_rate, freq, duration)
+
+# --- Settings ---
+# https://sites.google.com/site/bpoddocumentation/bpod-user-guide/function-reference-beta/bpodwaveplayer
+W = WavePlayerModule('COM7')   # "Teensy USB" in device manager
+W.set_trigger_mode(W.TRIGGER_MODE_MASTER)   # 'Master' - triggers can force-start a new wave during playback.
+W.set_sampling_period(sampling_rate)
+W.set_output_range(W.RANGE_VOLTS_MINUS10_10)   # Same as MATLAB version: -10 to 10V
+
+# --- Load waveform to WavePlayer ---
+W.load_waveform(WAV_NUM_GO_CUE, go_cue_waveform)    # Waveform #0: go cue sound
+W.disconnect()
+
+# --- Load serial messages to Bpod ---
+# https://readthedocs.org/projects/pybpod-api/downloads/pdf/v1.8.1/
+
+# Serial port 1, Message #GO_CUE_SER_CMD, Content ['P' WAV_PORTS_SPEAKER WAV_NUM_GO_CUE] 
+# (Play Waveform #0 at channel combination 0000 0001)
+my_bpod.load_serial_message(1, SER_CMD_GO_CUE, [80, WAV_PORTS_SPEAKER, WAV_NUM_GO_CUE])  
+        
+
 # ================ Define subejct-specific variables ===============
-# ----- Load previous used parameters from json file -----
+# ----- Load previous used parameters fsrom json file -----
 subjectfile = os.path.join(subjectdir,'variables.json')
 if os.path.exists(subjectfile):
     with open(subjectfile) as json_file:
@@ -465,8 +501,30 @@ else:
         variables['comport_motor'] = 'COM5'
         variables['retract_motor_signal'] = (OutputChannel.SoftCode, 1)
         variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
+    elif setup_name == 'Ephys_Han':
+        # for setup: Ephys_Han
+        variables['GoCue_ch'] = OutputChannel.Serial1    # Use WavePlayer serial command #1 on ephys rig!!
+        variables['WaterPort_L_ch_out'] = 1
+        variables['WaterPort_L_ch_in'] = EventName.Port1In
+        variables['WaterPort_R_ch_out'] = 2
+        variables['WaterPort_R_ch_in'] = EventName.Port2In
+        variables['WaterPort_M_ch_out'] = 3
+        variables['WaterPort_M_ch_in'] = EventName.Port3In
+# =============================================================================
+#         variables['Choice_cue_L_ch'] = OutputChannel.PWM1
+#         variables['Choice_cue_R_ch'] = OutputChannel.PWM2
+# =============================================================================
+        variables['comport_motor'] = 'COM8'
+        variables['retract_motor_signal'] = (OutputChannel.PWM8, 255)  # Use direct trigger to Zaber motor
+        # variables['retract_motor_signal'] = (OutputChannel.SoftCode, 1)  # Use softcode (slightly slower)
+        variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
         
+if 'PWM' in variables['GoCue_ch']:       
+    goCue_command = (variables['GoCue_ch'], 255)  # Set PWM5 to 100% duty cycle (always on), which triggers the wav trigger board
+elif 'Serial' in variables['GoCue_ch']:
+    goCue_command = (variables['GoCue_ch'], SER_CMD_GO_CUE)    # Use WavePlayer serial command #SER_CMD_GO_CUE on ephys rig!! 
         
+               
 variables_setup = variables.copy()
 
 # -------- Define the default **protracted** position as the current motor position -------
@@ -720,17 +778,15 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             	state_name='GoCue_real',
             	state_timer=variables['response_time'],
             	state_change_conditions={variables['WaterPort_L_ch_in']: 'Choice_L', variables['WaterPort_R_ch_in']: 'Choice_R', variables['WaterPort_M_ch_in']: 'Choice_M', EventName.Tup: 'ITI'},
-            	output_actions = [(variables['GoCue_ch'],255)])   # PWM5 --> 100% duty cycle (always on)
-                                                                  # Q: Why not using DigitalOut?
-                                                                  # A: Because PWM is the only 3.3V digital out port (designed to control LED brightness)
-                                                                  #    'Valve' is also digital out but it's 12V!
-                                                                  # See here: https://sanworks.io/forum/showthread.php?tid=25
+            	output_actions = [goCue_command])  
+            
             # End of autowater's gocue
             
         else:
             # ------ 2. GoCue (normal) --------
             # Licks detected within the response time --> Choice_X, where X is the first licked port; 
             # Otherwise, Tup --> ITI --> end of this trial 
+            
             sma.add_state(
             	state_name='GoCue',
                 state_timer=variables['response_time'],
@@ -738,9 +794,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                                          variables['WaterPort_R_ch_in']: 'Choice_R_fixation_reward', 
                                          variables['WaterPort_M_ch_in']: 'Choice_M_fixation_reward', 
                                          EventName.Tup: 'ITI'},
-            	output_actions = [(variables['GoCue_ch'],255)])   # Set PWM5 to 100% duty cycle (always on), which triggers the wav trigger board
-                                                                  # Make sure that the sd card in the wav-trigger board is set properly 
-                                                                  # such that it will be triggered by the ONSET of PWM signal!!
+            	output_actions = [goCue_command])  
             
             # Give the mouse a small amount of water for successful holding in the delay period
             for lickport in ['L', 'R', 'M']:
