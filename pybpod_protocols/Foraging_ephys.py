@@ -215,10 +215,10 @@ WAV_NUM_GO_CUE, SER_CMD_GO_CUE = 0, 1    # Waveform starts from 0, serial comman
 
 # --- Waveforms ---
 amplitude   = 2.0
-duration    = 0.1 # seconds
+go_cue_duration    = 0.1 # seconds
 freq        = 2000 # of cycles per second (Hz) (frequency of the sine waves)
 sampling_rate  = 100000 # of samples per second
-go_cue_waveform    = amplitude * gen_sin_wave(sampling_rate, freq, duration)
+go_cue_waveform    = amplitude * gen_sin_wave(sampling_rate, freq, go_cue_duration)
 
 # --- Settings ---
 # https://sites.google.com/site/bpoddocumentation/bpod-user-guide/function-reference-beta/bpodwaveplayer
@@ -834,7 +834,8 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                                          variables['WaterPort_R_ch_in']: 'Choice_R', 
                                          variables['WaterPort_M_ch_in']: 'Choice_M', 
                                          EventName.Tup: 'ITI'},
-            	output_actions = [goCue_command])  
+            	output_actions = [goCue_command, 
+                                  (variables['event_marker_channel'], 1)])   # Reaction time
             
             # End of autowater's gocue
             
@@ -850,7 +851,8 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                                          variables['WaterPort_R_ch_in']: 'Choice_R_fixation_reward', 
                                          variables['WaterPort_M_ch_in']: 'Choice_M_fixation_reward', 
                                          EventName.Tup: 'ITI'},
-            	output_actions = [goCue_command])  
+            	output_actions = [goCue_command, 
+                                 (variables['event_marker_channel'], 1)])  # Reaction time 
             
             # Give the mouse a small amount of water for successful holding in the delay period
             for lickport in ['L', 'R', 'M']:
