@@ -10,7 +10,6 @@ import zaber.serial as zaber_serial
 import time
 import json
 import numpy as np
-
 import os, sys 
 
 usedummyzaber = False # for testing without motor movement - only for debugging
@@ -129,6 +128,43 @@ def gen_sin_wave(sampling_rate, freq, duration):
     dt = 1 / sampling_rate;
     t = np.arange(0, duration, dt);
     return np.sin(2 * np.pi * freq * t)
+
+def add_bitcode(sma, event_marker_channel):  
+    # To be consistent with Matlab version
+    # Note that this will add 2*(1+digits)*time_period to the ITI 
+    digits = 20
+    time_period = 0.01  # Total length = 2*(1+20)*10 = 420 ms
+        
+    sma.add_state(
+        state_name='Start',
+        state_timer=time_period*2,  # Signals the start of bitcode
+        state_change_conditions={EventName.Tup: 'OffState1'},
+        output_actions = [(event_marker_channel, 1)])
+    
+    randomID = ''
+    
+    for digit in range(digits):
+        sma.add_state( 
+            state_name=f'OffState{digit+1}',
+            state_timer=time_period,
+            state_change_conditions={EventName.Tup: f'OnState{digit+1}'},
+            output_actions=[])     # Offstate (to separate two on states)
+
+        bit = np.random.randint(2)   # Random int in [0, 1]
+        randomID += str(bit)
+        sma.add_state(
+            state_name=f'OnState{digit+1}',
+            state_timer=time_period,
+            state_change_conditions={EventName.Tup: f'OffState{digit+2}'},
+            output_actions = [(event_marker_channel, 1)] if bit else [])
+        
+    sma.add_state(
+        state_name=f'OffState{digit+2}',
+        state_timer=0,
+        state_change_conditions={EventName.Tup: 'DelayStart'},
+        output_actions = [])
+    
+    return randomID, sma
 
 # ======================================================================================
 # Main function starts here
@@ -503,6 +539,9 @@ else:
         variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
     elif setup_name == 'Ephys_Han':
         # for setup: Ephys_Han
+        variables['if_recording_rig'] = True
+        variables['event_marker_channel'] = OutputChannel.BNC1  # For bitcode and sound markers
+
         variables['GoCue_ch'] = OutputChannel.Serial1    # Use WavePlayer serial command #1 on ephys rig!!
         variables['WaterPort_L_ch_out'] = 1
         variables['WaterPort_L_ch_in'] = EventName.Port1In
@@ -510,20 +549,22 @@ else:
         variables['WaterPort_R_ch_in'] = EventName.Port2In
         variables['WaterPort_M_ch_out'] = 3
         variables['WaterPort_M_ch_in'] = EventName.Port3In
-# =============================================================================
-#         variables['Choice_cue_L_ch'] = OutputChannel.PWM1
-#         variables['Choice_cue_R_ch'] = OutputChannel.PWM2
-# =============================================================================
         variables['comport_motor'] = 'COM8'
         variables['retract_motor_signal'] = (OutputChannel.PWM8, 255)  # Use direct trigger to Zaber motor
         # variables['retract_motor_signal'] = (OutputChannel.SoftCode, 1)  # Use softcode (slightly slower)
         variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
+        
         
 if 'PWM' in variables['GoCue_ch']:       
     goCue_command = (variables['GoCue_ch'], 255)  # Set PWM5 to 100% duty cycle (always on), which triggers the wav trigger board
 elif 'Serial' in variables['GoCue_ch']:
     goCue_command = (variables['GoCue_ch'], SER_CMD_GO_CUE)    # Use WavePlayer serial command #SER_CMD_GO_CUE on ephys rig!! 
         
+if 'if_recording_rig' in variables.keys() and variables['if_recording_rig']:
+    if_recording_rig = True
+else:
+    if_recording_rig = False
+    
                
 variables_setup = variables.copy()
 
@@ -547,7 +588,7 @@ print('json files (re)generated')
 my_bpod.softcode_handler_function = my_softcode_handler   # Assign the SoftCode function
 
 variables = variables_subject.copy()
-variables.update(variables_setup)
+variables.update(variables_setup)   # `variables` now includes both subject and setup parameters
 print('Variables:', variables)
 
 #print('subjectname for testing:',my_bpod.session.INFO_SUBJECT_NAME)
@@ -613,6 +654,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                         
         with open(setupfile) as json_file:
             variables_setup_new = json.load(json_file)
+            
         if variables_setup_new != variables_setup or variables_subject_new != variables_subject:
             # Update effective `variables` ( = subject + setup)
             variables = variables_subject_new.copy()
@@ -646,9 +688,9 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             iti_now = variables['iti_max']    
             
         # Generate delay period for this trial 
-        baselinetime_now =  np.random.exponential(variables['delay'],1)+variables['delay_min']# np.random.normal(variables['delay'],variables['delay_rate'])  
-        if baselinetime_now > variables['delay_max']:
-            baselinetime_now = variables['delay_max']
+        delay_now =  np.random.exponential(variables['delay'],1)+variables['delay_min']# np.random.normal(variables['delay'],variables['delay_rate'])  
+        if delay_now > variables['delay_max']:
+            delay_now = variables['delay_max']
         
         # If bias check: at the begining of the session, force the mouse to navigate all the lickports in sequence (two rounds)    
         if start_with_bias_check == 1 and blocki < bias_check_blocknum: 
@@ -660,61 +702,72 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             reward_M_accumulated = False
             # Regular timing
             iti_now = 2
-            baselinetime_now = 1
+            delay_now = 1
         # (Else: If no bias check or bias check has been done --> Normal trial begins)
         
-        # ------- Start of a trial ---------
+        # ------- 0. Start of a trial (bit code if necessary) ---------
         sma = StateMachine(my_bpod)
+        
+        if if_recording_rig:
+            randomID, sma = add_bitcode(sma, variables['event_marker_channel'])  # Note that this will add ~400 ms to the ITI 
+        else:  # Not bit code. Start = DelayStart
+            sma.add_state(
+                state_name='Start',
+                state_timer=0,
+                state_change_conditions={EventName.Tup: 'DelayStart'},
+                output_actions = [])
+
         
         # ---- 1. Delay period ----
         if variables['early_lick_punishment'] == 0:
             # If NO early lick punishment: start the go cue after the FIXED delay period
             sma.add_state(
-                state_name='Start',
-                state_timer=baselinetime_now,
+                state_name='DelayStart',
+                state_timer=delay_now,
                 state_change_conditions={EventName.Tup: 'GoCue'},
                 output_actions = [])
         else:
-            # If early lick punishment, go to a state called BackToBaseline
+            # If early lick punishment, go to a state called BackToDelayStart
             sma.add_state(
-                state_name='Start',
-                state_timer=baselinetime_now,
-                state_change_conditions={variables['WaterPort_L_ch_in']: 'BackToBaseline', 
-                                         variables['WaterPort_R_ch_in']: 'BackToBaseline',
-                                         variables['WaterPort_M_ch_in']: 'BackToBaseline',
+                state_name='DelayStart',
+                state_timer=delay_now,
+                state_change_conditions={variables['WaterPort_L_ch_in']: 'BackToDelayStart', 
+                                         variables['WaterPort_R_ch_in']: 'BackToDelayStart',
+                                         variables['WaterPort_M_ch_in']: 'BackToDelayStart',
                                          EventName.Tup: 'GoCue'},
                 output_actions = [])
             # Define actual punishiment
             if variables['early_lick_punishment'] > 0:
                 # Add timeout (during which more early licks will be ignored), then restart the trial
                 sma.add_state(
-                	state_name='BackToBaseline',
+                	state_name='BackToDelayStart',
                 	# state_timer=2,
                     # state_timer=variables['delay'],  # Control timeout by delay itself
                     state_timer = float(variables['early_lick_punishment']), # As the timeout
-                	state_change_conditions={EventName.Tup: 'Start'},
+                	state_change_conditions={EventName.Tup: 'DelayStart'},
                 	output_actions = [])
-            elif variables['early_lick_punishment'] < 0:  
+                
+            elif variables['early_lick_punishment'] < 0:   
                 # Abort the trial directly (avoid guessing during delay period)
                 # -- Should not go to ITI, otherwise the block length etc. could be incorrect ---
                 # sma.add_state(
-                # 	state_name='BackToBaseline',
+                # 	state_name='BackToDelayStart',
                 #     state_timer = 0,
                 # 	state_change_conditions={EventName.Tup: 'ITI'},
                 # 	output_actions = [])
              
-                # Still go to 'BackToBaseLine', but Retract lickports 
+                # Still go to 'BackToDelayStart', but Retract lickports 
                 sma.add_state(
-                 	state_name='BackToBaseline',
+                 	state_name='BackToDelayStart',
                     state_timer = abs(variables['early_lick_punishment']),
-                 	state_change_conditions={EventName.Tup: 'BackToStart'},
+                 	state_change_conditions={EventName.Tup: 'BackToDelayStartProtract'},
                  	output_actions = [variables['retract_motor_signal']])
                 
-                # Time out for abs(variables['early_lick_punishment']) seconds and then protract lickports
+                # Protract lickports before DelayStart (but still the same trial, no bit code again)
                 sma.add_state(
-                	state_name='BackToStart',
+                	state_name='BackToDelayStartProtract',
                 	state_timer=0,
-                	state_change_conditions={EventName.Tup: 'Start'},
+                	state_change_conditions={EventName.Tup: 'DelayStart'},
                 	output_actions = [variables['protract_motor_signal']]) #(Bpod.OutputChannels.SoftCode, 1)
                 
             
@@ -777,7 +830,10 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             sma.add_state(
             	state_name='GoCue_real',
             	state_timer=variables['response_time'],
-            	state_change_conditions={variables['WaterPort_L_ch_in']: 'Choice_L', variables['WaterPort_R_ch_in']: 'Choice_R', variables['WaterPort_M_ch_in']: 'Choice_M', EventName.Tup: 'ITI'},
+            	state_change_conditions={variables['WaterPort_L_ch_in']: 'Choice_L', 
+                                         variables['WaterPort_R_ch_in']: 'Choice_R', 
+                                         variables['WaterPort_M_ch_in']: 'Choice_M', 
+                                         EventName.Tup: 'ITI'},
             	output_actions = [goCue_command])  
             
             # End of autowater's gocue
@@ -1050,6 +1106,9 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         
         print('Blocknumber:', blocki + 1)
         print('Trialnumber:', triali + 1)
+        if if_recording_rig:
+            print('TrialBitCode: ', randomID)
+
         print('Trialtype:', 'free choice')
         print('reward_L_accumulated:',reward_L_accumulated)
         print('reward_R_accumulated:',reward_R_accumulated)
