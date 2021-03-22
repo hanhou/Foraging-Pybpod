@@ -161,7 +161,7 @@ def add_bitcode(sma, event_marker_channel):
     sma.add_state(
         state_name=f'OffState{digit+2}',
         state_timer=0,
-        state_change_conditions={EventName.Tup: 'DelayStart'},
+        state_change_conditions={EventName.Tup: 'ProtractLickports'},
         output_actions = [])
     
     return randomID, sma
@@ -625,6 +625,19 @@ if 'change_to_go_next_block' not in variables.keys():
     variables['change_to_go_next_block'] = 0  # Which never changes (backward compatibility)
 change_to_go_next_block_previous = variables['change_to_go_next_block']
 
+# Use a simple state machine to retract the lickport to standby position 
+# and wait for some time until session starts
+if variables['motor_retract_waterport']:
+    sma = StateMachine(my_bpod)
+    sma.add_state(
+     	state_name='SessionStart',
+        state_timer = 5,
+     	state_change_conditions={EventName.Tup: 'exit'},
+     	output_actions = [variables['retract_motor_signal']])
+    my_bpod.send_state_machine(sma)  # Send state machine description to Bpod device
+    my_bpod.run_state_machine(sma)  # Run state machine
+
+
 # For each block
 for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R'], variables['reward_probabilities_L'],variables['reward_probabilities_M'])):
     
@@ -672,7 +685,6 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             break  # Go to the next block NOW
         change_to_go_next_block_previous = variables['change_to_go_next_block']
 
-        
         triali += 1  # First trial number = 0; 
                      # By incrementing triali here, the trial number will include ignored trials.
         
@@ -708,15 +720,38 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         # ------- 0. Start of a trial (bit code if necessary) ---------
         sma = StateMachine(my_bpod)
         
+        # Note that this will add ~420 ms to the ITI 
         if if_recording_rig:
-            randomID, sma = add_bitcode(sma, variables['event_marker_channel'])  # Note that this will add ~400 ms to the ITI 
+            randomID, sma = add_bitcode(sma, variables['event_marker_channel'])  
         else:  # Not bit code. Start = DelayStart
             sma.add_state(
                 state_name='Start',
                 state_timer=0,
-                state_change_conditions={EventName.Tup: 'DelayStart'},
+                state_change_conditions={EventName.Tup: 'ProtractLickports'},
                 output_actions = [])
-
+            
+        # Protract the lickport *AFTER* bitcode. Otherwise early licks may interrupt the bitcode.
+        #!!! be careful of the moving time of the lickport
+        # TODO: Use trigger instead of softcode for lickport protraction as well 
+        if variables['motor_retract_waterport']:
+            # Protract lickports (using SoftCode 2)
+            # 1. Line 410: my_bpod.softcode_handler_function = my_softcode_handler
+            # 2. my_softcode_handler(2) brings the lickports to variables['motor_forwardposition'], 
+            #    which has been set OUTSIDE the trial loop.
+            # 3. my_softcode_handler() only controls the RostroCaudal axis
+            # 4. Therefore, any manual adjustment along the LEFT-RIGHT axis will be kept over a session, 
+            #    whereas the RostroCaudal position will be reset to the original value in every trial.         
+            sma.add_state(
+                state_name = 'ProtractLickports',   # Actually it's more like the start of the next trial
+                state_timer = 0,
+                state_change_conditions={EventName.Tup: 'DelayStart'},
+                output_actions=[variables['protract_motor_signal']])  #(Bpod.OutputChannels.SoftCode, 2)
+        else:  # Do nothing
+            sma.add_state(
+                state_name = 'ProtractLickports',   # Actually it's more like the start of the next trial
+                state_timer = 0,
+                state_change_conditions={EventName.Tup: 'DelayStart'},
+                output_actions=[]) 
         
         # ---- 1. Delay period ----
         if variables['early_lick_punishment'] == 0:
@@ -1037,18 +1072,12 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             	state_change_conditions={EventName.Tup: 'End'},
             	output_actions = [variables['retract_motor_signal']]) #(Bpod.OutputChannels.SoftCode, 1)
             
-            # Protract lickports (using SoftCode 2)
-            # 1. Line 410: my_bpod.softcode_handler_function = my_softcode_handler
-            # 2. my_softcode_handler(2) brings the lickports to variables['motor_forwardposition'], 
-            #    which has been set OUTSIDE the trial loop.
-            # 3. my_softcode_handler() only controls the RostroCaudal axis
-            # 4. Therefore, any manual adjustment along the LEFT-RIGHT axis will be kept over a session, 
-            #    whereas the RostroCaudal position will be reset to the original value in every trial.         
             sma.add_state(
-                state_name = 'End',   # Actually it's more like the start of the next trial
+                state_name = 'End',   
                 state_timer = 0,
                 state_change_conditions={EventName.Tup: 'exit'},
-                output_actions=[variables['protract_motor_signal']]) #(Bpod.OutputChannels.SoftCode, 2)
+                # output_actions=[variables['protract_motor_signal']]) #(Bpod.OutputChannels.SoftCode, 2)
+                output_actions=[])   #  Lickport protraction has been moved to the start of each trial, after bitcode
             
         else:    
             sma.add_state(
