@@ -16,6 +16,17 @@ usedummyzaber = False # for testing without motor movement - only for debugging
 bias_check_auto_train_min_rewarded_trial_num = 1
 highest_probability_port_must_change = True
 
+# ---- Time settings -----
+event_marker_dur = {# protocol_marker_channel (BNC1)
+                    'bitcode_eachbit': 0.001,  
+                    'go_cue': 0.01,   
+                    'reward': 0.02,   
+                    # behavior_marker_channel (BNC2)
+                    'choice_L': 0.001,   
+                    'choice_R': 0.002,
+                    'choice_M': 0.003,
+                    }
+
 def notify_experimenter(metadata,path):
     filepath = os.path.join(path,'notifications.json')
     metadata['datetime'] = datetime.now().strftime("%Y/%m/%d, %H:%M:%S")
@@ -129,24 +140,23 @@ def gen_sin_wave(sampling_rate, freq, duration):
     t = np.arange(0, duration, dt);
     return np.sin(2 * np.pi * freq * t)
 
-def add_bitcode(sma, event_marker_channel):  
+def add_bitcode(sma, protocol_marker_channel):  
     # To be consistent with Matlab version
-    # Note that this will add 2*(1+digits)*time_period to the ITI 
+    # Note that this will add 2*(1+digits)*bitcode_event_marker_dur['bitcode_eachbit'] to the ITI 
     digits = 20
-    time_period = 0.01  # Total length = 2*(1+20)*10 = 420 ms
-        
+
     sma.add_state(
         state_name='Start',
-        state_timer=time_period*2,  # Signals the start of bitcode
+        state_timer=event_marker_dur['bitcode_eachbit']*2,  # Signals the start of bitcode
         state_change_conditions={EventName.Tup: 'OffState1'},
-        output_actions = [(event_marker_channel, 1)])
+        output_actions = [(protocol_marker_channel, 1)])
     
     randomID = ''
     
     for digit in range(digits):
         sma.add_state( 
             state_name=f'OffState{digit+1}',
-            state_timer=time_period,
+            state_timer=event_marker_dur['bitcode_eachbit'],
             state_change_conditions={EventName.Tup: f'OnState{digit+1}'},
             output_actions=[])     # Offstate (to separate two on states)
 
@@ -154,9 +164,9 @@ def add_bitcode(sma, event_marker_channel):
         randomID += str(bit)
         sma.add_state(
             state_name=f'OnState{digit+1}',
-            state_timer=time_period,
+            state_timer=event_marker_dur['bitcode_eachbit'],
             state_change_conditions={EventName.Tup: f'OffState{digit+2}'},
-            output_actions = [(event_marker_channel, 1)] if bit else [])
+            output_actions = [(protocol_marker_channel, 1)] if bit else [])
         
     sma.add_state(
         state_name=f'OffState{digit+2}',
@@ -215,8 +225,8 @@ WAV_NUM_GO_CUE, SER_CMD_GO_CUE = 0, 1    # Waveform starts from 0, serial comman
 
 # --- Waveforms ---
 amplitude   = 2.0
-go_cue_duration    = 0.1 # seconds
 freq        = 2000 # of cycles per second (Hz) (frequency of the sine waves)
+go_cue_duration = 0.1
 sampling_rate  = 100000 # of samples per second
 go_cue_waveform    = amplitude * gen_sin_wave(sampling_rate, freq, go_cue_duration)
 
@@ -540,7 +550,8 @@ else:
     elif setup_name == 'Ephys_Han':
         # for setup: Ephys_Han
         variables['if_recording_rig'] = True
-        variables['event_marker_channel'] = OutputChannel.BNC1  # For bitcode and sound markers
+        variables['protocol_marker_channel'] = OutputChannel.BNC1  # e.g., bitcode and go
+        variables['behavior_marker_channel'] = OutputChannel.BNC2  # e.g., choices 
 
         variables['GoCue_ch'] = OutputChannel.Serial1    # Use WavePlayer serial command #1 on ephys rig!!
         variables['WaterPort_L_ch_out'] = 1
@@ -631,12 +642,11 @@ if variables['motor_retract_waterport']:
     sma = StateMachine(my_bpod)
     sma.add_state(
      	state_name='SessionStart',
-        state_timer = 5,
+        state_timer = 3,
      	state_change_conditions={EventName.Tup: 'exit'},
      	output_actions = [variables['retract_motor_signal']])
     my_bpod.send_state_machine(sma)  # Send state machine description to Bpod device
     my_bpod.run_state_machine(sma)  # Run state machine
-
 
 # For each block
 for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R'], variables['reward_probabilities_L'],variables['reward_probabilities_M'])):
@@ -722,7 +732,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         
         # Note that this will add ~420 ms to the ITI 
         if if_recording_rig:
-            randomID, sma = add_bitcode(sma, variables['event_marker_channel'])  
+            randomID, sma = add_bitcode(sma, variables['protocol_marker_channel'])  
         else:  # Not bit code. Start = DelayStart
             sma.add_state(
                 state_name='Start',
@@ -864,14 +874,20 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             # In the autowater mode, it is the 'GoCue_real' that tells the mouse to lick
             sma.add_state(
             	state_name='GoCue_real',
+            	state_timer=event_marker_dur['go_cue'],
+            	state_change_conditions={EventName.Tup: 'AfterGoCue'},
+            	output_actions = [goCue_command, 
+                                  (variables['protocol_marker_channel'], 1)])   # Reaction time
+            
+            sma.add_state(
+            	state_name='AfterGoCue',
             	state_timer=variables['response_time'],
             	state_change_conditions={variables['WaterPort_L_ch_in']: 'Choice_L', 
                                          variables['WaterPort_R_ch_in']: 'Choice_R', 
                                          variables['WaterPort_M_ch_in']: 'Choice_M', 
                                          EventName.Tup: 'ITI'},
-            	output_actions = [goCue_command, 
-                                  (variables['event_marker_channel'], 1)])   # Reaction time
-            
+            	output_actions = [])   # Reaction time
+
             # End of autowater's gocue
             
         else:
@@ -881,13 +897,19 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             
             sma.add_state(
             	state_name='GoCue',
+                state_timer=event_marker_dur['go_cue'],
+            	state_change_conditions={EventName.Tup: 'AfterGoCue'},
+            	output_actions = [goCue_command, 
+                                 (variables['protocol_marker_channel'], 1)]) 
+
+            sma.add_state(
+            	state_name='AfterGoCue',
                 state_timer=variables['response_time'],
             	state_change_conditions={variables['WaterPort_L_ch_in']: 'Choice_L_fixation_reward', 
                                          variables['WaterPort_R_ch_in']: 'Choice_R_fixation_reward', 
                                          variables['WaterPort_M_ch_in']: 'Choice_M_fixation_reward', 
                                          EventName.Tup: 'ITI'},
-            	output_actions = [goCue_command, 
-                                 (variables['event_marker_channel'], 1)])  # Reaction time 
+            	output_actions = []) 
             
             # Give the mouse a small amount of water for successful holding in the delay period
             for lickport in ['L', 'R', 'M']:
@@ -916,64 +938,44 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         #     Lick any port other than X --> [ITI]
         #     TimeUp 1s --> [ITI]
 
-        if reward_L or reward_L_accumulated:  # reward_L: reward generated in the current trial
-                                              # reward_L_accumulated: reward baited from the last trial
-            sma.add_state(
-            	state_name='Choice_L',
-            	state_timer=0,
-            	state_change_conditions={EventName.Tup: 'Reward_L'},
-            	output_actions = [])#(variables['Choice_cue_L_ch'],255)   # Not to confuse the mice with too many sounds.
-        else:
-            sma.add_state(
-            	state_name='Choice_L',
-            	state_timer=0,
-            	# state_change_conditions={EventName.Tup: 'NO_Reward'},
-            	state_change_conditions={EventName.Tup: 'Consume_reward_L'},   # Directly jump to Consume_reward_L (no immediate retraction!!)
-            	output_actions = []) #(variables['Choice_cue_L_ch'],255)
-            
-        if reward_R or reward_R_accumulated:
-            sma.add_state(
-            	state_name='Choice_R',
-            	state_timer=0,
-            	state_change_conditions={EventName.Tup: 'Reward_R'},
-            	output_actions = [])#(variables['Choice_cue_R_ch'],255)
-        else:
-            sma.add_state(
-            	state_name='Choice_R',
-            	state_timer=0,
-            	# state_change_conditions={EventName.Tup: 'NO_Reward'},
-            	state_change_conditions={EventName.Tup: 'Consume_reward_R'},
-            	output_actions = [])#(variables['Choice_cue_R_ch'],255)
-            
-        if reward_M or reward_M_accumulated:
-            sma.add_state(
-            	state_name='Choice_M',
-            	state_timer=0,
-            	state_change_conditions={EventName.Tup: 'Reward_M'},
-            	output_actions = [])#(variables['Choice_cue_R_ch'],255)
-        else:
-            sma.add_state(
-            	state_name='Choice_M',
-            	state_timer=0,
-            	# state_change_conditions={EventName.Tup: 'NO_Reward'},
-            	state_change_conditions={EventName.Tup: 'Consume_reward_M'},
-            	output_actions = [])#(variables['Choice_cue_R_ch'],255)
+        sma.add_state(
+        	state_name='Choice_L',
+        	state_timer=event_marker_dur['choice_L'],  # Send a event marker to BNC1
+        	state_change_conditions={EventName.Tup: 
+                                     'Reward_L'  if reward_L or reward_L_accumulated  # reward_L: reward generated in the current trial
+                                                                                      # reward_L_accumulated: reward baited from the last trial
+                                     else 'Consume_reward_L'},         # No reward            
+        	output_actions = [(variables['behavior_marker_channel'], 1)])  #(variables['Choice_cue_L_ch'],255)   # Not to confuse the mice with too many sounds.
+
+        sma.add_state(
+        	state_name='Choice_R',
+        	state_timer=event_marker_dur['choice_R'],  # Send a event marker to BNC1
+        	state_change_conditions={EventName.Tup: 
+                                     'Reward_R'  if reward_R or reward_R_accumulated  
+                                     else 'Consume_reward_R'},                       
+        	output_actions = [(variables['behavior_marker_channel'], 1)])  #(variables['Choice_cue_L_ch'],255)   # Not to confuse the mice with too many sounds.
+
+        sma.add_state(
+        	state_name='Choice_M',
+        	state_timer=event_marker_dur['choice_M'],  # Send a event marker to BNC1
+        	state_change_conditions={EventName.Tup: 
+                                     'Reward_M'  if reward_M or reward_M_accumulated
+                                     else 'Consume_reward_M'},                       
+        	output_actions = [(variables['behavior_marker_channel'], 1)])  #(variables['Choice_cue_L_ch'],255)   # Not to confuse the mice with too many sounds.
         
-        sma.add_state(
-        	state_name='Reward_L',
-        	state_timer=variables['ValveOpenTime_L'],
-        	state_change_conditions={EventName.Tup: 'Consume_reward_L'},
-        	output_actions = [('Valve',variables['WaterPort_L_ch_out'])])
-        sma.add_state(
-        	state_name='Reward_R',
-        	state_timer=variables['ValveOpenTime_R'],
-        	state_change_conditions={EventName.Tup: 'Consume_reward_R'},
-        	output_actions = [('Valve',variables['WaterPort_R_ch_out'])])
-        sma.add_state(
-        	state_name='Reward_M',
-        	state_timer=variables['ValveOpenTime_M'],
-        	state_change_conditions={EventName.Tup: 'Consume_reward_M'},
-        	output_actions = [('Valve',variables['WaterPort_M_ch_out'])])
+            
+        for lickport in ('L', 'R', 'M'):
+            sma.add_state(
+            	state_name=f'Reward_{lickport}',
+            	state_timer=variables[f'ValveOpenTime_{lickport}'],
+            	state_change_conditions={EventName.Tup: f'EventMarker_reward_{lickport}'},
+            	output_actions = [('Valve',variables[f'WaterPort_{lickport}_ch_out'])])
+            sma.add_state(
+            	state_name=f'EventMarker_reward_{lickport}',
+            	state_timer=event_marker_dur['reward'],
+            	state_change_conditions={EventName.Tup: f'Consume_reward_{lickport}'},
+            	output_actions = [(variables['protocol_marker_channel'], 1)])
+
 
         # sma.add_state(
         # 	state_name='NO_Reward',
@@ -1002,6 +1004,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         # 	output_actions = [])
         
         # --- Any better way? Can the pbod store some local variables (i.e., the last choice)? ---
+        
         sma.add_state(
         	state_name='Consume_reward_L',
         	state_timer=variables['Reward_consume_time'],  # time needed without lick to go to the next trial
@@ -1069,8 +1072,9 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             sma.add_state(
             	state_name='ITI',
             	state_timer=iti_now,
-            	state_change_conditions={EventName.Tup: 'End'},
-            	output_actions = [variables['retract_motor_signal']]) #(Bpod.OutputChannels.SoftCode, 1)
+            	state_change_conditions={EventName.Tup: 'End'}, 
+            	output_actions = [variables['retract_motor_signal'],   #(Bpod.OutputChannels.SoftCode, 1)
+                                 (variables['protocol_marker_channel'], 1)])    # Set event marker high during ITI
             
             sma.add_state(
                 state_name = 'End',   
@@ -1089,7 +1093,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                 state_name = 'End',
                 state_timer = 0,
                 state_change_conditions={EventName.Tup: 'exit'},
-                output_actions=[])
+                output_actions=[(variables['protocol_marker_channel'], 1)])  # Set event marker high during ITI
     
         my_bpod.send_state_machine(sma)  # Send state machine description to Bpod device
     

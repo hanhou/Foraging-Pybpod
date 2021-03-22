@@ -21,7 +21,7 @@ class App(QDialog):
     def __init__(self):
         super().__init__()
         self.handles = dict()
-        self.title = 'pybpod and zaber control'
+        self.title = 'motor control'
         self.left = 10
         self.top = 10
         self.width = 0
