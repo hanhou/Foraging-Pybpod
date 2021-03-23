@@ -208,7 +208,7 @@ path = my_bpod.session._path
 pathlist = splitthepath(path)
 pathnow = ''
 for dirnow in pathlist:
-    if dirnow == 'Projects':
+    if dirnow.lower() == 'projects':
         rootdir = pathnow
     if dirnow == 'experiments':
         projectdir = pathnow
