@@ -415,7 +415,9 @@ class App(QDialog):
                 longest_session = 6  # Longest session = 6 hours
                 if len(same_day_this_session):
                     # Take care of the situation where one training session crosses two days...
-                    start_time_this_session = same_day_this_session[pd.DatetimeIndex(same_day_this_session).hour > earliest_start_cutoff][0]
+                    if key is 'alltimes':
+                        start_time_this_session = same_day_this_session[pd.DatetimeIndex(same_day_this_session).hour > earliest_start_cutoff][0]
+                        
                     needed = np.logical_and(times[key] >= start_time_this_session, (times[key] - start_time_this_session) < np.timedelta64(longest_session,'h'))
                 else:
                     needed = []
