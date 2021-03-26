@@ -636,17 +636,10 @@ if 'change_to_go_next_block' not in variables.keys():
     variables['change_to_go_next_block'] = 0  # Which never changes (backward compatibility)
 change_to_go_next_block_previous = variables['change_to_go_next_block']
 
-# Use a simple state machine to retract the lickport to standby position 
+# Retract the lickport to standby position 
 # and wait for some time until session starts
-if variables['motor_retract_waterport']:
-    sma = StateMachine(my_bpod)
-    sma.add_state(
-     	state_name='SessionStart',
-        state_timer = 3,
-     	state_change_conditions={EventName.Tup: 'exit'},
-     	output_actions = [variables['retract_motor_signal']])
-    my_bpod.send_state_machine(sma)  # Send state machine description to Bpod device
-    my_bpod.run_state_machine(sma)  # Run state machine
+retract_protract_motor(variables_subject['motor_retractedposition'])    
+time.sleep(3)
 
 # For each block
 for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R'], variables['reward_probabilities_L'],variables['reward_probabilities_M'])):
