@@ -491,7 +491,7 @@ def minethedata(data):
         idxes['Double_dipped'] = (data['MSG'] == 'Double_dipped') & (data['TYPE'] == 'TRANSITION')
         times['Double_dipped'] = data['PC-TIME'][idxes['Double_dipped']]
         
-        idxes['early_licks'] = (data['MSG'] == 'BackToBaseline') & (data['TYPE'] == 'TRANSITION')
+        idxes['early_licks'] = (data['MSG'] == 'BackToBaseline') | (data['MSG'] == 'BackToDelayStart') & (data['TYPE'] == 'TRANSITION')
         times['early_licks'] = data['PC-TIME'][idxes['early_licks']]
 
         idxes['reward_p_L'] = idxes['GoCue']
@@ -588,7 +588,7 @@ def minethedata_online(data):
         idxes['Double_dipped'] = (data['MSG'] == 'Double_dipped') & (data['TYPE'] == 'TRANSITION')
         times['Double_dipped'] = data['PC-TIME'][idxes['Double_dipped']]
         
-        idxes['early_licks'] = (data['MSG'] == 'BackToBaseline') & (data['TYPE'] == 'TRANSITION')
+        idxes['early_licks'] = (data['MSG'] == 'BackToBaseline') | (data['MSG'] == 'BackToDelayStart') & (data['TYPE'] == 'TRANSITION')
         times['early_licks'] = data['PC-TIME'][idxes['early_licks']]
 
         idxes['reward_p_L'] = idxes['GoCue']
