@@ -224,8 +224,8 @@ WAV_PORTS_SPEAKER = 1  # [0000 0001], first channel only
 WAV_NUM_GO_CUE, SER_CMD_GO_CUE = 0, 1    # Waveform starts from 0, serial command starts from 1...
 
 # --- Waveforms ---
-amplitude   = 2.0
-freq        = 2000 # of cycles per second (Hz) (frequency of the sine waves)
+amplitude   = 4.0
+freq        = 3000 # of cycles per second (Hz) (frequency of the sine waves)
 go_cue_duration = 0.1
 sampling_rate  = 100000 # of samples per second
 go_cue_waveform    = amplitude * gen_sin_wave(sampling_rate, freq, go_cue_duration)
