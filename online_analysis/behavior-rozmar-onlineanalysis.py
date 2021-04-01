@@ -751,23 +751,23 @@ class App(QDialog):
                 
             if self.variables is None:
                 layout = QGridLayout()
-                self.horizontalGroupBox_preset_variables = QGroupBox("Preset variables")
+            #     self.horizontalGroupBox_preset_variables = QGroupBox("Preset variables")
                 self.horizontalGroupBox_variables_setup = QGroupBox("Setup: "+setup_now)
                 self.horizontalGroupBox_variables_subject = QGroupBox("Subject: "+subject_now)
-                layout.addWidget(self.horizontalGroupBox_preset_variables ,0,0)
+            #     layout.addWidget(self.horizontalGroupBox_preset_variables ,0,0)
                 layout.addWidget(self.horizontalGroupBox_variables_setup ,1,0)
                 layout.addWidget(self.horizontalGroupBox_variables_subject ,2,0)
                 self.horizontalGroupBox_variables.setLayout(layout)
                 
-                # Preset variables
-                layout_preset = QGridLayout()
-                self.handles['presetbuttons'] = dict()
-                for idx,key in enumerate(self.preset_variables.keys()):
-                    self.handles['presetbuttons'][key] = QPushButton(key)
-                    self.handles['presetbuttons'][key].setFocusPolicy(Qt.NoFocus)
-                    self.handles['presetbuttons'][key].clicked.connect(lambda state, x=key: self.preload_parameters(x))
-                    layout_preset.addWidget(self.handles['presetbuttons'][key] ,0,idx)
-                self.horizontalGroupBox_preset_variables.setLayout(layout_preset)    
+            #     # Preset variables
+            #     layout_preset = QGridLayout()
+            #     self.handles['presetbuttons'] = dict()
+            #     for idx,key in enumerate(self.preset_variables.keys()):
+            #         self.handles['presetbuttons'][key] = QPushButton(key)
+            #         self.handles['presetbuttons'][key].setFocusPolicy(Qt.NoFocus)
+            #         self.handles['presetbuttons'][key].clicked.connect(lambda state, x=key: self.preload_parameters(x))
+            #         layout_preset.addWidget(self.handles['presetbuttons'][key] ,0,idx)
+            #     self.horizontalGroupBox_preset_variables.setLayout(layout_preset)    
                 
                 # Parameter settings
                 layout_setup = QGridLayout()
@@ -1308,7 +1308,9 @@ class PlotCanvas(FigureCanvas):
             num_rewarded_trials = times['reward_L'].size + times['reward_R'].size + times['reward_M'].size
         else:
             num_finished_trials = times['choice_L'].size + times['choice_R'].size 
-            num_rewarded_trials = times['reward_L'].size + times['reward_R'].size
+            num_rewarded_trials_L = times['reward_L'].size
+            num_rewarded_trials_R = times['reward_R'].size
+            num_rewarded_trials = num_rewarded_trials_L + num_rewarded_trials_R
             
         # Double dipping
         if 'Double_dipped' in times.keys():
@@ -1341,8 +1343,8 @@ class PlotCanvas(FigureCanvas):
         else:
             for_eff_classic, for_eff_optimal, for_eff_optimal_actual = [np.nan] * 3  # Not well-defined for 3lp (so far)
         
-        self.ax1.set_title(f'Total trials = {num_total_trials}, finished = {num_finished_trials} ({num_finished_trials/num_total_trials:.1%}). '
-                     f'Rewarded = {num_rewarded_trials} ({reward_rate:.1%}). '
+        self.ax1.set_title(f'Total={num_total_trials}, finished={num_finished_trials}({num_finished_trials/num_total_trials:.1%}). '
+                     f'Rewarded={num_rewarded_trials}({num_rewarded_trials_L}+{num_rewarded_trials_R}, {reward_rate:.1%}). '
                      f'Efficiency: classic = {for_eff_classic:.1%}, optimal(actual) = {for_eff_optimal:.1%}({for_eff_optimal_actual:.1%})\n'
                      f'Early lick pulishment per trial = {early_licks_per_trial:.2f}. Double dipped trials = {num_double_dipping} ({double_dipping_rate:.1%})', fontsize=10)
         
