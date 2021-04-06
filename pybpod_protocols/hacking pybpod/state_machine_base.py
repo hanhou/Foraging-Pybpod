@@ -238,9 +238,11 @@ class StateMachineBase(object):
                 output_code
                 == self.hardware.channels.events_positions.globalTimerTrigger
             ):
-                self.global_timers.triggers_matrix[state_name_idx] = 2 ** (
-                    output_value - 1
-                )
+                # self.global_timers.triggers_matrix[state_name_idx] = 2 ** (
+                #     output_value - 1                )
+
+                # HACKED by HAN HOU (to trigger multiple bits. E.g.: 3 = '11' = timer 1 + 2)
+                self.global_timers.triggers_matrix[state_name_idx] = output_value    
 
             if output_code == self.hardware.channels.events_positions.globalTimerCancel:
                 self.global_timers.cancels_matrix[output_value - 1] = 1

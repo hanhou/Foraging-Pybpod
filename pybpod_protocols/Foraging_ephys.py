@@ -27,6 +27,10 @@ event_marker_dur = {# protocol_marker_channel (BNC1)
                     'choice_M': 0.003,
                     }
 
+# ---- Camera fps ----
+camera_face_fps = 300 # face camera, side view and bottom view
+camera_trunk_fps = 100  # trunc camera
+
 def notify_experimenter(metadata,path):
     filepath = os.path.join(path,'notifications.json')
     metadata['datetime'] = datetime.now().strftime("%Y/%m/%d, %H:%M:%S")
@@ -144,13 +148,6 @@ def add_bitcode(sma, protocol_marker_channel):
     # To be consistent with Matlab version
     # Note that this will add 2*(1+digits)*bitcode_event_marker_dur['bitcode_eachbit'] to the ITI 
     digits = 20
-
-    sma.add_state(
-        state_name='Start',
-        state_timer=event_marker_dur['bitcode_eachbit']*2,  # Signals the start of bitcode
-        state_change_conditions={EventName.Tup: 'OffState1'},
-        output_actions = [(protocol_marker_channel, 1)])
-    
     randomID = ''
     
     for digit in range(digits):
@@ -552,6 +549,8 @@ else:
         variables['if_recording_rig'] = True
         variables['protocol_marker_channel'] = OutputChannel.BNC1  # e.g., bitcode and go
         variables['behavior_marker_channel'] = OutputChannel.BNC2  # e.g., choices 
+        variables['camera_face_trig'] = OutputChannel.Wire1    # Face camera trigger
+        variables['camera_trunk_trig'] = OutputChannel.Wire2   # Trunk camera trigger
 
         variables['GoCue_ch'] = OutputChannel.Serial1    # Use WavePlayer serial command #1 on ephys rig!!
         variables['WaterPort_L_ch_out'] = 1
@@ -723,9 +722,42 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         # ------- 0. Start of a trial (bit code if necessary) ---------
         sma = StateMachine(my_bpod)
         
+        # Use global timer to trigger cameras
+        # https://pybpod.readthedocs.io/projects/pybpod-api/en/v1.8.1/pybpodapi/state_machine/state_machine.html?highlight=global_timers#module-pybpodapi.state_machine.global_timers
+        sma.set_global_timer(timer_id=1, 
+                             timer_duration=1/(2 * camera_face_fps), 
+                             on_set_delay=0, 
+                             channel=variables['camera_face_trig'],
+                             on_message=1, 
+                             off_message=0,
+                             loop_mode=1, 
+                             send_events=0,
+                             loop_intervals=1/(2 * camera_face_fps),
+                             )
+        
+        sma.set_global_timer(timer_id=2, 
+                             timer_duration=1/(2 * camera_trunk_fps), 
+                             on_set_delay=0, 
+                             channel=variables['camera_trunk_trig'],
+                             on_message=1, 
+                             off_message=0,
+                             loop_mode=1, 
+                             send_events=0,
+                             loop_intervals=1/(2 * camera_trunk_fps),
+                             )
+        
         # Note that this will add ~420 ms to the ITI 
         if if_recording_rig:
+            sma.add_state(
+                state_name='Start',
+                state_timer=event_marker_dur['bitcode_eachbit']*2,  # Signals the start of bitcode
+                state_change_conditions={EventName.Tup: 'OffState1'},
+                output_actions = [(variables['protocol_marker_channel'], 1),   # Start the onset of bitcode
+                                  ('GlobalTimerTrig', 3),]    # Start cameras (3 = '11' = timer 1 and 2)  
+                                                              #!!! To let this line work, I changed Line 241 of pybpodapi\state_machine\state_machine_base.py
+                )    
             randomID, sma = add_bitcode(sma, variables['protocol_marker_channel'])  
+            
         else:  # Not bit code. Start = DelayStart
             sma.add_state(
                 state_name='Start',
