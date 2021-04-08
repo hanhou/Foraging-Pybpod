@@ -777,16 +777,16 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             # 4. Therefore, any manual adjustment along the LEFT-RIGHT axis will be kept over a session, 
             #    whereas the RostroCaudal position will be reset to the original value in every trial.         
             sma.add_state(
-                state_name = 'ProtractLickports',   # Actually it's more like the start of the next trial
+                state_name = 'ProtractLickports',   
                 state_timer = 0,
                 state_change_conditions={EventName.Tup: 'DelayStart'},
                 output_actions=[variables['protract_motor_signal']])  #(Bpod.OutputChannels.SoftCode, 2)
         else:  # Do nothing
             sma.add_state(
-                state_name = 'ProtractLickports',   # Actually it's more like the start of the next trial
+                state_name = 'ProtractLickports',   
                 state_timer = 0,
                 state_change_conditions={EventName.Tup: 'DelayStart'},
-                output_actions=[]) 
+                output_actions=[variables['protract_motor_signal']])  # Also to protract position (temp workaround)
         
         # ---- 1. Delay period ----
         if variables['early_lick_punishment'] == 0:
@@ -807,13 +807,13 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                                          EventName.Tup: 'GoCue'},
                 output_actions = [])
             # Define actual punishiment
-            if variables['early_lick_punishment'] > 0:
+            if variables['early_lick_punishment'] > 0 or not variables['motor_retract_waterport']:
                 # Add timeout (during which more early licks will be ignored), then restart the trial
                 sma.add_state(
                 	state_name='BackToDelayStart',
                 	# state_timer=2,
                     # state_timer=variables['delay'],  # Control timeout by delay itself
-                    state_timer = float(variables['early_lick_punishment']), # As the timeout
+                    state_timer = abs(variables['early_lick_punishment']), # As the timeout
                 	state_change_conditions={EventName.Tup: 'DelayStart'},
                 	output_actions = [])
                 
@@ -839,6 +839,8 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                 	state_timer=0,
                 	state_change_conditions={EventName.Tup: 'DelayStart'},
                 	output_actions = [variables['protract_motor_signal']]) #(Bpod.OutputChannels.SoftCode, 1)
+            else:   # No early lick punishment
+                pass
                 
             
         # autowater comes here!! (for encouragement)
@@ -1113,12 +1115,12 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             	state_name='ITI',
             	state_timer=iti_now,
             	state_change_conditions={EventName.Tup: 'End'},
-            	output_actions = [])
+            	output_actions = [(variables['protocol_marker_channel'], 1)]) # Set event marker high during ITI
             sma.add_state(
                 state_name = 'End',
                 state_timer = 0,
                 state_change_conditions={EventName.Tup: 'exit'},
-                output_actions=[(variables['protocol_marker_channel'], 1)])  # Set event marker high during ITI
+                output_actions=[])  
     
         my_bpod.send_state_machine(sma)  # Send state machine description to Bpod device
     

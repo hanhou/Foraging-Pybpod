@@ -94,6 +94,7 @@ class App(QDialog):
                                      'Misc': {
                                               'response_time': 'RT',
                                               'auto_stop_max_ignored_trials_in_a_row': 'auto stop ignores >',
+                                              'motor_retract_waterport': 'retract lickports?',
                                              },
                                      'Advanced block':{
                                               'auto_block_switch_type': 'Auto (0:off;1:now;2:once)',
@@ -411,7 +412,7 @@ class App(QDialog):
                 # needed = days[key] == np.datetime64(session)
                 same_day_this_session = times[key][days[key] == np.datetime64(session)]
                 
-                earliest_start_cutoff = 5  # The session will not start earlier than 2AM
+                earliest_start_cutoff = 2  # The session will not start earlier than 2AM
                 longest_session = 6  # Longest session = 6 hours
                 if len(same_day_this_session):
                     # Take care of the situation where one training session crosses two days...
