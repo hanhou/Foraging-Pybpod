@@ -221,7 +221,7 @@ WAV_PORTS_SPEAKER = 1  # [0000 0001], first channel only
 WAV_NUM_GO_CUE, SER_CMD_GO_CUE = 0, 1    # Waveform starts from 0, serial command starts from 1...
 
 # --- Waveforms ---
-amplitude   = 4.0
+amplitude   = 2.0
 freq        = 3000 # of cycles per second (Hz) (frequency of the sine waves)
 go_cue_duration = 0.1
 sampling_rate  = 100000 # of samples per second
@@ -1101,7 +1101,8 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             	state_timer=iti_now,
             	state_change_conditions={EventName.Tup: 'End'}, 
             	output_actions = [variables['retract_motor_signal'],   #(Bpod.OutputChannels.SoftCode, 1)
-                                 (variables['protocol_marker_channel'], 1)])    # Set event marker high during ITI
+                                 (variables['protocol_marker_channel'], 1),
+                                 ('GlobalTimerCancel', 3)])    # Set event marker high during ITI
             
             sma.add_state(
                 state_name = 'End',   
@@ -1115,7 +1116,8 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             	state_name='ITI',
             	state_timer=iti_now,
             	state_change_conditions={EventName.Tup: 'End'},
-            	output_actions = [(variables['protocol_marker_channel'], 1)]) # Set event marker high during ITI
+            	output_actions = [(variables['protocol_marker_channel'], 1), 
+                               ('GlobalTimerCancel', 3)]) # Set event marker high during ITI
             sma.add_state(
                 state_name = 'End',
                 state_timer = 0,
