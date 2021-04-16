@@ -15,10 +15,14 @@
 # THIS SOFTWARE OR ITS DERIVATIVES.
 #=============================================================================
 
-#TODO: 1. automatically get ROI; automatically get camera serial num
+#TODO: 1. automatically get ROI (done)
 #      2. increase trial num
 #      3. user UI: select folder; easy preview
 
+#########################################################
+camera_index = 0
+fileName_prefix = "side_face_"  #!!!
+#########################################################
 import PyCapture2
 from sys import exit
 from time import sleep
@@ -73,7 +77,7 @@ if not numCams:
 	exit()
 
 c = PyCapture2.Camera()
-c.connect(bus.getCameraFromIndex(0))   # !!!
+c.connect(bus.getCameraFromIndex(camera_index))   # !!!
 
 # Power on the Camera
 cameraPower = 0x610
@@ -128,9 +132,19 @@ if PyCapture2.PIXEL_FORMAT.RAW8 & fmt7info.pixelFormatBitField == 0:
 
 # Configure camera format7 settings
 # Left, Top, Width, Height
-#!!! fmt7imgSet = PyCapture2.Format7ImageSettings(1, 0, 0, fmt7info.maxWidth, fmt7info.maxHeight, PyCapture2.PIXEL_FORMAT.RAW8)
-fmt7imgSet = PyCapture2.Format7ImageSettings(0, 128, 386, 560, 546, PyCapture2.PIXEL_FORMAT.RAW8) # Camera 1 side
+# fmt7imgSet = PyCapture2.Format7ImageSettings(1, 0, 0, fmt7info.maxWidth, fmt7info.maxHeight, PyCapture2.PIXEL_FORMAT.RAW8)
+# fmt7imgSet = PyCapture2.Format7ImageSettings(0, 64, 430, 560, 546, PyCapture2.PIXEL_FORMAT.RAW8) # Camera 1 side
 # fmt7imgSet = PyCapture2.Format7ImageSettings(1, 144, 162, 304, 350, PyCapture2.PIXEL_FORMAT.RAW8) # Camera 1
+
+# Automatically get settings from the GUI (Han 20210414)
+setting_in_gui = c.getFormat7Configuration()[0]
+fmt7imgSet = PyCapture2.Format7ImageSettings(setting_in_gui.mode,
+                                             setting_in_gui.offsetX,
+                                             setting_in_gui.offsetY,
+                                             setting_in_gui.width,
+                                             setting_in_gui.height,
+                                             setting_in_gui.pixelFormat)
+
 fmt7pktInf, isValid = c.validateFormat7Settings(fmt7imgSet)
 if not isValid:
 	print "Format7 settings are not valid!"
@@ -156,7 +170,7 @@ avi = PyCapture2.AVIRecorder()
 #frameRate = fRateProp.absValue
 frameRate = 30
 trialIdx = 1
-fileName_prefix = "HH10_041421_02_side_face_"  #!!!
+
 fileName = fileName_prefix + "{}.avi".format(trialIdx)
 #image = c.retrieveBuffer()
 #avi.AVIOpen(fileName, frameRate)
