@@ -20,7 +20,8 @@
 #      3. user UI: select folder; easy preview
 
 #########################################################
-camera_index = 1
+# camera_index = 1
+camera_serial_number = 17220797
 fileName_prefix = "bottom_face_"  #!!!
 #########################################################
 
@@ -36,6 +37,7 @@ def printBuildInfo():
 def printCameraInfo(cam):
 	camInfo = cam.getCameraInfo()
 	print "\n*** CAMERA INFORMATION ***\n"
+	print fileName_prefix
 	print "Serial number - ", camInfo.serialNumber
 	print "Camera model - ", camInfo.modelName
 	print "Camera vendor - ", camInfo.vendorName
@@ -78,7 +80,9 @@ if not numCams:
 	exit()
 
 c = PyCapture2.Camera()
-c.connect(bus.getCameraFromIndex(camera_index))   # !!!
+# c.connect(bus.getCameraFromIndex(camera_index))  
+c.connect(bus.getCameraFromSerialNumber(camera_serial_number))   # !!!
+
 
 # Power on the Camera
 cameraPower = 0x610
