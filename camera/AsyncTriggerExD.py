@@ -21,7 +21,8 @@
 
 import PyCapture2
 from sys import exit
-from time import sleep
+from time import sleep, time
+import numpy as np
 
 def printBuildInfo():
 	libVer = PyCapture2.getLibraryVersion()
@@ -39,10 +40,15 @@ def printCameraInfo(cam):
 	print "Firmware version - ", camInfo.firmwareVersion
 	print "Firmware build time - ", camInfo.firmwareBuildTime
 	print
-	bufferInfo = PyCapture2.Config()
-	print "Number Buffer - ", bufferInfo.numBuffers
-	print "grabMode - ", bufferInfo.grabMode
-	print "grabMode - ", bufferInfo.isochBusSpeed
+	
+	#bufferInfo = PyCapture2.Config()
+	#print "Number Buffer - ", bufferInfo.numBuffers
+	#print "grabMode - ", bufferInfo.grabMode
+	#print "grabMode - ", bufferInfo.isochBusSpeed
+	bufferInfo = cam.getConfiguration().__dict__
+	print "Number Buffer - ", bufferInfo['numBuffers ']
+	print "grabMode - ", bufferInfo['grabMode ']
+	print "isochBusSpeed - ", bufferInfo['isochBusSpeed ']
 
 
 def pollForTriggerReady(cam):
@@ -64,8 +70,6 @@ def pollForTriggerReady(cam):
 def main(camera_serial_number, fileName_prefix):
 	# Print PyCapture2 Library Information
 	printBuildInfo()
-	print fileName_prefix
-
 
 	# Ensure sufficient cameras are found
 	bus = PyCapture2.BusManager()
@@ -102,9 +106,6 @@ def main(camera_serial_number, fileName_prefix):
 	if not awake:
 		print "Could not wake Camera. Exiting..."
 		exit()
-
-	# Print camera details
-	printCameraInfo(c)
 
 	# Configure trigger mode
 	triggerMode = c.getTriggerMode()
@@ -156,15 +157,23 @@ def main(camera_serial_number, fileName_prefix):
 	c.setEmbeddedImageInfo(timestamp = True)
 
 	# Configure camera buffer settings
-	bufferFrame = PyCapture2.Config()
-	bufferFrame.numBuffers = 64
-	bufferFrame.grabMode = 1
-	bufferFrame.highPerformanceRetrieveBuffer = True
+	#bufferFrame = PyCapture2.Config()
+	#bufferFrame.numBuffers = 64
+	#bufferFrame.grabMode = 1
+	#bufferFrame.highPerformanceRetrieveBuffer = True
 
 	c.setConfiguration(numBuffers = 64)
 	c.setConfiguration(grabMode = 1)
 	c.setConfiguration(highPerformanceRetrieveBuffer = True)
+	
+	# import pdb; pdb.set_trace()
 
+	# Print camera details
+	printCameraInfo(c)
+	print "\n---------------- \n"
+	print "Camera: ", fileName_prefix	
+
+	# --------------------------------------------------
 	# Start acquisition
 	c.startCapture()
 
@@ -178,12 +187,22 @@ def main(camera_serial_number, fileName_prefix):
 	#image = c.retrieveBuffer()
 	#avi.AVIOpen(fileName, frameRate)
 	avi.MJPGOpen(fileName, frameRate, 95)
-
+	
 	# Grab images
 	while True: # Loop per trial
+		frame_count = 0
+		intervals = []
+		print "Trial=", '{:<4d}'.format(trialIdx), "  ",
+		last_frame = 0
+
 		while True:
 			try:
 				image = c.retrieveBuffer()
+				frame_count += 1
+				this_frame = time()
+				intervals.append(this_frame - last_frame)
+				last_frame = this_frame
+				
 			except PyCapture2.Fc2error as fc2Err:
 				#print "Error retrieving buffer : ", fc2Err
 				avi.close()	# Close file
@@ -195,9 +214,20 @@ def main(camera_serial_number, fileName_prefix):
 				c.setConfiguration(grabTimeout = 100000)
 				#continue
 				break
+
 			avi.append(image)
 			c.setConfiguration(grabTimeout = 100)
+			
+		#print "max frame interval = ", intervals
+		#print np.histogram(intervals)
+		intervals = intervals[1:]
+		interval_count, interval_edges = np.histogram(intervals[1:], 7)
+		interval_bins = (interval_edges[:-1] + interval_edges[1:])/2
+		print '{} @ {:.3f} Hz'.format(frame_count, 1/np.mean(intervals[1:])), 
+		print ''.join([" | {:.2f}ms:{:<4d}".format(bb*1000, nn) for nn, bb in zip(interval_count, interval_bins) if nn>0])
+		
 
+			
 	c.setTriggerMode(onOff = False)
 	print "Finished grabbing images!"
 
