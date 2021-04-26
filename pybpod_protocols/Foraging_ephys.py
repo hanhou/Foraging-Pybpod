@@ -30,6 +30,7 @@ event_marker_dur = {# protocol_marker_channel (BNC1)
 # ---- Camera fps ----
 camera_face_fps = 300 # face camera, side view and bottom view
 camera_trunk_fps = 100  # trunc camera
+camera_pulse = 0.001   # Use constant camera pulse width to minimize error due to bpod time resolution (0.1 ms)
 
 def notify_experimenter(metadata,path):
     filepath = os.path.join(path,'notifications.json')
@@ -221,11 +222,15 @@ WAV_PORTS_SPEAKER = 1  # [0000 0001], first channel only
 WAV_NUM_GO_CUE, SER_CMD_GO_CUE = 0, 1    # Waveform starts from 0, serial command starts from 1...
 
 # --- Waveforms ---
-amplitude   = 2.0
+amplitude   = 2
 freq        = 3000 # of cycles per second (Hz) (frequency of the sine waves)
 go_cue_duration = 0.1
 sampling_rate  = 100000 # of samples per second
 go_cue_waveform    = amplitude * gen_sin_wave(sampling_rate, freq, go_cue_duration)
+
+waveform_12K = amplitude * gen_sin_wave(sampling_rate, 12000, go_cue_duration)
+waveform_40 = amplitude * gen_sin_wave(sampling_rate, 1000, go_cue_duration)
+
 
 # --- Settings ---
 # https://sites.google.com/site/bpoddocumentation/bpod-user-guide/function-reference-beta/bpodwaveplayer
@@ -235,7 +240,9 @@ W.set_sampling_period(sampling_rate)
 W.set_output_range(W.RANGE_VOLTS_MINUS10_10)   # Same as MATLAB version: -10 to 10V
 
 # --- Load waveform to WavePlayer ---
-W.load_waveform(WAV_NUM_GO_CUE, go_cue_waveform)    # Waveform #0: go cue sound
+W.load_waveform(1, waveform_12K)    # Waveform #0: go cue sound
+W.load_waveform(2, waveform_40)    # Waveform #0: go cue sound
+
 W.disconnect()
 
 # --- Load serial messages to Bpod ---
@@ -725,25 +732,25 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         # Use global timer to trigger cameras
         # https://pybpod.readthedocs.io/projects/pybpod-api/en/v1.8.1/pybpodapi/state_machine/state_machine.html?highlight=global_timers#module-pybpodapi.state_machine.global_timers
         sma.set_global_timer(timer_id=1, 
-                             timer_duration=1/(2 * camera_face_fps), 
+                             timer_duration=camera_pulse, 
                              on_set_delay=0, 
                              channel=variables['camera_face_trig'],
                              on_message=1, 
                              off_message=0,
                              loop_mode=1, 
                              send_events=0,
-                             loop_intervals=1/(2 * camera_face_fps),
+                             loop_intervals=1/camera_face_fps - camera_pulse,
                              )
         
         sma.set_global_timer(timer_id=2, 
-                             timer_duration=1/(2 * camera_trunk_fps), 
+                             timer_duration=camera_pulse, 
                              on_set_delay=0, 
                              channel=variables['camera_trunk_trig'],
                              on_message=1, 
                              off_message=0,
                              loop_mode=1, 
                              send_events=0,
-                             loop_intervals=1/(2 * camera_trunk_fps),
+                             loop_intervals=1/camera_trunk_fps - camera_pulse,
                              )
         
         # Note that this will add ~420 ms to the ITI 
