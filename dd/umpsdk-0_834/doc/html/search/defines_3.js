@@ -1,0 +1,27 @@
+var searchData=
+[
+  ['libump_5farg_5fundef',['LIBUMP_ARG_UNDEF',['../libump_8h.html#ac8507d116dcc9b77f81ca8a8281d302b',1,'libump.h']]],
+  ['libump_5fdef_5fbcast_5faddress',['LIBUMP_DEF_BCAST_ADDRESS',['../libump_8h.html#a00deb199c410df1e2dfdaccd441cbaf0',1,'libump.h']]],
+  ['libump_5fdef_5fgroup',['LIBUMP_DEF_GROUP',['../libump_8h.html#a3b8751576d9185158987abc31caa2cc6',1,'libump.h']]],
+  ['libump_5fdef_5frefresh_5ftime',['LIBUMP_DEF_REFRESH_TIME',['../libump_8h.html#ac04479d2eecb6db9b0600a867d0594a0',1,'libump.h']]],
+  ['libump_5fdef_5fstorage_5fid',['LIBUMP_DEF_STORAGE_ID',['../libump_8h.html#a0731243b5d3003c724cf77e76cc704a8',1,'libump.h']]],
+  ['libump_5fdef_5ftimeout',['LIBUMP_DEF_TIMEOUT',['../libump_8h.html#ad82eb3971790e09335714cb519eae2ed',1,'libump.h']]],
+  ['libump_5ffeature_5fvirtualx',['LIBUMP_FEATURE_VIRTUALX',['../libump_8h.html#a6eec8c41ae9168892f5722b03a51cb25',1,'libump.h']]],
+  ['libump_5fmax_5flog_5fline_5flength',['LIBUMP_MAX_LOG_LINE_LENGTH',['../libump_8h.html#a352cda4614109123272c7b0f3282675a',1,'libump.h']]],
+  ['libump_5fmax_5fmanipulators',['LIBUMP_MAX_MANIPULATORS',['../libump_8h.html#a4a90155fd5924aa4ce33960c744f33c8',1,'libump.h']]],
+  ['libump_5fmax_5ftimeout',['LIBUMP_MAX_TIMEOUT',['../libump_8h.html#a7e3181cc9ebcde87d210e3c6bbf86c3f',1,'libump.h']]],
+  ['libump_5fpos_5fdrive_5fbusy',['LIBUMP_POS_DRIVE_BUSY',['../libump_8h.html#a689bff5f866c23144d49c0aec78c3bf9',1,'libump.h']]],
+  ['libump_5fpos_5fdrive_5fcompleted',['LIBUMP_POS_DRIVE_COMPLETED',['../libump_8h.html#a0a4f06079a7ab297c610e03e8da32da6',1,'libump.h']]],
+  ['libump_5fpos_5fdrive_5ffailed',['LIBUMP_POS_DRIVE_FAILED',['../libump_8h.html#aa85e7906f241b53fa6465a62698f725d',1,'libump.h']]],
+  ['libump_5fshared_5fexport',['LIBUMP_SHARED_EXPORT',['../libump_8h.html#afff9f98efa860cf5795e95b3d0dc6324',1,'libump.h']]],
+  ['libump_5ftimelimit_5fcache_5fonly',['LIBUMP_TIMELIMIT_CACHE_ONLY',['../libump_8h.html#a0fc765cbf405aab36e8512c4af78bff7',1,'libump.h']]],
+  ['libump_5ftimelimit_5fdisabled',['LIBUMP_TIMELIMIT_DISABLED',['../libump_8h.html#a997b48818200cb0be9f40b075c88fae3',1,'libump.h']]],
+  ['libump_5ftsc_5fspeed_5fmode_5f1',['LIBUMP_TSC_SPEED_MODE_1',['../libump_8h.html#af6a088a0e71ed8b607d5ee2bbe9ef48f',1,'libump.h']]],
+  ['libump_5ftsc_5fspeed_5fmode_5f2',['LIBUMP_TSC_SPEED_MODE_2',['../libump_8h.html#a21a7364b5087a81b9798492c5d2e1bee',1,'libump.h']]],
+  ['libump_5ftsc_5fspeed_5fmode_5f3',['LIBUMP_TSC_SPEED_MODE_3',['../libump_8h.html#a2f484e085c518806bd6f7fd591774035',1,'libump.h']]],
+  ['libump_5ftsc_5fspeed_5fmode_5f4',['LIBUMP_TSC_SPEED_MODE_4',['../libump_8h.html#aa92321c07e7091f87d255631771d0d1d',1,'libump.h']]],
+  ['libump_5ftsc_5fspeed_5fmode_5f5',['LIBUMP_TSC_SPEED_MODE_5',['../libump_8h.html#a137a6a2fca90f850219cef4c4f8b10d8',1,'libump.h']]],
+  ['libump_5ftsc_5fspeed_5fmode_5fpen',['LIBUMP_TSC_SPEED_MODE_PEN',['../libump_8h.html#aeb4b7d4e636d817aacbff94729bc0603',1,'libump.h']]],
+  ['libump_5ftsc_5fspeed_5fmode_5fsnail',['LIBUMP_TSC_SPEED_MODE_SNAIL',['../libump_8h.html#ae6a3b3348c5a62b7af8a1dce80a82a10',1,'libump.h']]],
+  ['libump_5fuse_5flast_5fdev',['LIBUMP_USE_LAST_DEV',['../libump_8h.html#ab722104eef83e103d2f256446e514a89',1,'libump.h']]]
+];

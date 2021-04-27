@@ -1,9 +1,9 @@
 /**
  * @file    libump.h
  * @author  Sensapex <support@sensapex.com>
- * @date    25 October 2016
+ * @date    29 November 2017
  * @brief   This file contains a public API for the 2015 series Sensapex Micromanipulator SDK
- * @copyright   Copyright (c) 2016 Sensapex. All rights reserved
+ * @copyright   Copyright (c) 2016-2019 Sensapex. All rights reserved
  *
  * The Sensapex micromanipulator SDK is free software: you can redistribute
  * it and/or modify it under the terms of the GNU Lesser General Public License
@@ -20,7 +20,6 @@
  * <http://www.gnu.org/licenses/>.
  */
 
- 
 #ifndef LIBUMP_H
 #define LIBUMP_H
 
@@ -129,7 +128,7 @@ typedef enum ump_status_e
 
 #define LIBUMP_MAX_MANIPULATORS   254       /**< Max count of concurrent manipulators supported by this SDK version*/
 #define LIBUMP_DEF_REFRESH_TIME    20       /**< The default positions refresh period in ms */
-#define LIBUMP_MAX_POSITION     20400       /**< The upper absolute position limit for actuators */
+#define LIBUMP_MAX_POSITION     51000       // 20400 /**< The upper absolute position limit for actuators */
 
 #define LIBUMP_TIMELIMIT_CACHE_ONLY 0       /**< Read position always from the cache */
 #define LIBUMP_TIMELIMIT_DISABLED  -1       /**< Skip the internal position cache.
@@ -157,7 +156,11 @@ typedef struct ump_positions_s
     int y;                 /**< Y-actuator position */
     int z;                 /**< Z-actuator position */
     int w;                 /**< W-actuator position */
-    unsigned long updated; /**< Timestamp (in milliseconds) when positions were updated */
+    float speed_x;         /**< X-actuator movement speed between last two position updates */
+    float speed_y;         /**< Y-actuator movement speed between last two position updates */
+    float speed_z;         /**< Z-actuator movement speed between last two position updates */
+    float speed_w;         /**< W-actuator movement speed between last two position updates */
+    unsigned long long updated_us; /**< Timestamp (in microseconds) when positions were updated */
 } ump_positions;
 
 /**
@@ -201,6 +204,18 @@ typedef struct ump_state_s
     int verbose;                                        /**< Enable log printouts to stderr, utilized for SDK development */
     ump_log_print_func log_func_ptr;                    /**< External log print function pointer */
     const void *log_print_arg;                          /**< Argument for the above */
+    int next_cmd_options;                               /**< Option bits to set for the smcp commands:
+                                                        SMCP1_OPT_WAIT_TRIGGER_1 0x00000200 // Set message to be run when triggered by physical trigger line2
+                                                        SMCP1_OPT_PRIORITY       0x00000100 // Priorizes message to run first. // 0 = normal message
+                                                        SMCP1_OPT_REQ_BCAST      0x00000080 // send ACK, RESP or NOTIFY to the bcast address (combine with REQs below), 0 = unicast to the sender
+                                                        SMCP1_OPT_REQ_NOTIFY     0x00000040 //request notification (e.g. on completed memory drive), 0 = do not notify
+                                                        SMCP1_OPT_REQ_RESP       0x00000020 // request ACK, 0 = no ACK requested
+                                                        SMCP1_OPT_REQ_ACK        0x00000010 // request ACK, 0 = no ACK requested
+                                                        */
+    unsigned long long drive_status_ts[LIBUMP_MAX_MANIPULATORS];
+                                                       /**< Manipulator (memory) position drive state check timestamp - last time PWM seen busy, updated by get_drive_status(_ext) */
+
+
 } ump_state;
 
 /**
@@ -308,6 +323,7 @@ LIBUMP_SHARED_EXPORT int ump_read_version(ump_state * hndl, int *version, const 
  * @brief Get the manipulator axis count
  *
  * @param       hndl    Pointer to session handle
+ * @param	dev 	Selected device ID
  * @return  Negative value if an error occured. Axis count otherwise
  */
 
@@ -405,6 +421,16 @@ LIBUMP_SHARED_EXPORT int ump_get_drive_status(ump_state *hndl);
 
 LIBUMP_SHARED_EXPORT int ump_take_step(ump_state * hndl, const int x, const int y, const int z, const int w, const int speed);
 
+/**
+ * @brief ump_cmd_get_axis_angle
+ * @param hndl  Pointer to session handle
+ * @param dev Device id
+ * @param axis  x=0,y=1,z=2,w=3
+ * @param layer x-layer = 0, y-layer = 1, z-layer = 2
+ * @return Integer value of asked axis angle
+ */
+LIBUMP_SHARED_EXPORT int ump_cmd_get_axis_angle(ump_state * hndl, const int dev, const int axis, const int layer);
+
 
 /**
  * @brief ump_take_jackhammer_step (moving manipulator with PEN mode max speed steps with 2 pulses
@@ -419,10 +445,10 @@ LIBUMP_SHARED_EXPORT int ump_take_step(ump_state * hndl, const int x, const int 
  * @return
  */
 LIBUMP_SHARED_EXPORT int ump_take_jackhammer_step(ump_state *hndl,
-                                                      const int axis,
-                                                      const int iterations,
-                                                      const int pulse1_step_count, const int pulse1_step_size,
-                                                      int pulse2_step_count, const int pulse2_step_size);
+                                                  const int axis,
+                                                  const int iterations,
+                                                  const int pulse1_step_count, const int pulse1_step_size,
+                                                  int pulse2_step_count, const int pulse2_step_size);
 
 
 /**
@@ -439,6 +465,19 @@ LIBUMP_SHARED_EXPORT int ump_take_jackhammer_step(ump_state *hndl,
 
 LIBUMP_SHARED_EXPORT int ump_get_positions(ump_state *hndl, int *x, int *y, int *z, int *w);
 
+/**
+ * @brief Obtain the actuator speeds
+ *
+ * @param   hndl    Pointer to session handle
+ * @param[out]   x  Pointer to x-actuator speed. (may be NULL)
+ * @param[out]   y  Pointer to y-actuator speed. (may be NULL)
+ * @param[out]   z  Pointer to z-actuator speed. (may be NULL)
+ * @param[out]   w  Pointer to w-actuator speed. (may be NULL)
+ * @return  The number of stored values.
+ *          Negative value indicates an error
+ */
+
+LIBUMP_SHARED_EXPORT int ump_get_speeds(ump_state *hndl, float *x, float *y, float *z, float *w);
 
 /**
  * @brief Read positions from the manipulator to the cache, use e.g. #ump_get_x_position
@@ -509,6 +548,18 @@ LIBUMP_SHARED_EXPORT int ump_store_mem_current_position(ump_state *hndl);
  */
 
 LIBUMP_SHARED_EXPORT int ump_goto_position(ump_state *hndl, const int x, const int y, const int z, const int w, const int speed);
+
+/**
+ * @brief Goto to a virtual axis position
+ *
+ * @param   hndl        Pointer to session handle
+ * @param   x_position  Target virtual axis X position (nm).
+ * @param   speed       movement speed in um/s
+ * @return  Negative value if an error occured. Zero or positive value otherwise
+ */
+
+LIBUMP_SHARED_EXPORT int ump_goto_virtual_axis_position(ump_state *hndl, const int x_position, const int speed);
+
 
 /**
  * @brief Drive selected manipulator to a stored position
@@ -634,13 +685,47 @@ LIBUMP_SHARED_EXPORT int ump_store_mem_current_position_ext(ump_state *hndl, con
  * @param   x, y, z, w  Positions, LIBUMP_ARG_UNDEF for axis not to be moved
  * @param   speed       speed in um/s
  * @param   mode        0 = one-by-one, 1 = move all axis simultanously.
+ * @param   max_acc     maximum acceleration in um/s^2
+ *
  * @return  Negative value if an error occured. Zero or positive value otherwise
  */
 
 LIBUMP_SHARED_EXPORT int ump_goto_position_ext(ump_state *hndl, const int dev,
                                                const int x, const int y,
                                                const int z, const int w,
-                                               const int speed, const int mode);
+                                               const int speed, const int mode,
+                                               const int max_acc);
+
+/**
+ * @brief An alternative advanced API to drive certain manipulator to a defined position with axis specific speed
+ *
+ * @param   hndl        Pointer to session handle
+ * @param   dev         Device ID
+ * @param   x, y, z, w  Positions, LIBUMP_ARG_UNDEF for axis not to be moved
+ * @param   speedX, speedY, speedZ, speedW  in um/s, zero for axis not to be moved
+ * @param   mode        0 = one-by-one, 1 = move all axis simultanously.
+ * @param   max_acc     maximum acceleration in um/s^2
+ * @return  Negative value if an error occured. Zero or positive value otherwise
+ */
+
+LIBUMP_SHARED_EXPORT int ump_goto_position_ext2(ump_state *hndl, const int dev,
+                                                const int x, const int y,
+                                                const int z, const int w,
+                                                const int speedX, const int speedY,
+                                                const int speedZ, const int speedW,
+                                                const int mode, const int max_acc);
+/**
+ * @brief An advanced API to goto to a virtual axis position
+ *
+ * @param   hndl        Pointer to session handle
+ * @param   dev         Device ID
+ * @param   x_position  Target virtual axis X position (nm).
+ * @param   speed       movement speed in um/s
+ * @return  Negative value if an error occured. Zero or positive value otherwise
+ */
+
+LIBUMP_SHARED_EXPORT int ump_goto_virtual_axis_position_ext(ump_state *hndl, const int dev,
+                                                        const int x_position, const int speed);
 /**
  * @brief An advanced API to move actuators to a stored position.
  *
@@ -698,14 +783,29 @@ LIBUMP_SHARED_EXPORT int ump_receive(ump_state *hndl, const int timelimit);
  * @param[out]  x           Pointer to an allocated buffer for x-actuator position
  * @param[out]  y           Pointer to an allocated buffer for y-actuator position
  * @param[out]  z           Pointer to an allocated buffer for z-actuator position
- * @param[out]  w           Pointer to an allocated buffer for w-actuator position
- * @param[out]  elapsed     Pointer to an allocated buffer for value indicating position value age in ms
  * @return  Negative value if an error occured. Zero or positive value otherwise
  */
 
 LIBUMP_SHARED_EXPORT int ump_get_positions_ext(ump_state *hndl, const int dev, const int time_limit,
-                                              int *x, int *y, int *z, int *w, int *elapsed);
+                                               int *x, int *y, int *z, int *w, int *elapsed);
 
+/**
+ * @brief An advanced API for reading actuator speeds of certain manipulator and
+ *        obtaining time when the values were updated
+ *
+ *
+ * @param       hndl        Pointer to session handle
+ * @param       dev         Device ID
+ *
+ * @param[out]  x           Pointer to an allocated buffer for x-actuator speed
+ * @param[out]  y           Pointer to an allocated buffer for y-actuator speed
+ * @param[out]  z           Pointer to an allocated buffer for z-actuator speed
+ * @param[out]  w           Pointer to an allocated buffer for w-actuator speed
+ * @param[out]  elapsed     Pointer to an allocated buffer for value indicating position value age in ms
+ * @return  Negative value if an error occured. Zero or positive value otherwise
+ */
+
+LIBUMP_SHARED_EXPORT  int ump_get_speeds_ext(ump_state *hndl, const int dev, float *x, float*y, float *z, float *w, int *elapsedptr);
 
 /**
  * @brief An advanced API for reading positions of certain manipulator to the cache
@@ -734,6 +834,18 @@ LIBUMP_SHARED_EXPORT int ump_read_positions_ext(ump_state *hndl, const int dev, 
  */
 
 LIBUMP_SHARED_EXPORT int ump_get_position_ext(ump_state *hndl, const int dev, const char axis);
+
+/**
+ * @brief An advanced API for obtaining single axis speed from the cache,
+ * works when manipulator is moving and updating the positions periodically
+ *
+ * @param       hndl        Pointer to session handle
+ * @param       dev         Device ID
+ * @param       axis        Axis name 'x','y','z' or 'w'
+ * @return  axis movement speed in um/s
+ */
+
+LIBUMP_SHARED_EXPORT float ump_get_speed_ext(ump_state *hndl, const int dev, const char axis);
 
 /**
  * @brief Take a step (relative movement from current position)
@@ -773,6 +885,22 @@ LIBUMP_SHARED_EXPORT int ump_take_jackhammer_step_ext(ump_state *hndl, const int
                                                       const int pulse1_step_count, const int pulse1_step_size,
                                                       int pulse2_step_count, const int pulse2_step_size);
 
+/**
+ * @brief ump_cmd_options
+ * Set options for next cmd to be sent for manipulator.
+ * This is one time set and will be reseted after sending the next message.
+ * Can be used to set the trigger for next command (e.g. goto position)
+ * @param   hndl        Pointer to session handle
+ * @param   optionbits  Options bit to set. Use following:
+ *  SMCP1_OPT_WAIT_TRIGGER_1 0x00000200 // Set message to be run when triggered by physical trigger line2
+ *  SMCP1_OPT_PRIORITY       0x00000100 // Priorizes message to run first. // 0 = normal message
+ *  SMCP1_OPT_REQ_BCAST      0x00000080 // send ACK, RESP or NOTIFY to the bcast address (combine with REQs below), 0 = unicast to the sender
+ *  SMCP1_OPT_REQ_NOTIFY     0x00000040 //request notification (e.g. on completed memory drive), 0 = do not notify
+ *  SMCP1_OPT_REQ_RESP       0x00000020 // request RESP, 0 = no RESP requested
+ *  SMCP1_OPT_REQ_ACK        0x00000010 // request ACK, 0 = no ACK requested
+ * @return  returns set flags
+ */
+LIBUMP_SHARED_EXPORT int ump_cmd_options(ump_state *hndl,int optionbits);
 
 /**
  * @brief Send a command to manipulator.
@@ -805,7 +933,8 @@ LIBUMP_SHARED_EXPORT int ump_cmd(ump_state *hndl, const int dev, const int cmd,
  * @return  Negative value if an error occured. Zero or positive value otherwise
  */
 LIBUMP_SHARED_EXPORT int ump_cmd_ext(ump_state *hndl, const int dev, const int cmd,
-                                const int argc, const int *argv, int respsize, int *response);
+                                     const int argc, const int *argv, int respsize, int *response);
+
 
 
 /**
@@ -849,6 +978,7 @@ LIBUMP_SHARED_EXPORT int ump_set_param(ump_state *hndl, const int dev,
  */
 
 LIBUMP_SHARED_EXPORT int ump_get_feature(ump_state *hndl, const int dev, const int feature_id);
+LIBUMP_SHARED_EXPORT int ump_get_ext_feature(ump_state *hndl, const int dev, const int feature_id);
 
 /**
  * @brief Enable or disable a manipulator feature (e.g. virtual X axis with )
@@ -863,7 +993,102 @@ LIBUMP_SHARED_EXPORT int ump_get_feature(ump_state *hndl, const int dev, const i
 LIBUMP_SHARED_EXPORT int ump_set_feature(ump_state *hndl, const int dev,
                                          const int feature_id, const int value);
 
+LIBUMP_SHARED_EXPORT int ump_set_ext_feature(ump_state *hndl, const int dev,
+                                         const int feature_id, const int value);
 
+
+/**
+ * @brief Get state of a manipulator feature & feature mask
+ *
+ * @param   hndl    Pointer to session handle
+ * @param   dev     Device ID
+ * @param   feature_id Feature id
+ * @return  Negative value if an error occured. 0 if feature disabled, 1 if enabled
+ */
+
+LIBUMP_SHARED_EXPORT int ump_get_feature_functionality(ump_state *hndl, const int dev, const int feature_id);
+
+/** uMv commands
+ *
+ * @brief uMv specific commands
+ */
+
+/**
+ * @brief Set pressure value
+ *
+ * @param   hndl      Pointer to session handle
+ * @param   dev       Device ID
+ * @param   channel   Pressure/DAC channel, valid values 1-8, 0 to disable
+ * @param   value     pressure value (TODO: select scaling, initially this is the DAC value 0 -> 0V and 0xffff -> 10V control voltage)
+ *
+ * @return  Negative value if an error occured. Zero or positive value otherwise
+ */
+
+LIBUMP_SHARED_EXPORT int umv_set_pressure(ump_state *hndl, const int dev,
+                                              const int channel, const int value);
+/**
+ * @brief Get pressure value
+ *
+ * @param   hndl      Pointer to session handle
+ * @param   dev       Device ID
+ * @param   channel   Pressure channel, valid values 1-8, 0 to disable
+ *
+ * @return  Negative value if an error occured. Zero or positive value otherwise carrying the pressure value 0 -> 0V and 0xffff -> 10V control voltage
+ */
+
+LIBUMP_SHARED_EXPORT int umv_get_pressure(ump_state *hndl, const int dev,
+                                              const int channel);
+
+/**
+ * @brief Enable valve (operation depends on the actual valve type)
+ *
+ * @param   hndl      Pointer to session handle
+ * @param   dev       Device ID
+ * @param   channel   Pressure channel, valid values 1-8, 0 to disable
+ * @param   value     0 for disabled (no excitation) and 1 to enabled valve.
+ *
+ * @return  Negative value if an error occured. Zero or positive value otherwise
+ */
+
+LIBUMP_SHARED_EXPORT int umv_set_valve(ump_state *hndl, const int dev,
+                                           const int channel, const int value);
+
+/**
+ * @brief Enable valve (operation depends on the actual valve type)
+ *
+ * @param   hndl      Pointer to session handle
+ * @param   dev       Device ID
+ * @param   channel   Pressure channel, valid values 1-8, 0 to disable
+ *
+ * @return  Negative value if an error occured. 0 for disabled valve and 1 for enabled (energized valve)
+ *
+ */
+
+LIBUMP_SHARED_EXPORT int umv_get_valve(ump_state *hndl, const int dev, const int channel);
+
+/**
+ * @brief Get pressure value
+ *
+ * @param   hndl      Pointer to session handle
+ * @param   dev       Device ID
+ * @param   channel   Pressure/DAC channel, valid values 1-8, 0 to disable
+ *
+ * @return  Negative value if an error occured. Zero or positive value otherwise carrying the pressure value 0 -> 0V and 0xffff -> 10V control voltage
+ */
+
+LIBUMP_SHARED_EXPORT int ump_umv_set_pressure(ump_state *hndl, const int dev,
+                                              const int channel, const int value);
+
+/**
+ * @brief Get state of a manipulator feature mask
+ *
+ * @param   hndl    Pointer to session handle
+ * @param   dev     Device ID
+ * @param   feature_id Feature id
+ * @return  Negative value if an error occured. 0 if feature disabled, 1 if enabled
+ */
+
+LIBUMP_SHARED_EXPORT int ump_get_feature_mask(ump_state *hndl, const int dev, const int feature_id);
 /**
  * @brief TCU remote control, select manipulator
  *
@@ -913,20 +1138,94 @@ LIBUMP_SHARED_EXPORT int ump_cu_set_active(ump_state *hndl, const int active);
 LIBUMP_SHARED_EXPORT int ump_cu_read_version(ump_state *hndl, int *version, const int size);
 
 /**
- * @brief Get manipulators which are broadcasting inside the network
+ * @brief TCU remote control, get RWx version through TCU
+ *
+ * @param   hndl      Pointer to session handle
+ * @param[out]  version Pointer to an allocated buffer for version numbers
+ * @param       size    size of the above buffer (number of integers)
+ *
+ * This function should be called in this way
+ * int version_buffer[5];
+ * int ret = ump_cu_read_rwx_version(handle, buffer, 5);
+ *
+ * @return  Negative value if an error occured. Zero or positive value otherwise
+ */
+
+LIBUMP_SHARED_EXPORT int ump_cu_read_rwx_version(ump_state *hndl, int *version, const int size);
+
+/**
+ * @brief Get list of manipulators or other compatile devices in this group.
+ *        Call to this function attempts to cause fast list update by sending a ping as broadcast
  * @param   hndl      Pointer to session handle
  * @param[out] devs   Pointer to list of devices found
- * @param[out] count  Count of devices seen
- * @return `true` if operation was successful, `false` otherwise
+ *
+ * This function should be called in this way
+ * int devids[LIBUMP_MAX_MANIPULATORS];
+ * int ret = ump_cu_get_device_list(handle, devids);
+ * for(i = 0; i < ret; i++)
+ *    int dev = devids[i]; // do anything to the dev id
+ *
+ * @return   Negative value if an error occured, count of found devices othervice
  */
-LIBUMP_SHARED_EXPORT int ump_get_broadcasters(ump_state *hndl,int *devs,  int *count);
+
+LIBUMP_SHARED_EXPORT int ump_get_device_list(ump_state *hndl, int *devs);
+
+/**
+ * @brief  Clear SDK internal list of manipulators or other compatible devices,
+ *         which are found on current group.
+ * @return Negative value if an error occured. Zero or positive value otherwise.
+ */
+
+LIBUMP_SHARED_EXPORT int ump_clear_device_list(ump_state *hndl);
+
+/**
+ * @brief Write manipulator slow speed mode
+ *
+ * @param   hndl      Pointer to session handle
+ * @param   activated On/off settings to enable/disable slow speed mode (0=deactivated, 1 = activated)
+ *
+ * @return  Negative value if an error occured. Zero or positive value otherwise
+ */
+LIBUMP_SHARED_EXPORT int ump_set_slow_speed_mode(ump_state *hndl, const int dev, const int activated);
+
+/**
+ * @brief Read manipulator slow speed mode
+ *
+ * @param   hndl      Pointer to session handle
+ * @return  Negative value if an error occured. 0 = disabled or 1 = enabled value otherwise
+ */
+LIBUMP_SHARED_EXPORT int ump_get_slow_speed_mode(ump_state *hndl, const int dev);
 
 
 /**
- * @brief Clear SDK internal list of manipulators which are broadcasting inside the network. List will be populated automatically after a while.
- * @return `true` if operation was successful, `false` otherwise
+ * @brief Get the manipulator actuator piezo voltage
+ *
+ * @param       hndl        Pointer to session handle
+ * @param       dev         Dev id
+ * @param       actuator     Actuator (0=x, 1=y, 2 = z, 3=d)
+ * @returns     32 bit value, where negative if read error,
+ *              bits 0-15 the current piezo voltage (scaled up by a decade)
+ *              bit  16   the latest active brigde mode (full-bridge == 1, half-bridge == 0)
+ *              bit  17   the current pwm_busy status (busy == 1, idle == 0)
+ *              bit  18   the latest active drive direction (backward == 1, forward == 0)
+ *              bits 24-31 the latest active drive mode:
+ *                  pwmDriveMode_manual             = 0,
+ *                  pwmDriveMode_autopilot          = 1,
+ *                  pwmDriveMode_manual_pen         = 2,
+ *                  pwmDriveMode_autopilot_calib    = 3,
+ *                  pwmDriveMode_manual_v2          = 4,
+ *                  pwmDriveMode_manual_rampup      = 5
  */
-LIBUMP_SHARED_EXPORT int ump_clear_broadcasters(ump_state *hndl);
+
+LIBUMP_SHARED_EXPORT int ump_get_piezo_voltage(ump_state * hndl, const int dev, const int actuator);
+
+// This lower layer function intentionally not defined in the public API
+#define LIBUMP_MAX_MESSAGE_SIZE   1502
+typedef unsigned char ump_message[LIBUMP_MAX_MESSAGE_SIZE];
+LIBUMP_SHARED_EXPORT int ump_recv_ext(ump_state *hndl, ump_message *msg, int *ext_data_type, void *ext_data_ptr);
+
+LIBUMP_SHARED_EXPORT int figure_cls_mode(const int step_x, const int step_y, const int step_z, const int step_w,
+                            const int speed_x, const int speed_y, const int speed_z, const int speed_w);
 
 /*
  * End of the C-API
@@ -934,7 +1233,6 @@ LIBUMP_SHARED_EXPORT int ump_clear_broadcasters(ump_state *hndl);
 
 #ifdef __cplusplus
 } // end of extern "C"
-
 
 #define LIBUMP_USE_LAST_DEV  0     /**< Use the selected device ID */
 
@@ -992,7 +1290,11 @@ public:
      * @return `true` if operation was successful, `false` otherwise
      */
     bool select(const int dev = LIBUMP_USE_LAST_DEV)
-    {	return  ump_select_dev(_handle, getDev(dev)) >= 0; }
+    {
+        int retval = ump_select_dev(_handle, getDev(dev));
+        ump_cu_select_manipulator(_handle, getDev(dev));
+        return retval;
+    }
 
     /**
      * @brief Check if a manipulator is available for communication
@@ -1057,6 +1359,24 @@ public:
     {	return	ump_cmd(_handle, getDev(dev), cmd, argc, argv) >= 0; }
 
     /**
+     * @brief cmdOptions
+     * Set options for next cmd to be sent for manipulator.
+     * This is one time set and will be reseted after sending the next message.
+     * Can be used to set the trigger for next command (e.g. goto position)
+     * @param   hndl        Pointer to session handle
+     * @param   optionbits  Options bit to set. Use following:
+     *  SMCP1_OPT_WAIT_TRIGGER_1 0x00000200 // Set message to be run when triggered by physical trigger line2
+     *  SMCP1_OPT_PRIORITY       0x00000100 // Priorizes message to run first. // 0 = normal message
+     *  SMCP1_OPT_REQ_BCAST      0x00000080 // send ACK, RESP or NOTIFY to the bcast address (combine with REQs below), 0 = unicast to the sender
+     *  SMCP1_OPT_REQ_NOTIFY     0x00000040 //request notification (e.g. on completed memory drive), 0 = do not notify
+     *  SMCP1_OPT_REQ_RESP       0x00000020 // request RESP, 0 = no RESP requested
+     *  SMCP1_OPT_REQ_ACK        0x00000010 // request ACK, 0 = no ACK requested
+     * @return  returns set flags
+     */
+    int cmdOptions(const int flags)
+    {  return ump_cmd_options(_handle, flags); }
+
+    /**
      * @brief Execute a manipulator command with requiring response
 
      * @param cmd   Command ID
@@ -1068,9 +1388,9 @@ public:
      * @return amount of data received, zero if none.
      */
     int cmd_resp(int *resp, int rsize,const int cmd, const int argc = 0,
-             const int *argv = NULL,  const int dev = LIBUMP_USE_LAST_DEV)
+                 const int *argv = NULL,  const int dev = LIBUMP_USE_LAST_DEV)
     {
-       return ump_cmd_ext(_handle, getDev(dev), cmd, argc, argv, rsize, resp);
+        return ump_cmd_ext(_handle, getDev(dev), cmd, argc, argv, rsize, resp);
     }
 
     /**
@@ -1110,6 +1430,30 @@ public:
         return true;
     }
 
+    bool getExtFeature(const int featureId, bool *value, const int dev = LIBUMP_USE_LAST_DEV)
+    {
+        int ret;
+        if((ret = ump_get_ext_feature(_handle, getDev(dev), featureId)) < 0)
+            return false;
+        *value = ret > 0;
+        return true;
+    }
+    /**
+     * @brief Get manipulator feature mask status
+     * @param featureId  feature id
+     * @param[out] value value
+     * @param dev        Device ID
+     *
+     * @return `true` if operation was successful, `false` otherwise
+     */
+    bool getFeatureMask(const int featureId, bool *value, const int dev = LIBUMP_USE_LAST_DEV)
+    {
+        int ret;
+        if((ret = ump_get_feature_mask(_handle, getDev(dev), featureId)) < 0)
+            return false;
+        *value = ret;
+        return true;
+    }
     /**
      * @brief Enable or disable manipulator feature
      * @param featureId  feature id
@@ -1119,6 +1463,16 @@ public:
      */
     bool setFeature(const int featureId, const bool state, const int dev = LIBUMP_USE_LAST_DEV)
     {	return  ump_set_feature(_handle, getDev(dev), featureId, state) >= 0; }
+
+    /**
+     * @brief Enable or disable manipulator feature
+     * @param featureId  feature id
+     * @param state      enable or disable
+     * @param dev        Device ID
+     * @return `true` if operation was successful, `false` otherwise
+     */
+    bool setExtFeature(const int featureId, const bool state, const int dev = LIBUMP_USE_LAST_DEV)
+    {	return  ump_set_ext_feature(_handle, getDev(dev), featureId, state) >= 0; }
 
     /**
      * @brief TSC remote control, select manipulator
@@ -1144,7 +1498,6 @@ public:
      */
     bool tscSetActive(const bool active)
     {	return  ump_cu_set_active(_handle, active) >= 0; }
-
 
     /**
      * @brief Obtain the position of actuators.
@@ -1199,9 +1552,21 @@ public:
      */
     bool gotoPos(const int x, const int y, const int z, const int w,
                  const int speed,  const int dev = LIBUMP_USE_LAST_DEV,
-                 const bool allAxisSimultanously = false)
-    {   return ump_goto_position_ext(_handle, getDev(dev), x, y, z, w, speed, allAxisSimultanously) >= 0; }
+                 const bool allAxisSimultanously = false,
+                 const int max_acceleration = 0)
+    {   return ump_goto_position_ext(_handle, getDev(dev), x, y, z, w, speed,
+                                     allAxisSimultanously, max_acceleration) >= 0; }
 
+    /**
+     * @brief Move virtual axis position
+     * @param x     Position to drive nm
+     * @param speed Speed um/sec
+     * @param dev   Device ID (#LIBUMP_USE_LAST_DEV to use selected one)
+     * @return `true` if operation was successful, `false` otherwise
+     */
+    bool gotoVirtualPos(const int x, const int speed, const int dev = LIBUMP_USE_LAST_DEV) {
+        return ump_goto_virtual_axis_position_ext(_handle,getDev(dev),x,speed);
+    }
     /**
      * @brief Stop manipulator
      * @param dev   Device ID
@@ -1241,25 +1606,50 @@ public:
     bool readVersion(int *version, const int size, const int dev = LIBUMP_USE_LAST_DEV)
     {   return ump_read_version_ext(_handle, getDev(dev), version, size) >= 0; }
 
-
     /**
-     * @brief Get manipulators which are broadcasting inside the network
+     * @brief TCU remote control, get GUI application version number
+     *
+     * @param[out]  version Pointer to an allocated buffer for version numbers. Buffer size needs to be >= 9!
+     * @param       size    size of the above buffer (number of integers)
+     *
+     * @return  `true` if operation was successful, `false` otherwise
+     */
+
+    bool readTSCversion(char *version_str) {
+        int version[5], ret = -1;
+        ump_receive(_handle, 400);
+        ret = ump_cu_read_version(_handle, version, 5);
+
+       if ( ret >= 0 ) {
+           if ( version[0] < 5) {
+               version_str[0] = version[0];
+               version_str[1] = '.';
+               version_str[2] = version[1];
+               version_str[3] = '.';
+               version_str[4] = version[2];
+               version_str[5] = '.';
+               version_str[6] = version[3];
+               version_str[7] = '.';
+               version_str[8] = version[4];
+           }
+        }
+        return ret >= 0 ? true : false;
+    }
+    /**
+     * @brief Get device list
      * @param[out] devs   Pointer to list of devices found
      * @param[out] count  Count of devices seen
      * @return `true` if operation was successful, `false` otherwise
      */
-     bool getBroadcasters(int *devs, int *count)
-     {  return ump_get_broadcasters(_handle,devs,count); }
+    bool getDeviceList(int *devs, int *count)
+    {  return (*count = ump_get_device_list(_handle,devs)) >= 0; }
 
-
-     /**
-      * @brief Get manipulators which are broadcasting inside the network
-      * @param[out] devs   Pointer to list of devices found
-      * @param[out] count  Count of devices seen
+    /**
+      * @brief Clear device list
       * @return `true` if operation was successful, `false` otherwise
       */
-      bool clearBroadcastersList()
-      {  return ump_clear_broadcasters(_handle); }
+    bool clearDeviceListt()
+    {  return ump_clear_device_list(_handle) >= 0; }
 
     /**
      * @brief Get the manipulator axis count
@@ -1267,7 +1657,30 @@ public:
      * @return  Negative value if an error occured. Axis count otherwise
      */
     int getAxisCount(const int dev = LIBUMP_USE_LAST_DEV)
-    {   return ump_get_axis_count(_handle, dev); }
+    {   return ump_get_axis_count(_handle, getDev(dev)); }
+
+    /**
+     * @brief getAxisAngle
+     * @param dev Device id
+     * @param axis  x=0,y=1,z=2,w=3
+     * @param layer x-layer = 0, y-layer = 1, z-layer = 2
+     * @return Integer value of asked axis angle
+     */
+    int getAxisAngle(const int dev, const int axis, const int layer){
+        return ump_cmd_get_axis_angle(_handle, dev, axis, layer);
+    }
+
+    /**
+     * @brief getPiezoVoltage
+     * @param dev
+     * @param actuator
+     * @return
+     */
+
+    int getPiezoVoltage(const int dev = LIBUMP_USE_LAST_DEV, const int actuator = 0) {
+        return ump_get_piezo_voltage(_handle, getDev(dev), actuator);
+    }
+
     /**
      * @brief Take a step (relative movement from current position)
      * @param   x,y,z,w  step length (in nm), negative value for backward, zero for axis not to be moved
@@ -1293,17 +1706,55 @@ public:
      * @param   dev      Device ID
      * @return `true` if operation was successful, `false` otherwise
      */
+
     bool takeStep(const int step_x, const int step_y, const int step_z, const int step_w,
                   const int speed_x, const int speed_y, const int speed_z,
                   const int speed_w, const int dev = LIBUMP_USE_LAST_DEV)
     {   return ump_take_step_ext(_handle, getDev(dev), step_x, step_y, step_z, step_w,
                                  speed_x, speed_y, speed_z, speed_w); }
 
-
     bool takeJackHammerStep( const int axis, const int iterations, const int pulse1_step_count, const int pulse1_step_size, int pulse2_step_count, const int pulse2_step_size, const int dev = LIBUMP_USE_LAST_DEV )
     {
-       return ump_take_jackhammer_step_ext(_handle, getDev(dev), axis, iterations, pulse1_step_count, pulse1_step_size, pulse2_step_count, pulse2_step_size );
+        return ump_take_jackhammer_step_ext(_handle, getDev(dev), axis, iterations, pulse1_step_count, pulse1_step_size, pulse2_step_count, pulse2_step_size );
     }
+
+    /**
+     * @brief Set uMv pressure
+     * @param channel  1-8
+     * @param value    pressure value (scaling TBD)
+     * @param dev      Device ID
+     * @return `true` if operation was successful, `false` otherwise
+     */
+    bool umvSetPressure(const int channel, const int value, const int dev = LIBUMP_USE_LAST_DEV)
+    {	return  umv_set_pressure(_handle, getDev(dev), channel, value) >= 0; }
+
+    /**
+     * @brief Get uMv pressure
+     * @param channel  1-8
+     * @param dev      Device ID
+     * @return negative if an error occured, pressure value othervice (scaling TBD)
+     */
+    int umvGetPressure(const int channel, const int dev = LIBUMP_USE_LAST_DEV)
+    {	return  umv_get_pressure(_handle, getDev(dev), channel); }
+
+    /**
+     * @brief Set uMv pressure
+     * @param channel  1-8
+     * @param value    pressure value (scaling TBD)
+     * @param dev      Device ID
+     * @return negative if an error occured, pressure value othervice (scaling TBD)
+     */
+    bool umvSetValve(const int channel, const bool state, const int dev = LIBUMP_USE_LAST_DEV)
+    {	return  umv_set_valve(_handle, getDev(dev), channel, state) >= 0; }
+
+    /**
+     * @brief Get uMv valve state
+     * @param channel  1-8
+     * @param dev      Device ID
+     * @return negative if an error occured, pressure value othervice (scaling TBD)
+     */
+    int umvGetValve(const int channel, const int dev = LIBUMP_USE_LAST_DEV)
+    {	return  umv_get_valve(_handle, getDev(dev), channel); }
 
     /**
      * @brief Get C-API handle
@@ -1342,7 +1793,7 @@ public:
      *                          file handle, optional, may be NULL
      * @return  Negative value if an error occured. Zero or positive value otherwise
      */
-    bool set_log_callback(const int verbose_level,ump_log_print_func func, const void *arg) {
+    bool set_log_callback(const int verbose_level, ump_log_print_func func, const void *arg) {
         return ump_set_log_func(_handle, verbose_level, func, arg);
     }
 
@@ -1365,6 +1816,7 @@ private:
             return _handle->last_device_sent;
         return dev;
     }
+
     /**
      * @brief Session handle
      */

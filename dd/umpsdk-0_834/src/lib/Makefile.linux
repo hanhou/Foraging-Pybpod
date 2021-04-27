@@ -1,0 +1,54 @@
+#
+# Sensapex micromanipulator SDK
+# (c) Sensapex 2013
+#
+# Makefile for linux systems
+#
+
+CC = gcc
+
+CPP_FLAGS += -W -Wall -fPIC -I../..
+
+ifeq ($(debug),1)
+	PREFIX=/local
+	CPP_FLAGS += -g  -D_DEBUG 
+else
+	PREFIX=
+	CPP_FLAGS += -O2 -DNDEBUG
+endif
+
+SRCS = libump.c
+HDRS = ../../libump.h
+OBJS = $(SRCS:.c=.o)
+
+.c.o: $(HDRS)
+	@$(CC) -c $(CPP_FLAGS) $< -o $@
+
+TARGET  = libump.so.1.0.0
+TARGET0 = libump.so
+TARGET1 = libump.so.1
+TARGET2 = libump.so.1.0
+
+LFLAGS  = -Wl,-O1 -shared -Wl,-soname,$(TARGET1)
+
+# Targets
+all: $(TARGET)
+
+$(OBJS): $(SRC) $(HDRS)
+
+install: $(TARGET)
+	install -D -v -s $(TARGET) $(DESTDIR)/usr$(PREFIX)/lib/$(TARGET)
+	-ln -s $(TARGET) $(DESTDIR)/usr$(PREFIX)/lib/$(TARGET0)
+	-ln -s $(TARGET) $(DESTDIR)/usr$(PREFIX)/lib/$(TARGET1)
+	-ln -s $(TARGET) $(DESTDIR)/usr$(PREFIX)/lib/$(TARGET2)
+
+$(TARGET): $(OBJS)
+	-rm -f $(TARGET) $(TARGET0) $(TARGET1) $(TARGET2)
+	$(CC) $(OBJS) $(LFLAGS) -o $(TARGET)
+	-ln -s $(TARGET) $(TARGET0)
+	-ln -s $(TARGET) $(TARGET1)
+	-ln -s $(TARGET) $(TARGET2)
+
+clean:
+	rm -f $(TARGET) $(OBJS) $(TARGET0) $(TARGET1) $(TARGET2) 
+

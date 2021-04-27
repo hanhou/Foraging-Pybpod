@@ -31,6 +31,7 @@
 #define UNDEF  (-1)
 #define UPDATE  100
 #define MOVE_AXIS_SIMULTANEOUSLY 1
+#define DIRECTION -1   // aa: -1, dd: 1
 
 typedef struct params_s {
 	int x, i, s, update, dev;
@@ -69,7 +70,7 @@ void parse_args(int argc, char *argv[], params_struct *params) {
 				break;
 			case 'x':
 				if (i < argc - 1 && sscanf_s(argv[++i], "%f", &f) == 1)
-					params->x = (int)(f*1000.0);
+					params->x = (int)(f*1000.0); 
 				else
 					usage(argv);
 				break;
@@ -107,7 +108,7 @@ int main(int argc, char *argv[]) {
 
 	params_struct params;
 	parse_args(argc, argv, &params);
-	printf("Sensapex Descending SDK controller Jan 2017 TW\n");
+	printf("Sensapex Ascending SDK controller Jan 2017 TW\n");
 	printf("updated Apr 2021 HH\n");
 	printf("BE VERY CAREFUL!!!!\n");
 	if ((handle = ump_open(params.address, LIBUMP_DEF_TIMEOUT, LIBUMP_DEF_GROUP)) == NULL) {
@@ -132,7 +133,7 @@ int main(int argc, char *argv[]) {
 		printf("#%d current position: %7.1f %7.1f %7.1f\n", params.dev, um(x), um(y), um(z));
 	}
 	if (params.x) {
-		target_x = x + params.x;
+		target_x = x + DIRECTION * params.x;
 		printf("#%d target position: %7.1f %7.1f %7.1f\n", params.dev, um(target_x), um(y), um(z));
 	}
 	else {
@@ -140,20 +141,20 @@ int main(int argc, char *argv[]) {
 		ump_close(handle);
 		exit(3);
 	}
-	
-	step_speed = 1000; 
-	float eff_speed = (float)params.i / (params.s + (float)params.i/step_speed);
+
+	step_speed = 1000;
+	float eff_speed = (float)params.i / (params.s + (float)params.i / step_speed);
 	printf("-------------------------------------------------------------------------\n");
 	//printf("Descending %5.2f um, step %5.2f um in %4.1f ms, sleep %5.1f ms, estimated speed ~ %5.2f um/s\n", um(params.x), um(params.i), (float)params.i / step_speed, (float)params.s, eff_speed);
-	printf("Descending %5.2f um, step %5.2f um, sleep %5.1f ms\n", um(params.x), um(params.i), (float)params.s);
+	printf("Ascending %5.2f um, step %5.2f um, sleep %5.1f ms\n", um(params.x), um(params.i), (float)params.s);
 	printf("-------------------------------------------------------------------------\n");
 
 	clock_t t = clock();
 	double time_taken;
 
 	do {
-		if ((ret = ump_goto_position_ext(handle, params.dev, x + params.i, y, z, 0, step_speed, 0, 0)) < 0) {
-			printf("Target movement: %7.1f %7.1f %7.1f\n", um(x + params.i), um(y), um(z));
+		if ((ret = ump_goto_position_ext(handle, params.dev, x + DIRECTION * params.i, y, z, 0, step_speed, 0, 0)) < 0) {
+			printf("Target movement: %7.1f %7.1f %7.1f\n", um(x + DIRECTION * params.i), um(y), um(z));
 			fprintf(stderr, "Goto position failed - %s\n", ump_last_errorstr(handle));
 			ump_close(handle);
 			exit(6);
@@ -176,7 +177,7 @@ int main(int argc, char *argv[]) {
 			}
 			else {
 				x = ump_get_x_position(handle);
-				distance_moved = x - x0;
+				distance_moved = DIRECTION * (x - x0);
 				distance_to_go = params.x - distance_moved;
 				time_taken = ((double)clock() - t) / CLOCKS_PER_SEC; // calculate the elapsed time
 				actual_speed = um(distance_moved / time_taken);   // um / s
@@ -184,21 +185,21 @@ int main(int argc, char *argv[]) {
 
 				//y = ump_get_y_position(handle);
 				//z = ump_get_z_position(handle);
-				printf("dd #%d --> %7.1f %7.1f %7.1f (%7.1f +%7.1f =%7.1f um, %7.2f +%7.2f =%7.2f s,\t%3.2f%% @ %6.2f um/s)", params.dev, um(x), um(ump_get_y_position(handle)), um(ump_get_z_position(handle)),
-					um(distance_moved), um(distance_to_go), um(params.x), time_taken, eta, time_taken + eta, 100.0*distance_moved / params.x, actual_speed);
+				printf("aa #%d --> %7.1f %7.1f %7.1f (%7.1f +%7.1f =%7.1f um, %7.2f +%7.2f =%7.2f s,\t%3.2f%% @ %6.2f um/s)", params.dev, um(x), um(ump_get_y_position(handle)), um(ump_get_z_position(handle)),
+					um(distance_moved), um(distance_to_go), um(params.x), time_taken, eta, time_taken + eta, 100.0*distance_moved/params.x , actual_speed);
 
 				if (ump_is_busy_status(status)) {
 					printf(" BUSY...\n");
 				}
 				else {
 					printf("\n");
-				}				
+				}
 			}
 			ump_receive(handle, params.update);
 			status = ump_get_status(handle);
 		} while (ump_is_busy_status(status));
 		Sleep(params.s);
-	} while (x < target_x);
+	} while (DIRECTION * x < DIRECTION * target_x);
 	ump_close(handle);
 	exit(!ret);
 }
