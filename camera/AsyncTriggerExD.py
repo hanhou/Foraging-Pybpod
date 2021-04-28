@@ -191,49 +191,52 @@ def main(camera_serial_number, fileName_prefix):
 	avi.MJPGOpen(fileName, frameRate, 95)
 	
 	# Grab images
-	while True: # Loop per trial
-		frame_count = 0
-		intervals = []
-		last_frame = 0
-		print "Trial=", '{:<4d}'.format(trialIdx), "  ",
+	try:
+		while True: # Loop per trial
+			frame_count = 0
+			intervals = []
+			last_frame = 0
+			print "Trial=", '{:<4d}'.format(trialIdx), "  ",
 
-		while True:
-			try:
-				image = c.retrieveBuffer()
-				avi.append(image)
+			while True:
+				try:
+					image = c.retrieveBuffer()
+					avi.append(image)
 
-				frame_count += 1
-				this_frame = time()
-				intervals.append(this_frame - last_frame)
-				# print image.getDataSize(), (this_frame - last_frame)*1000
-				last_frame = this_frame
+					frame_count += 1
+					this_frame = time()
+					intervals.append(this_frame - last_frame)
+					# print image.getDataSize(), (this_frame - last_frame)*1000
+					last_frame = this_frame
 
-				if frame_count>0:   # Once first frame received, set Timeout to 100ms
-					c.setConfiguration(grabTimeout = trial_time_out)
-				
-			except PyCapture2.Fc2error as fc2Err:
-				#print "Error retrieving buffer : ", fc2Err
-				avi.close()	# Close file
+					if frame_count>0:   # Once first frame received, set Timeout to 100ms
+						c.setConfiguration(grabTimeout = trial_time_out)
+					
+				except PyCapture2.Fc2error as fc2Err:
+					#print "Error retrieving buffer : ", fc2Err
+					avi.close()	# Close file
 
-				trialIdx += 1
-				fileName = fileName_prefix + "{}.avi".format(trialIdx)
-				#avi.AVIOpen(fileName, frameRate)
-				avi.MJPGOpen(fileName, frameRate, 95)
-				#avi.H264Open(fileName, frameRate, image.getCols(), image.getRows(), 100000)
-				c.setConfiguration(grabTimeout = 100000)
+					trialIdx += 1
+					fileName = fileName_prefix + "{}.avi".format(trialIdx)
+					#avi.AVIOpen(fileName, frameRate)
+					avi.MJPGOpen(fileName, frameRate, 95)
+					#avi.H264Open(fileName, frameRate, image.getCols(), image.getRows(), 100000)
+					c.setConfiguration(grabTimeout = 100000)
 
-				intervals.append(time() - last_frame)  # Gap between receiving the last frame and starting new file (including 100ms Timeout)
-				#continue
-				break
+					intervals.append(time() - last_frame)  # Gap between receiving the last frame and starting new file (including 100ms Timeout)
+					#continue
+					break
 
-		#print "max frame interval = ", intervals
-		#print np.histogram(intervals)
-		interval_count, interval_edges = np.histogram(intervals[1:-1], 7)
-		interval_bins = (interval_edges[:-1] + interval_edges[1:])/2
-		print '{} @ {:.3f} Hz'.format(frame_count, 1/np.mean(intervals[1:-1])), 
-		print ''.join([" | {:.2f}ms:{:<4d}".format(bb*1000, nn) for nn, bb in zip(interval_count, interval_bins) if nn>0]),
-		print '>> gap={:.3f}ms'.format(intervals[-1]*1000)
-		
+			#print "max frame interval = ", intervals
+			#print np.histogram(intervals)
+			interval_count, interval_edges = np.histogram(intervals[1:-1], 7)
+			interval_bins = (interval_edges[:-1] + interval_edges[1:])/2
+			print '{:5d} @ {:.3f} Hz'.format(frame_count, 1/np.mean(intervals[1:-1])), 
+			print ''.join([" | {:.2f}ms:{:<4d}".format(bb*1000, nn) for nn, bb in zip(interval_count, interval_bins) if nn>0]),
+			print '>> gap={:.3f}ms'.format(intervals[-1]*1000)
+			
+	except KeyboardInterrupt:   # Ctrl-C
+		pass
 
 			
 	c.setTriggerMode(onOff = False)
@@ -242,4 +245,4 @@ def main(camera_serial_number, fileName_prefix):
 	c.stopCapture()
 	c.disconnect()
 
-	raw_input("Done! Press Enter to exit...\n")
+	# raw_input("Done! Press Enter to exit...\n")
