@@ -24,6 +24,8 @@ from sys import exit
 from time import sleep, time
 import numpy as np
 
+trial_time_out = 30  # If no frame arrives in trial_time_out, restart a new trial (overhead ~ 10 ms)
+
 def printBuildInfo():
 	libVer = PyCapture2.getLibraryVersion()
 	print "PyCapture2 library version: ", libVer[0], libVer[1], libVer[2], libVer[3]
@@ -207,7 +209,7 @@ def main(camera_serial_number, fileName_prefix):
 				last_frame = this_frame
 
 				if frame_count>0:   # Once first frame received, set Timeout to 100ms
-					c.setConfiguration(grabTimeout = 100)
+					c.setConfiguration(grabTimeout = trial_time_out)
 				
 			except PyCapture2.Fc2error as fc2Err:
 				#print "Error retrieving buffer : ", fc2Err
