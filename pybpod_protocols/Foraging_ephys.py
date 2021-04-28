@@ -24,7 +24,19 @@ event_marker_dur = {# bitcode_channel (BNC1)
                     'choice_L': 0.002,   
                     'choice_R': 0.003,
                     'choice_M': 0.004,
+                    'iti_start': 0.03
                     }
+
+# Max duration of camera rolling before/after (conventional) trial start/end (in sec)
+camera_max_before_start = 5 
+camera_max_after_end = 2
+
+# Minimal camera gap
+minimal_camera_gap = 0.1   # 100 ms for video recording overhead (close .avi file and open the next)
+
+# For more precise ITIs, iti_compensation = bpod overhead + bit code length is subtracted from the effective ITI
+bpod_load_overhead = 0.05  # measured value
+iti_compensation = 0.05 + 42 * event_marker_dur['bitcode_eachbit']  
 
 # ---- Camera fps ----
 camera_face_fps = 300 # face camera, side view and bottom view
@@ -643,8 +655,8 @@ change_to_go_next_block_previous = variables['change_to_go_next_block']
 
 # Retract the lickport to standby position 
 # and wait for some time until session starts
-retract_protract_motor(variables_subject['motor_retractedposition'])    
-time.sleep(3)
+retract_protract_motor(variables_subject['motor_retractedposition'])  
+iti_previous = 2  
 
 # For each block
 for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R'], variables['reward_probabilities_L'],variables['reward_probabilities_M'])):
@@ -702,11 +714,11 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         reward_M = random_values_M.pop(0) < p_M # np.random.uniform(0.,1.) < p_R
         
         # Generate ITI for this trial 
-        iti_now = np.random.exponential(variables['iti'],1) + variables['iti_min'] + ignore_trial_num_in_a_row*variables['increase_ITI_on_ignore_trials']*variables['iti']
-        #iti_now = 0
-        if iti_now > variables['iti_max']:
-            iti_now = variables['iti_max']    
-            
+        iti_this = np.random.exponential(variables['iti'],1) + variables['iti_min'] + ignore_trial_num_in_a_row*variables['increase_ITI_on_ignore_trials']*variables['iti']
+        #iti_this = 0
+        if iti_this > variables['iti_max']:
+            iti_this = variables['iti_max']    
+        
         # Generate delay period for this trial 
         delay_now =  np.random.exponential(variables['delay'],1)+variables['delay_min']# np.random.normal(variables['delay'],variables['delay_rate'])  
         if delay_now > variables['delay_max']:
@@ -721,11 +733,29 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             reward_R_accumulated = False
             reward_M_accumulated = False
             # Regular timing
-            iti_now = 2
+            iti_this = 2
             delay_now = 1
         # (Else: If no bias check or bias check has been done --> Normal trial begins)
         
-        # ------- 0. Start of a trial (bit code if necessary) ---------
+        # --------- New way of handling ITI ------
+        # Compensate for bpod overhead and bitcode length
+        iti_this -= iti_compensation
+        
+        # Then split iti_this into half, one before START and the other after END
+        # This is to ensure the "camera blackout" has the least effect
+        iti_before = iti_previous / 2
+        iti_before_video_on = min(iti_before - minimal_camera_gap/2, camera_max_before_start)
+        iti_before_video_off = iti_before - iti_before_video_on
+        
+        iti_after = iti_this / 2
+        iti_after_video_on = min(iti_after - minimal_camera_gap/2, camera_max_after_end)
+        iti_after_video_off = iti_after - iti_after_video_on
+        
+        print(f'iti_before = {iti_before_video_off} + {iti_before_video_on}')
+                
+        iti_previous = iti_this  
+        
+        # ============= StateMachine ===========
         sma = StateMachine(my_bpod)
         
         # Use global timer to trigger cameras
@@ -763,7 +793,25 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                              send_events=0,
                              )        
         
-        # Note that this will add ~420 ms to the ITI 
+        # ------- 0. Start of a trial (bit code if necessary) ---------
+        # ---------- Now the trial starts with ITIBefore ----------
+        # ITI_before = ITI_before_video_on + ITI_before_video_off
+        sma.add_state(
+                state_name='ITIBeforeVideoOff',
+                state_timer=iti_before_video_off, 
+                state_change_conditions={EventName.Tup: 'ITIBeforeVideoOn'},
+                output_actions = [('GlobalTimerTrig', 4)]      # Start global timer #3 (trial indicator)
+                )    
+        
+        sma.add_state(
+                state_name='ITIBeforeVideoOn',
+                state_timer=iti_before_video_on, 
+                state_change_conditions={EventName.Tup: 'Start'},
+                output_actions = [('GlobalTimerTrig', 3)]      # Start global timer #1 & #2 (cameras)
+                )    
+
+        # Now real trial start
+        # Bit code
         if if_recording_rig:
             sma.add_state(
                 state_name='Start',
@@ -1110,36 +1158,47 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         # 	state_change_conditions={EventName.Tup: 'Consume_reward'},
         # 	output_actions = [])
         
-        # --- 4. ITI ----
+        # --- 4. ITI_after ----
+        # ITI_after = ITI_after_video_on + ITI_after_video_off
+        
+        # For backward compatibility,  "ITI" here retract motor and signal the ITI pulse
         if variables['motor_retract_waterport']:
             # Retract lickports (using PWM7 or 8)
             sma.add_state(
             	state_name='ITI',
-            	state_timer=iti_now,
-            	state_change_conditions={EventName.Tup: 'End'}, 
+            	state_timer=event_marker_dur['iti_start'],
+            	state_change_conditions={EventName.Tup: 'ITIAfterVideoOn'}, 
             	output_actions = [variables['retract_motor_signal'],   #(Bpod.OutputChannels.SoftCode, 1)
-                                 (variables['bitcode_channel'], 1),
-                                 ])    # Set event marker high during ITI
-            
-            sma.add_state(
-                state_name = 'End',   
-                state_timer = 0,
-                state_change_conditions={EventName.Tup: 'exit'},
-                # output_actions=[variables['protract_motor_signal']]) #(Bpod.OutputChannels.SoftCode, 2)
-                output_actions=[])   #  Lickport protraction has been moved to the start of each trial, after bitcode
+                                  (variables['bitcode_channel'], 1)])    # Set event marker high during ITI
             
         else:    
             sma.add_state(
             	state_name='ITI',
-            	state_timer=iti_now,
-            	state_change_conditions={EventName.Tup: 'End'},
-            	output_actions = [(variables['bitcode_channel'], 1), 
-                               ]) # Set event marker high during ITI
-            sma.add_state(
-                state_name = 'End',
-                state_timer = 0,
-                state_change_conditions={EventName.Tup: 'exit'},
-                output_actions=[])  
+            	state_timer=event_marker_dur['iti_start'],
+            	state_change_conditions={EventName.Tup: 'ITIAfterVideoOn'},
+            	output_actions = [(variables['bitcode_channel'], 1)]) # Set event marker high during ITI
+       
+        sma.add_state(
+                state_name='ITIAfterVideoOn',
+                state_timer=iti_after_video_on, 
+                state_change_conditions={EventName.Tup: 'ITIAfterVideoOff'},
+                output_actions = []      
+                )
+
+        sma.add_state(
+                state_name='ITIAfterVideoOff',
+                state_timer=iti_after_video_off, 
+                state_change_conditions={EventName.Tup: 'End'},
+                output_actions = [('GlobalTimerCancel', 3)]      # Stop global timer #1 & #2 (cameras)
+                )                
+            
+        # --- 5. Now the "End" state should be in the middle of this trial END and next trial START ---    
+        sma.add_state(
+            state_name = 'End',
+            state_timer = 0,
+            state_change_conditions={EventName.Tup: 'exit'},
+            output_actions=[])  
+            
     
         my_bpod.send_state_machine(sma)  # Send state machine description to Bpod device
     
