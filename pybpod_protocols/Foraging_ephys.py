@@ -17,14 +17,13 @@ bias_check_auto_train_min_rewarded_trial_num = 1
 highest_probability_port_must_change = True
 
 # ---- Time settings -----
-event_marker_dur = {# protocol_marker_channel (BNC1)
+event_marker_dur = {# bitcode_channel (BNC1)
                     'bitcode_eachbit': 0.001,  
                     'go_cue': 0.01,   
                     'reward': 0.02,   
-                    # behavior_marker_channel (BNC2)
-                    'choice_L': 0.001,   
-                    'choice_R': 0.002,
-                    'choice_M': 0.003,
+                    'choice_L': 0.002,   
+                    'choice_R': 0.003,
+                    'choice_M': 0.004,
                     }
 
 # ---- Camera fps ----
@@ -145,7 +144,7 @@ def gen_sin_wave(sampling_rate, freq, duration):
     t = np.arange(0, duration, dt);
     return np.sin(2 * np.pi * freq * t)
 
-def add_bitcode(sma, protocol_marker_channel):  
+def add_bitcode(sma, bitcode_channel):  
     # To be consistent with Matlab version
     # Note that this will add 2*(1+digits)*bitcode_event_marker_dur['bitcode_eachbit'] to the ITI 
     digits = 20
@@ -164,7 +163,7 @@ def add_bitcode(sma, protocol_marker_channel):
             state_name=f'OnState{digit+1}',
             state_timer=event_marker_dur['bitcode_eachbit'],
             state_change_conditions={EventName.Tup: f'OffState{digit+2}'},
-            output_actions = [(protocol_marker_channel, 1)] if bit else [])
+            output_actions = [(bitcode_channel, 1)] if bit else [])
         
     sma.add_state(
         state_name=f'OffState{digit+2}',
@@ -554,8 +553,8 @@ else:
     elif setup_name == 'Ephys_Han':
         # for setup: Ephys_Han
         variables['if_recording_rig'] = True
-        variables['protocol_marker_channel'] = OutputChannel.BNC1  # e.g., bitcode and go
-        variables['behavior_marker_channel'] = OutputChannel.BNC2  # e.g., choices 
+        variables['bitcode_channel'] = OutputChannel.BNC1  # e.g., bitcode and go
+        variables['trial_indicator_channel'] = OutputChannel.BNC2  # e.g., trial indicator
         variables['camera_face_trig'] = OutputChannel.Wire1    # Face camera trigger
         variables['camera_trunk_trig'] = OutputChannel.Wire2   # Trunk camera trigger
 
@@ -736,7 +735,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                              on_set_delay=0, 
                              channel=variables['camera_face_trig'],
                              on_message=1, 
-                             off_message=0,
+                             off_message=1,
                              loop_mode=1, 
                              send_events=0,
                              loop_intervals=1/camera_face_fps - camera_pulse,
@@ -747,11 +746,22 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                              on_set_delay=0, 
                              channel=variables['camera_trunk_trig'],
                              on_message=1, 
-                             off_message=0,
+                             off_message=1,
                              loop_mode=1, 
                              send_events=0,
                              loop_intervals=1/camera_trunk_fps - camera_pulse,
                              )
+        
+        # 3rd global timer for trial indicator
+        sma.set_global_timer(timer_id=3, 
+                             timer_duration=777,  # Infinity
+                             on_set_delay=0, 
+                             channel=variables['trial_indicator_channel'],
+                             on_message=1, 
+                             off_message=1,
+                             loop_mode=0, 
+                             send_events=0,
+                             )        
         
         # Note that this will add ~420 ms to the ITI 
         if if_recording_rig:
@@ -759,11 +769,11 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                 state_name='Start',
                 state_timer=event_marker_dur['bitcode_eachbit']*2,  # Signals the start of bitcode
                 state_change_conditions={EventName.Tup: 'OffState1'},
-                output_actions = [(variables['protocol_marker_channel'], 1),   # Start the onset of bitcode
-                                  ('GlobalTimerTrig', 3),]    # Start cameras (3 = '11' = timer 1 and 2)  
+                output_actions = [(variables['bitcode_channel'], 1),   # Start the onset of bitcode
+                                  ('GlobalTimerTrig', 7),]    # Start cameras (7 = '111' = timers 1,2,3)  
                                                               #!!! To let this line work, I changed Line 241 of pybpodapi\state_machine\state_machine_base.py
                 )    
-            randomID, sma = add_bitcode(sma, variables['protocol_marker_channel'])  
+            randomID, sma = add_bitcode(sma, variables['bitcode_channel'])  
             
         else:  # Not bit code. Start = DelayStart
             sma.add_state(
@@ -911,7 +921,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             	state_timer=event_marker_dur['go_cue'],
             	state_change_conditions={EventName.Tup: 'AfterGoCue'},
             	output_actions = [goCue_command, 
-                                  (variables['protocol_marker_channel'], 1)])   # Reaction time
+                                  (variables['bitcode_channel'], 1)])   # Reaction time
             
             sma.add_state(
             	state_name='AfterGoCue',
@@ -934,7 +944,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                 state_timer=event_marker_dur['go_cue'],
             	state_change_conditions={EventName.Tup: 'AfterGoCue'},
             	output_actions = [goCue_command, 
-                                 (variables['protocol_marker_channel'], 1)]) 
+                                 (variables['bitcode_channel'], 1)]) 
 
             sma.add_state(
             	state_name='AfterGoCue',
@@ -979,7 +989,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                                      'Reward_L'  if reward_L or reward_L_accumulated  # reward_L: reward generated in the current trial
                                                                                       # reward_L_accumulated: reward baited from the last trial
                                      else 'Consume_reward_L'},         # No reward            
-        	output_actions = [(variables['behavior_marker_channel'], 1)])  #(variables['Choice_cue_L_ch'],255)   # Not to confuse the mice with too many sounds.
+        	output_actions = [(variables['bitcode_channel'], 1)])  #(variables['Choice_cue_L_ch'],255)   # Not to confuse the mice with too many sounds.
 
         sma.add_state(
         	state_name='Choice_R',
@@ -987,7 +997,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         	state_change_conditions={EventName.Tup: 
                                      'Reward_R'  if reward_R or reward_R_accumulated  
                                      else 'Consume_reward_R'},                       
-        	output_actions = [(variables['behavior_marker_channel'], 1)])  #(variables['Choice_cue_L_ch'],255)   # Not to confuse the mice with too many sounds.
+        	output_actions = [(variables['bitcode_channel'], 1)])  #(variables['Choice_cue_L_ch'],255)   # Not to confuse the mice with too many sounds.
 
         sma.add_state(
         	state_name='Choice_M',
@@ -995,7 +1005,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         	state_change_conditions={EventName.Tup: 
                                      'Reward_M'  if reward_M or reward_M_accumulated
                                      else 'Consume_reward_M'},                       
-        	output_actions = [(variables['behavior_marker_channel'], 1)])  #(variables['Choice_cue_L_ch'],255)   # Not to confuse the mice with too many sounds.
+        	output_actions = [(variables['bitcode_channel'], 1)])  #(variables['Choice_cue_L_ch'],255)   # Not to confuse the mice with too many sounds.
         
             
         for lickport in ('L', 'R', 'M'):
@@ -1008,7 +1018,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             	state_name=f'EventMarker_reward_{lickport}',
             	state_timer=event_marker_dur['reward'],
             	state_change_conditions={EventName.Tup: f'Consume_reward_{lickport}'},
-            	output_actions = [(variables['protocol_marker_channel'], 1)])
+            	output_actions = [(variables['bitcode_channel'], 1)])
 
 
         # sma.add_state(
@@ -1108,8 +1118,8 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             	state_timer=iti_now,
             	state_change_conditions={EventName.Tup: 'End'}, 
             	output_actions = [variables['retract_motor_signal'],   #(Bpod.OutputChannels.SoftCode, 1)
-                                 (variables['protocol_marker_channel'], 1),
-                                 ('GlobalTimerCancel', 3)])    # Set event marker high during ITI
+                                 (variables['bitcode_channel'], 1),
+                                 ])    # Set event marker high during ITI
             
             sma.add_state(
                 state_name = 'End',   
@@ -1123,8 +1133,8 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             	state_name='ITI',
             	state_timer=iti_now,
             	state_change_conditions={EventName.Tup: 'End'},
-            	output_actions = [(variables['protocol_marker_channel'], 1), 
-                               ('GlobalTimerCancel', 3)]) # Set event marker high during ITI
+            	output_actions = [(variables['bitcode_channel'], 1), 
+                               ]) # Set event marker high during ITI
             sma.add_state(
                 state_name = 'End',
                 state_timer = 0,
