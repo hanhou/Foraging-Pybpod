@@ -239,10 +239,6 @@ go_cue_duration = 0.1
 sampling_rate  = 100000 # of samples per second
 go_cue_waveform    = amplitude * gen_sin_wave(sampling_rate, freq, go_cue_duration)
 
-waveform_12K = amplitude * gen_sin_wave(sampling_rate, 12000, go_cue_duration)
-waveform_40 = amplitude * gen_sin_wave(sampling_rate, 1000, go_cue_duration)
-
-
 # --- Settings ---
 # https://sites.google.com/site/bpoddocumentation/bpod-user-guide/function-reference-beta/bpodwaveplayer
 W = WavePlayerModule('COM7')   # "Teensy USB" in device manager
@@ -251,8 +247,7 @@ W.set_sampling_period(sampling_rate)
 W.set_output_range(W.RANGE_VOLTS_MINUS10_10)   # Same as MATLAB version: -10 to 10V
 
 # --- Load waveform to WavePlayer ---
-W.load_waveform(1, waveform_12K)    # Waveform #0: go cue sound
-W.load_waveform(2, waveform_40)    # Waveform #0: go cue sound
+W.load_waveform(WAV_NUM_GO_CUE, go_cue_waveform)    # Waveform #0: go cue sound
 
 W.disconnect()
 
