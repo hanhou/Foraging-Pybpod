@@ -28,7 +28,7 @@ event_marker_dur = {# bitcode_channel (BNC1)
                     }
 
 # Max duration of camera rolling before/after (conventional) trial start/end (in sec)
-camera_max_before_start = 5 
+camera_max_before_start = 2 
 camera_max_after_end = 2
 
 # Minimal camera gap
