@@ -2,6 +2,7 @@ from pybpodapi.bpod import Bpod
 from pybpodapi.state_machine import StateMachine
 from pybpodapi.bpod.hardware.events import EventName
 from pybpodapi.bpod.hardware.output_channels import OutputChannel
+from pybpodgui_plugin_waveplayer.module_api import WavePlayerModule
 from pybpodapi.com.messaging.trial import Trial
 from datetime import datetime
 from itertools import permutations
@@ -9,12 +10,39 @@ import zaber.serial as zaber_serial
 import time
 import json
 import numpy as np
-
 import os, sys 
 
 usedummyzaber = False # for testing without motor movement - only for debugging
 bias_check_auto_train_min_rewarded_trial_num = 1
 highest_probability_port_must_change = True
+
+# ---- Time settings -----
+event_marker_dur = {# bitcode_channel (BNC1)
+                    'bitcode_eachbit': 0.001,  
+                    'go_cue': 0.01,   
+                    'reward': 0.02,   
+                    'choice_L': 0.002,   
+                    'choice_R': 0.003,
+                    'choice_M': 0.004,
+                    'iti_start': 0.03
+                    }
+
+# Max duration of camera rolling before/after (conventional) trial start/end (in sec)
+camera_max_before_start = 5 
+camera_max_after_end = 2
+
+# Minimal camera gap
+minimal_camera_gap = 0.1   # 100 ms for video recording overhead (close .avi file and open the next)
+
+# For more precise ITIs, iti_compensation = bpod overhead + bit code length is subtracted from the effective ITI
+bpod_load_overhead = 0.05  # measured value
+iti_compensation = 0.05 + 42 * event_marker_dur['bitcode_eachbit']  
+
+# ---- Camera fps ----
+camera_face_fps = 300 # face camera, side view and bottom view
+camera_trunk_fps = 100  # trunc camera
+camera_pulse = 0.001   # Use constant camera pulse width to minimize error due to bpod time resolution (0.1 ms)
+
 def notify_experimenter(metadata,path):
     filepath = os.path.join(path,'notifications.json')
     metadata['datetime'] = datetime.now().strftime("%Y/%m/%d, %H:%M:%S")
@@ -121,7 +149,41 @@ def set_motor_speed():
             except zaber_serial.binaryserial.serial.SerialException:
                 print('can''t access Zaber ' + str(zabertry_i))
                 time.sleep(.01)
+                
+def gen_sin_wave(sampling_rate, freq, duration):
+    # Duration in seconds
+    dt = 1 / sampling_rate;
+    t = np.arange(0, duration, dt);
+    return np.sin(2 * np.pi * freq * t)
 
+def add_bitcode(sma, bitcode_channel):  
+    # To be consistent with Matlab version
+    # Note that this will add 2*(1+digits)*bitcode_event_marker_dur['bitcode_eachbit'] to the ITI 
+    digits = 20
+    randomID = ''
+    
+    for digit in range(digits):
+        sma.add_state( 
+            state_name=f'OffState{digit+1}',
+            state_timer=event_marker_dur['bitcode_eachbit'],
+            state_change_conditions={EventName.Tup: f'OnState{digit+1}'},
+            output_actions=[])     # Offstate (to separate two on states)
+
+        bit = np.random.randint(2)   # Random int in [0, 1]
+        randomID += str(bit)
+        sma.add_state(
+            state_name=f'OnState{digit+1}',
+            state_timer=event_marker_dur['bitcode_eachbit'],
+            state_change_conditions={EventName.Tup: f'OffState{digit+2}'},
+            output_actions = [(bitcode_channel, 1)] if bit else [])
+        
+    sma.add_state(
+        state_name=f'OffState{digit+2}',
+        state_timer=0,
+        state_change_conditions={EventName.Tup: 'ProtractLickports'},
+        output_actions = [])
+    
+    return randomID, sma
 
 # ======================================================================================
 # Main function starts here
@@ -155,7 +217,7 @@ path = my_bpod.session._path
 pathlist = splitthepath(path)
 pathnow = ''
 for dirnow in pathlist:
-    if dirnow == 'Projects':
+    if dirnow.lower() == 'projects':
         rootdir = pathnow
     if dirnow == 'experiments':
         projectdir = pathnow
@@ -166,9 +228,9 @@ for dirnow in pathlist:
         setuppath = pathnow
     pathnow = os.path.join(pathnow,dirnow)
     
-    
+
 # ================ Define subejct-specific variables ===============
-# ----- Load previous used parameters from json file -----
+# ----- Load previous used parameters fsrom json file -----
 subjectfile = os.path.join(subjectdir,'variables.json')
 if os.path.exists(subjectfile):
     with open(subjectfile) as json_file:
@@ -465,8 +527,67 @@ else:
         variables['comport_motor'] = 'COM5'
         variables['retract_motor_signal'] = (OutputChannel.SoftCode, 1)
         variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
+    elif setup_name == 'Ephys_Han':
+        # for setup: Ephys_Han
+        variables['if_recording_rig'] = True
+        variables['bitcode_channel'] = OutputChannel.BNC1  # e.g., bitcode and go
+        variables['trial_indicator_channel'] = OutputChannel.BNC2  # e.g., trial indicator
+        variables['camera_face_trig'] = OutputChannel.Wire1    # Face camera trigger
+        variables['camera_trunk_trig'] = OutputChannel.Wire2   # Trunk camera trigger
+
+        variables['GoCue_ch'] = OutputChannel.Serial1    # Use WavePlayer serial command #1 on ephys rig!!
+        variables['WaterPort_L_ch_out'] = 1
+        variables['WaterPort_L_ch_in'] = EventName.Port1In
+        variables['WaterPort_R_ch_out'] = 2
+        variables['WaterPort_R_ch_in'] = EventName.Port2In
+        variables['WaterPort_M_ch_out'] = 3
+        variables['WaterPort_M_ch_in'] = EventName.Port3In
+        variables['comport_motor'] = 'COM8'
+        variables['retract_motor_signal'] = (OutputChannel.PWM8, 255)  # Use direct trigger to Zaber motor
+        # variables['retract_motor_signal'] = (OutputChannel.SoftCode, 1)  # Use softcode (slightly slower)
+        variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
         
+if 'if_recording_rig' in variables.keys() and variables['if_recording_rig']:
+    if_recording_rig = True
+else:
+    if_recording_rig = False
+
+# ================ Define WavePlayer if this is a recording rig ==============
+if if_recording_rig:
+    WAV_PORTS_SPEAKER = 1  # [0000 0001], first channel only
+    WAV_NUM_GO_CUE, SER_CMD_GO_CUE = 0, 1    # Waveform starts from 0, serial command starts from 1...
+    
+    # --- Waveforms ---
+    amplitude   = 2
+    freq        = 3000 # of cycles per second (Hz) (frequency of the sine waves)
+    go_cue_duration = 0.1
+    sampling_rate  = 100000 # of samples per second
+    go_cue_waveform    = amplitude * gen_sin_wave(sampling_rate, freq, go_cue_duration)
+    
+    # --- Settings ---
+    # https://sites.google.com/site/bpoddocumentation/bpod-user-guide/function-reference-beta/bpodwaveplayer
+    W = WavePlayerModule('COM7')   # "Teensy USB" in device manager
+    W.set_trigger_mode(W.TRIGGER_MODE_MASTER)   # 'Master' - triggers can force-start a new wave during playback.
+    W.set_sampling_period(sampling_rate)
+    W.set_output_range(W.RANGE_VOLTS_MINUS10_10)   # Same as MATLAB version: -10 to 10V
+    
+    # --- Load waveform to WavePlayer ---
+    W.load_waveform(WAV_NUM_GO_CUE, go_cue_waveform)    # Waveform #0: go cue sound
+    
+    W.disconnect()
+    
+    # --- Load serial messages to Bpod ---
+    # https://readthedocs.org/projects/pybpod-api/downloads/pdf/v1.8.1/
+    
+    # Serial port 1, Message #GO_CUE_SER_CMD, Content ['P' WAV_PORTS_SPEAKER WAV_NUM_GO_CUE] 
+    # (Play Waveform #0 at channel combination 0000 0001)
+    my_bpod.load_serial_message(1, SER_CMD_GO_CUE, [80, WAV_PORTS_SPEAKER, WAV_NUM_GO_CUE])  
+    goCue_command = (variables['GoCue_ch'], SER_CMD_GO_CUE)    # Use WavePlayer serial command #SER_CMD_GO_CUE on ephys rig!! 
+
+else:
+    goCue_command = (variables['GoCue_ch'], 255)  # Set PWM5 to 100% duty cycle (always on), which triggers the wav trigger board
         
+               
 variables_setup = variables.copy()
 
 # -------- Define the default **protracted** position as the current motor position -------
@@ -489,7 +610,7 @@ print('json files (re)generated')
 my_bpod.softcode_handler_function = my_softcode_handler   # Assign the SoftCode function
 
 variables = variables_subject.copy()
-variables.update(variables_setup)
+variables.update(variables_setup)   # `variables` now includes both subject and setup parameters
 print('Variables:', variables)
 
 #print('subjectname for testing:',my_bpod.session.INFO_SUBJECT_NAME)
@@ -526,6 +647,11 @@ if 'change_to_go_next_block' not in variables.keys():
     variables['change_to_go_next_block'] = 0  # Which never changes (backward compatibility)
 change_to_go_next_block_previous = variables['change_to_go_next_block']
 
+# Retract the lickport to standby position 
+# and wait for some time until session starts
+retract_protract_motor(variables_subject['motor_retractedposition'])  
+iti_previous = 2  
+
 # For each block
 for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R'], variables['reward_probabilities_L'],variables['reward_probabilities_M'])):
     
@@ -555,6 +681,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                         
         with open(setupfile) as json_file:
             variables_setup_new = json.load(json_file)
+            
         if variables_setup_new != variables_setup or variables_subject_new != variables_subject:
             # Update effective `variables` ( = subject + setup)
             variables = variables_subject_new.copy()
@@ -572,7 +699,6 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             break  # Go to the next block NOW
         change_to_go_next_block_previous = variables['change_to_go_next_block']
 
-        
         triali += 1  # First trial number = 0; 
                      # By incrementing triali here, the trial number will include ignored trials.
         
@@ -582,15 +708,15 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         reward_M = random_values_M.pop(0) < p_M # np.random.uniform(0.,1.) < p_R
         
         # Generate ITI for this trial 
-        iti_now = np.random.exponential(variables['iti'],1) + variables['iti_min'] + ignore_trial_num_in_a_row*variables['increase_ITI_on_ignore_trials']*variables['iti']
-        #iti_now = 0
-        if iti_now > variables['iti_max']:
-            iti_now = variables['iti_max']    
-            
+        iti_this = np.random.exponential(variables['iti'],1) + variables['iti_min'] + ignore_trial_num_in_a_row*variables['increase_ITI_on_ignore_trials']*variables['iti']
+        #iti_this = 0
+        if iti_this > variables['iti_max']:
+            iti_this = variables['iti_max']    
+        
         # Generate delay period for this trial 
-        baselinetime_now =  np.random.exponential(variables['delay'],1)+variables['delay_min']# np.random.normal(variables['delay'],variables['delay_rate'])  
-        if baselinetime_now > variables['delay_max']:
-            baselinetime_now = variables['delay_max']
+        delay_now =  np.random.exponential(variables['delay'],1)+variables['delay_min']# np.random.normal(variables['delay'],variables['delay_rate'])  
+        if delay_now > variables['delay_max']:
+            delay_now = variables['delay_max']
         
         # If bias check: at the begining of the session, force the mouse to navigate all the lickports in sequence (two rounds)    
         if start_with_bias_check == 1 and blocki < bias_check_blocknum: 
@@ -601,63 +727,180 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             reward_R_accumulated = False
             reward_M_accumulated = False
             # Regular timing
-            iti_now = 2
-            baselinetime_now = 1
+            iti_this = 2
+            delay_now = 1
         # (Else: If no bias check or bias check has been done --> Normal trial begins)
         
-        # ------- Start of a trial ---------
+        # --------- New way of handling ITI ------
+        # Compensate for bpod overhead and bitcode length
+        iti_this -= iti_compensation
+        
+        # Then split iti_this into half, one before START and the other after END
+        # This is to ensure the "camera blackout" has the least effect
+        iti_before = iti_previous / 2
+        iti_before_video_on = min(iti_before - minimal_camera_gap/2, camera_max_before_start)
+        iti_before_video_off = iti_before - iti_before_video_on
+        
+        iti_after = iti_this / 2
+        iti_after_video_on = min(iti_after - minimal_camera_gap/2, camera_max_after_end)
+        iti_after_video_off = iti_after - iti_after_video_on
+        
+        print(f'iti_before = {iti_before_video_off} + {iti_before_video_on}')
+                
+        iti_previous = iti_this  
+        
+        # ============= StateMachine ===========
         sma = StateMachine(my_bpod)
+        
+        if if_recording_rig:
+            # Use global timer to trigger cameras
+            # https://pybpod.readthedocs.io/projects/pybpod-api/en/v1.8.1/pybpodapi/state_machine/state_machine.html?highlight=global_timers#module-pybpodapi.state_machine.global_timers
+            sma.set_global_timer(timer_id=1, 
+                                 timer_duration=camera_pulse, 
+                                 on_set_delay=0, 
+                                 channel=variables['camera_face_trig'],
+                                 on_message=1, 
+                                 off_message=1,
+                                 loop_mode=1, 
+                                 send_events=0,
+                                 loop_intervals=1/camera_face_fps - camera_pulse,
+                                 )
+            
+            sma.set_global_timer(timer_id=2, 
+                                 timer_duration=camera_pulse, 
+                                 on_set_delay=0, 
+                                 channel=variables['camera_trunk_trig'],
+                                 on_message=1, 
+                                 off_message=1,
+                                 loop_mode=1, 
+                                 send_events=0,
+                                 loop_intervals=1/camera_trunk_fps - camera_pulse,
+                                 )
+            
+            # 3rd global timer for trial indicator
+            sma.set_global_timer(timer_id=3, 
+                                 timer_duration=777,  # Infinity
+                                 on_set_delay=0, 
+                                 channel=variables['trial_indicator_channel'],
+                                 on_message=1, 
+                                 off_message=1,
+                                 loop_mode=0, 
+                                 send_events=0,
+                                 )        
+        
+        # ------- 0. Start of a trial (bit code if necessary) ---------
+        # ---------- Now the trial starts with ITIBefore ----------
+        # ITI_before = ITI_before_video_on + ITI_before_video_off
+        sma.add_state(
+                state_name='ITIBeforeVideoOff',
+                state_timer=iti_before_video_off, 
+                state_change_conditions={EventName.Tup: 'ITIBeforeVideoOn'},
+                output_actions = [('GlobalTimerTrig', 4)] if if_recording_rig else []      # Start global timer #3 (trial indicator)
+                )    
+        
+        sma.add_state(
+                state_name='ITIBeforeVideoOn',
+                state_timer=iti_before_video_on, 
+                state_change_conditions={EventName.Tup: 'Start'},
+                output_actions = [('GlobalTimerTrig', 3)] if if_recording_rig else []     # Start global timer #1 & #2 (cameras)
+                )    
+
+        # Now real trial start
+        # Bit code
+        if if_recording_rig:
+            sma.add_state(
+                state_name='Start',
+                state_timer=event_marker_dur['bitcode_eachbit']*2,  # Signals the start of bitcode
+                state_change_conditions={EventName.Tup: 'OffState1'},
+                output_actions = [(variables['bitcode_channel'], 1),   # Start the onset of bitcode
+                                  ('GlobalTimerTrig', 7),]    # Start cameras (7 = '111' = timers 1,2,3)  
+                                                              #!!! To let this line work, I changed Line 241 of pybpodapi\state_machine\state_machine_base.py
+                )    
+            randomID, sma = add_bitcode(sma, variables['bitcode_channel'])  
+            
+        else:  # Not bit code. Start = DelayStart
+            sma.add_state(
+                state_name='Start',
+                state_timer=0,
+                state_change_conditions={EventName.Tup: 'ProtractLickports'},
+                output_actions = [])
+            
+        # Protract the lickport *AFTER* bitcode. Otherwise early licks may interrupt the bitcode.
+        #!!! be careful of the moving time of the lickport
+        # TODO: Use trigger instead of softcode for lickport protraction as well 
+        if variables['motor_retract_waterport']:
+            # Protract lickports (using SoftCode 2)
+            # 1. Line 410: my_bpod.softcode_handler_function = my_softcode_handler
+            # 2. my_softcode_handler(2) brings the lickports to variables['motor_forwardposition'], 
+            #    which has been set OUTSIDE the trial loop.
+            # 3. my_softcode_handler() only controls the RostroCaudal axis
+            # 4. Therefore, any manual adjustment along the LEFT-RIGHT axis will be kept over a session, 
+            #    whereas the RostroCaudal position will be reset to the original value in every trial.         
+            sma.add_state(
+                state_name = 'ProtractLickports',   
+                state_timer = 0,
+                state_change_conditions={EventName.Tup: 'DelayStart'},
+                output_actions=[variables['protract_motor_signal']])  #(Bpod.OutputChannels.SoftCode, 2)
+        else:  # Do nothing
+            sma.add_state(
+                state_name = 'ProtractLickports',   
+                state_timer = 0,
+                state_change_conditions={EventName.Tup: 'DelayStart'},
+                output_actions=[variables['protract_motor_signal']])  # Also to protract position (temp workaround)
         
         # ---- 1. Delay period ----
         if variables['early_lick_punishment'] == 0:
             # If NO early lick punishment: start the go cue after the FIXED delay period
             sma.add_state(
-                state_name='Start',
-                state_timer=baselinetime_now,
+                state_name='DelayStart',
+                state_timer=delay_now,
                 state_change_conditions={EventName.Tup: 'GoCue'},
                 output_actions = [])
         else:
-            # If early lick punishment, go to a state called BackToBaseline
+            # If early lick punishment, go to a state called BackToDelayStart
             sma.add_state(
-                state_name='Start',
-                state_timer=baselinetime_now,
-                state_change_conditions={variables['WaterPort_L_ch_in']: 'BackToBaseline', 
-                                         variables['WaterPort_R_ch_in']: 'BackToBaseline',
-                                         variables['WaterPort_M_ch_in']: 'BackToBaseline',
+                state_name='DelayStart',
+                state_timer=delay_now,
+                state_change_conditions={variables['WaterPort_L_ch_in']: 'BackToDelayStart', 
+                                         variables['WaterPort_R_ch_in']: 'BackToDelayStart',
+                                         variables['WaterPort_M_ch_in']: 'BackToDelayStart',
                                          EventName.Tup: 'GoCue'},
                 output_actions = [])
             # Define actual punishiment
-            if variables['early_lick_punishment'] > 0:
+            if variables['early_lick_punishment'] > 0 or not variables['motor_retract_waterport']:
                 # Add timeout (during which more early licks will be ignored), then restart the trial
                 sma.add_state(
-                	state_name='BackToBaseline',
+                	state_name='BackToDelayStart',
                 	# state_timer=2,
                     # state_timer=variables['delay'],  # Control timeout by delay itself
-                    state_timer = float(variables['early_lick_punishment']), # As the timeout
-                	state_change_conditions={EventName.Tup: 'Start'},
+                    state_timer = abs(variables['early_lick_punishment']), # As the timeout
+                	state_change_conditions={EventName.Tup: 'DelayStart'},
                 	output_actions = [])
-            elif variables['early_lick_punishment'] < 0:  
+                
+            elif variables['early_lick_punishment'] < 0:   
                 # Abort the trial directly (avoid guessing during delay period)
                 # -- Should not go to ITI, otherwise the block length etc. could be incorrect ---
                 # sma.add_state(
-                # 	state_name='BackToBaseline',
+                # 	state_name='BackToDelayStart',
                 #     state_timer = 0,
                 # 	state_change_conditions={EventName.Tup: 'ITI'},
                 # 	output_actions = [])
              
-                # Still go to 'BackToBaseLine', but Retract lickports 
+                # Still go to 'BackToDelayStart', but Retract lickports 
                 sma.add_state(
-                 	state_name='BackToBaseline',
+                 	state_name='BackToDelayStart',
                     state_timer = abs(variables['early_lick_punishment']),
-                 	state_change_conditions={EventName.Tup: 'BackToStart'},
+                 	state_change_conditions={EventName.Tup: 'BackToDelayStartProtract'},
                  	output_actions = [variables['retract_motor_signal']])
                 
-                # Time out for abs(variables['early_lick_punishment']) seconds and then protract lickports
+                # Protract lickports before DelayStart (but still the same trial, no bit code again)
                 sma.add_state(
-                	state_name='BackToStart',
+                	state_name='BackToDelayStartProtract',
                 	state_timer=0,
-                	state_change_conditions={EventName.Tup: 'Start'},
+                	state_change_conditions={EventName.Tup: 'DelayStart'},
                 	output_actions = [variables['protract_motor_signal']]) #(Bpod.OutputChannels.SoftCode, 1)
+            else:   # No early lick punishment
+                pass
                 
             
         # autowater comes here!! (for encouragement)
@@ -718,29 +961,46 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             # In the autowater mode, it is the 'GoCue_real' that tells the mouse to lick
             sma.add_state(
             	state_name='GoCue_real',
+            	state_timer=event_marker_dur['go_cue'],
+            	state_change_conditions={EventName.Tup: 'AfterGoCue'},
+            	output_actions = ([goCue_command, (variables['bitcode_channel'], 1)] 
+                                  if if_recording_rig else 
+                                  [goCue_command])
+                               )   # Reaction time
+            
+            sma.add_state(
+            	state_name='AfterGoCue',
             	state_timer=variables['response_time'],
-            	state_change_conditions={variables['WaterPort_L_ch_in']: 'Choice_L', variables['WaterPort_R_ch_in']: 'Choice_R', variables['WaterPort_M_ch_in']: 'Choice_M', EventName.Tup: 'ITI'},
-            	output_actions = [(variables['GoCue_ch'],255)])   # PWM5 --> 100% duty cycle (always on)
-                                                                  # Q: Why not using DigitalOut?
-                                                                  # A: Because PWM is the only 3.3V digital out port (designed to control LED brightness)
-                                                                  #    'Valve' is also digital out but it's 12V!
-                                                                  # See here: https://sanworks.io/forum/showthread.php?tid=25
+            	state_change_conditions={variables['WaterPort_L_ch_in']: 'Choice_L', 
+                                         variables['WaterPort_R_ch_in']: 'Choice_R', 
+                                         variables['WaterPort_M_ch_in']: 'Choice_M', 
+                                         EventName.Tup: 'ITI'},
+            	output_actions = [])   # Reaction time
+
             # End of autowater's gocue
             
         else:
             # ------ 2. GoCue (normal) --------
             # Licks detected within the response time --> Choice_X, where X is the first licked port; 
             # Otherwise, Tup --> ITI --> end of this trial 
+            
             sma.add_state(
             	state_name='GoCue',
+                state_timer=event_marker_dur['go_cue'],
+            	state_change_conditions={EventName.Tup: 'AfterGoCue'},
+            	output_actions = ([goCue_command, (variables['bitcode_channel'], 1)] 
+                                  if if_recording_rig else 
+                                  [goCue_command]) 
+                               )
+
+            sma.add_state(
+            	state_name='AfterGoCue',
                 state_timer=variables['response_time'],
             	state_change_conditions={variables['WaterPort_L_ch_in']: 'Choice_L_fixation_reward', 
                                          variables['WaterPort_R_ch_in']: 'Choice_R_fixation_reward', 
                                          variables['WaterPort_M_ch_in']: 'Choice_M_fixation_reward', 
                                          EventName.Tup: 'ITI'},
-            	output_actions = [(variables['GoCue_ch'],255)])   # Set PWM5 to 100% duty cycle (always on), which triggers the wav trigger board
-                                                                  # Make sure that the sd card in the wav-trigger board is set properly 
-                                                                  # such that it will be triggered by the ONSET of PWM signal!!
+            	output_actions = []) 
             
             # Give the mouse a small amount of water for successful holding in the delay period
             for lickport in ['L', 'R', 'M']:
@@ -769,64 +1029,44 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         #     Lick any port other than X --> [ITI]
         #     TimeUp 1s --> [ITI]
 
-        if reward_L or reward_L_accumulated:  # reward_L: reward generated in the current trial
-                                              # reward_L_accumulated: reward baited from the last trial
-            sma.add_state(
-            	state_name='Choice_L',
-            	state_timer=0,
-            	state_change_conditions={EventName.Tup: 'Reward_L'},
-            	output_actions = [])#(variables['Choice_cue_L_ch'],255)   # Not to confuse the mice with too many sounds.
-        else:
-            sma.add_state(
-            	state_name='Choice_L',
-            	state_timer=0,
-            	# state_change_conditions={EventName.Tup: 'NO_Reward'},
-            	state_change_conditions={EventName.Tup: 'Consume_reward_L'},   # Directly jump to Consume_reward_L (no immediate retraction!!)
-            	output_actions = []) #(variables['Choice_cue_L_ch'],255)
-            
-        if reward_R or reward_R_accumulated:
-            sma.add_state(
-            	state_name='Choice_R',
-            	state_timer=0,
-            	state_change_conditions={EventName.Tup: 'Reward_R'},
-            	output_actions = [])#(variables['Choice_cue_R_ch'],255)
-        else:
-            sma.add_state(
-            	state_name='Choice_R',
-            	state_timer=0,
-            	# state_change_conditions={EventName.Tup: 'NO_Reward'},
-            	state_change_conditions={EventName.Tup: 'Consume_reward_R'},
-            	output_actions = [])#(variables['Choice_cue_R_ch'],255)
-            
-        if reward_M or reward_M_accumulated:
-            sma.add_state(
-            	state_name='Choice_M',
-            	state_timer=0,
-            	state_change_conditions={EventName.Tup: 'Reward_M'},
-            	output_actions = [])#(variables['Choice_cue_R_ch'],255)
-        else:
-            sma.add_state(
-            	state_name='Choice_M',
-            	state_timer=0,
-            	# state_change_conditions={EventName.Tup: 'NO_Reward'},
-            	state_change_conditions={EventName.Tup: 'Consume_reward_M'},
-            	output_actions = [])#(variables['Choice_cue_R_ch'],255)
+        sma.add_state(
+        	state_name='Choice_L',
+        	state_timer=event_marker_dur['choice_L'],  # Send a event marker to BNC1
+        	state_change_conditions={EventName.Tup: 
+                                     'Reward_L'  if reward_L or reward_L_accumulated  # reward_L: reward generated in the current trial
+                                                                                      # reward_L_accumulated: reward baited from the last trial
+                                     else 'Consume_reward_L'},         # No reward            
+        	output_actions = [(variables['bitcode_channel'], 1)] if if_recording_rig else [])  #(variables['Choice_cue_L_ch'],255)   # Not to confuse the mice with too many sounds.
+
+        sma.add_state(
+        	state_name='Choice_R',
+        	state_timer=event_marker_dur['choice_R'],  # Send a event marker to BNC1
+        	state_change_conditions={EventName.Tup: 
+                                     'Reward_R'  if reward_R or reward_R_accumulated  
+                                     else 'Consume_reward_R'},                       
+        	output_actions = [(variables['bitcode_channel'], 1)] if if_recording_rig else [])  #(variables['Choice_cue_L_ch'],255)   # Not to confuse the mice with too many sounds.
+
+        sma.add_state(
+        	state_name='Choice_M',
+        	state_timer=event_marker_dur['choice_M'],  # Send a event marker to BNC1
+        	state_change_conditions={EventName.Tup: 
+                                     'Reward_M'  if reward_M or reward_M_accumulated
+                                     else 'Consume_reward_M'},                       
+        	output_actions = [(variables['bitcode_channel'], 1)] if if_recording_rig else [])  #(variables['Choice_cue_L_ch'],255)   # Not to confuse the mice with too many sounds.
         
-        sma.add_state(
-        	state_name='Reward_L',
-        	state_timer=variables['ValveOpenTime_L'],
-        	state_change_conditions={EventName.Tup: 'Consume_reward_L'},
-        	output_actions = [('Valve',variables['WaterPort_L_ch_out'])])
-        sma.add_state(
-        	state_name='Reward_R',
-        	state_timer=variables['ValveOpenTime_R'],
-        	state_change_conditions={EventName.Tup: 'Consume_reward_R'},
-        	output_actions = [('Valve',variables['WaterPort_R_ch_out'])])
-        sma.add_state(
-        	state_name='Reward_M',
-        	state_timer=variables['ValveOpenTime_M'],
-        	state_change_conditions={EventName.Tup: 'Consume_reward_M'},
-        	output_actions = [('Valve',variables['WaterPort_M_ch_out'])])
+            
+        for lickport in ('L', 'R', 'M'):
+            sma.add_state(
+            	state_name=f'Reward_{lickport}',
+            	state_timer=variables[f'ValveOpenTime_{lickport}'],
+            	state_change_conditions={EventName.Tup: f'EventMarker_reward_{lickport}'},
+            	output_actions = [('Valve',variables[f'WaterPort_{lickport}_ch_out'])])
+            sma.add_state(
+            	state_name=f'EventMarker_reward_{lickport}',
+            	state_timer=event_marker_dur['reward'],
+            	state_change_conditions={EventName.Tup: f'Consume_reward_{lickport}'},
+            	output_actions = [(variables['bitcode_channel'], 1)] if if_recording_rig else [])
+
 
         # sma.add_state(
         # 	state_name='NO_Reward',
@@ -855,6 +1095,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         # 	output_actions = [])
         
         # --- Any better way? Can the pbod store some local variables (i.e., the last choice)? ---
+        
         sma.add_state(
         	state_name='Consume_reward_L',
         	state_timer=variables['Reward_consume_time'],  # time needed without lick to go to the next trial
@@ -916,39 +1157,45 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         # 	state_change_conditions={EventName.Tup: 'Consume_reward'},
         # 	output_actions = [])
         
-        # --- 4. ITI ----
+        # --- 4. ITI_after ----
+        # ITI_after = ITI_after_video_on + ITI_after_video_off
+        
+        # For backward compatibility,  "ITI" here retract motor and signal the ITI pulse
+        temp_action = []
         if variables['motor_retract_waterport']:
-            # Retract lickports (using PWM7 or 8)
-            sma.add_state(
-            	state_name='ITI',
-            	state_timer=iti_now,
-            	state_change_conditions={EventName.Tup: 'End'},
-            	output_actions = [variables['retract_motor_signal']]) #(Bpod.OutputChannels.SoftCode, 1)
+            temp_action.append(variables['retract_motor_signal'])
+        
+        if if_recording_rig:
+            temp_action.append((variables['bitcode_channel'], 1))
+           
+        sma.add_state(
+        	state_name='ITI',
+        	state_timer=event_marker_dur['iti_start'],
+        	state_change_conditions={EventName.Tup: 'ITIAfterVideoOn'},
+        	output_actions = temp_action
+            )
+       
+        sma.add_state(
+                state_name='ITIAfterVideoOn',
+                state_timer=iti_after_video_on, 
+                state_change_conditions={EventName.Tup: 'ITIAfterVideoOff'},
+                output_actions = []      
+                )
+
+        sma.add_state(
+                state_name='ITIAfterVideoOff',
+                state_timer=iti_after_video_off, 
+                state_change_conditions={EventName.Tup: 'End'},
+                output_actions = [('GlobalTimerCancel', 3)]      # Stop global timer #1 & #2 (cameras)
+                )                
             
-            # Protract lickports (using SoftCode 2)
-            # 1. Line 410: my_bpod.softcode_handler_function = my_softcode_handler
-            # 2. my_softcode_handler(2) brings the lickports to variables['motor_forwardposition'], 
-            #    which has been set OUTSIDE the trial loop.
-            # 3. my_softcode_handler() only controls the RostroCaudal axis
-            # 4. Therefore, any manual adjustment along the LEFT-RIGHT axis will be kept over a session, 
-            #    whereas the RostroCaudal position will be reset to the original value in every trial.         
-            sma.add_state(
-                state_name = 'End',   # Actually it's more like the start of the next trial
-                state_timer = 0,
-                state_change_conditions={EventName.Tup: 'exit'},
-                output_actions=[variables['protract_motor_signal']]) #(Bpod.OutputChannels.SoftCode, 2)
+        # --- 5. Now the "End" state should be in the middle of this trial END and next trial START ---    
+        sma.add_state(
+            state_name = 'End',
+            state_timer = 0,
+            state_change_conditions={EventName.Tup: 'exit'},
+            output_actions=[])  
             
-        else:    
-            sma.add_state(
-            	state_name='ITI',
-            	state_timer=iti_now,
-            	state_change_conditions={EventName.Tup: 'End'},
-            	output_actions = [])
-            sma.add_state(
-                state_name = 'End',
-                state_timer = 0,
-                state_change_conditions={EventName.Tup: 'exit'},
-                output_actions=[])
     
         my_bpod.send_state_machine(sma)  # Send state machine description to Bpod device
     
@@ -996,6 +1243,9 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         
         print('Blocknumber:', blocki + 1)
         print('Trialnumber:', triali + 1)
+        if if_recording_rig:
+            print('TrialBitCode: ', randomID)
+
         print('Trialtype:', 'free choice')
         print('reward_L_accumulated:',reward_L_accumulated)
         print('reward_R_accumulated:',reward_R_accumulated)
