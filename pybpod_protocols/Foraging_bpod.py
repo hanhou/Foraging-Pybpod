@@ -18,12 +18,12 @@ highest_probability_port_must_change = True
 
 # ---- Time settings -----
 event_marker_dur = {# bitcode_channel (BNC1)
-                    'bitcode_eachbit': 0.001,  
+                    'bitcode_eachbit': 0.001,   # Bitcode start is signaled by a 1.5x pulse
                     'go_cue': 0.01,   
                     'reward': 0.02,   
                     'choice_L': 0.002,   
-                    'choice_R': 0.003,
-                    'choice_M': 0.004,
+                    'choice_R': 0.0025,
+                    # 'choice_M': 0.005,
                     'iti_start': 0.03
                     }
 
@@ -810,7 +810,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         if if_recording_rig:
             sma.add_state(
                 state_name='Start',
-                state_timer=event_marker_dur['bitcode_eachbit']*2,  # Signals the start of bitcode
+                state_timer=event_marker_dur['bitcode_eachbit']*1.5,  # Signals the start of bitcode (1.5x width)
                 state_change_conditions={EventName.Tup: 'OffState1'},
                 output_actions = [(variables['bitcode_channel'], 1),   # Start the onset of bitcode
                                   ('GlobalTimerTrig', 7),]    # Start cameras (7 = '111' = timers 1,2,3)  
