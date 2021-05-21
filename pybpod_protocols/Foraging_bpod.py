@@ -23,7 +23,7 @@ event_marker_dur = {# bitcode_channel (BNC1)
                     'reward': 0.02,   
                     'choice_L': 0.002,   
                     'choice_R': 0.0025,
-                    # 'choice_M': 0.005,
+                    'choice_M': 0.0035,
                     'iti_start': 0.03
                     }
 
