@@ -634,7 +634,7 @@ else:
 set_motor_speed() # the motors should move FAST    
 
 # Save the random seed for reproducibility
-randomseedvalue = datetime.now().timetuple().tm_yday    
+randomseedvalue = int(time.time())  # datetime.now().timetuple().tm_yday
 np.random.seed(randomseedvalue)
 random_values_L = np.random.uniform(0.,1.,2000).tolist()
 random_values_R = np.random.uniform(0.,1.,2000).tolist()
