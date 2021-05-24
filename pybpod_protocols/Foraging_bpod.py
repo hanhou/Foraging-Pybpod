@@ -745,12 +745,14 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         iti_after_video_on = min(iti_after - minimal_camera_gap/2, camera_max_after_end)
         iti_after_video_off = iti_after - iti_after_video_on
         
-        print(f'iti_before = {iti_before_video_off} + {iti_before_video_on}')
+        # print(f'iti_before = {iti_before_video_off} + {iti_before_video_on}')
                 
         iti_previous = iti_this  
         
         # ============= StateMachine ===========
         sma = StateMachine(my_bpod)
+        print('Blocknumber:', blocki + 1)
+        print('Trialnumber:', triali + 1)
         
         if if_recording_rig:
             # Use global timer to trigger cameras
@@ -817,6 +819,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                                                               #!!! To let this line work, I changed Line 241 of pybpodapi\state_machine\state_machine_base.py
                 )    
             randomID, sma = add_bitcode(sma, variables['bitcode_channel'])  
+            print('TrialBitCode: ', randomID)    # Moved it here to avoid the bug where there is ITI but no bitcode
             
         else:  # Not bit code. Start = DelayStart
             sma.add_state(
@@ -1241,11 +1244,6 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             elif reward_M and not reward_M_consumed:
                 reward_M_accumulated = True
         
-        print('Blocknumber:', blocki + 1)
-        print('Trialnumber:', triali + 1)
-        if if_recording_rig:
-            print('TrialBitCode: ', randomID)
-
         print('Trialtype:', 'free choice')
         print('reward_L_accumulated:',reward_L_accumulated)
         print('reward_R_accumulated:',reward_R_accumulated)
