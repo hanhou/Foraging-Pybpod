@@ -670,6 +670,8 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
     # Make sure the subject gets at least `auto_train_min_rewarded_trial_num` rewards
     while triali < trialnum_now - 1 or rewarded_trial_num < auto_train_min_rewarded_trial_num:
         
+        print('-----------------------------')
+        
         # Update variables if variables changed in json file DURING RUNNING (from behavior_online_analysis GUI)
         # Note: those who control block structure will not take effect unless rerunning the protocol!!! (eg: reward probs)
         with open(subjectfile) as json_file:
@@ -1208,13 +1210,18 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         
         # -------- Handle reward baiting, print log messages, etc. ---------
         # Check if the mouse got a reward in this trial
-        trialdata = my_bpod.session.current_trial.export()
-        reward_L_consumed = not np.isnan(trialdata['States timestamps']['Reward_L'][0][0])
-        reward_R_consumed = not np.isnan(trialdata['States timestamps']['Reward_R'][0][0])
-        reward_M_consumed = not np.isnan(trialdata['States timestamps']['Reward_M'][0][0])
-        L_chosen = not np.isnan(trialdata['States timestamps']['Choice_L'][0][0])
-        R_chosen = not np.isnan(trialdata['States timestamps']['Choice_R'][0][0])
-        M_chosen = not np.isnan(trialdata['States timestamps']['Choice_M'][0][0])
+        try:
+            trialdata = my_bpod.session.current_trial.export()
+            
+            reward_L_consumed = not np.isnan(trialdata['States timestamps']['Reward_L'][0][0])
+            reward_R_consumed = not np.isnan(trialdata['States timestamps']['Reward_R'][0][0])
+            reward_M_consumed = not np.isnan(trialdata['States timestamps']['Reward_M'][0][0])
+            L_chosen = not np.isnan(trialdata['States timestamps']['Choice_L'][0][0])
+            R_chosen = not np.isnan(trialdata['States timestamps']['Choice_R'][0][0])
+            M_chosen = not np.isnan(trialdata['States timestamps']['Choice_M'][0][0])
+        except:
+            reward_L_consumed, reward_R_consumed, reward_M_consumed, L_chosen, R_chosen, M_chosen = [None] * 6
+                
         
         # Update counters
         if reward_L_consumed or reward_R_consumed or reward_M_consumed:
@@ -1282,14 +1289,14 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
 #                 notify_experimenter(metadata,os.path.join(rootdir,'Notifications'))
 # =============================================================================
             elif ignore_trial_num_in_a_row == auto_stop_max_ignored_trials_in_a_row / 2:
-                print('too many ignores')
-                metadata = dict()
-                metadata['experiment_name'] = experiment_name
-                metadata['setup_name'] = setup_name
-                metadata['subject_name'] = subject_name
-                metadata['experimenter_name'] = experimenter_name        
-                metadata['reason'] = '5 ignores in a row .. mouse is slowing down!'
-                notify_experimenter(metadata,os.path.join(rootdir,'Notifications'))
+                print('mouse is slowing down!')
+                # metadata = dict()
+                # metadata['experiment_name'] = experiment_name
+                # metadata['setup_name'] = setup_name
+                # metadata['subject_name'] = subject_name
+                # metadata['experimenter_name'] = experimenter_name        
+                # metadata['reason'] = '5 ignores in a row .. mouse is slowing down!'
+                # notify_experimenter(metadata,os.path.join(rootdir,'Notifications'))
 # =============================================================================
 #             if unrewarded_trial_num_in_a_row == 10:
 #                 print('lot of wrong choices')
@@ -1306,13 +1313,13 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         
     if ignore_trial_num_in_a_row > auto_stop_max_ignored_trials_in_a_row:
         print('too many ignores')
-        metadata = dict()
-        metadata['experiment_name'] = experiment_name
-        metadata['setup_name'] = setup_name
-        metadata['subject_name'] = subject_name
-        metadata['experimenter_name'] = experimenter_name        
-        metadata['reason'] = '10 ignores in a row - experiment was terminated!'
-        notify_experimenter(metadata,os.path.join(rootdir,'Notifications'))
+        # metadata = dict()
+        # metadata['experiment_name'] = experiment_name
+        # metadata['setup_name'] = setup_name
+        # metadata['subject_name'] = subject_name
+        # metadata['experimenter_name'] = experimenter_name        
+        # metadata['reason'] = '10 ignores in a row - experiment was terminated!'
+        # notify_experimenter(metadata,os.path.join(rootdir,'Notifications'))
         break
     
     # ------ End of this block --------
