@@ -33,7 +33,8 @@ class App(QDialog):
         self.setGeometry(self.left, self.top, self.width, self.height)
         
         self.createGridLayout()
-        
+        self.setWindowFlag(Qt.WindowMinimizeButtonHint, True)
+
         windowLayout = QVBoxLayout()
         windowLayout.addWidget(self.Motorcontrol)
         windowLayout.addWidget(self.bpodcontrol)

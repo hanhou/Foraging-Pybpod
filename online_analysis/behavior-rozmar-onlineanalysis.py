@@ -452,6 +452,8 @@ class App(QDialog):
         windowLayout.addWidget(self.horizontalGroupBox_axes)
         windowLayout.addWidget(self.horizontalGroupBox_variables)
         self.setLayout(windowLayout)
+        self.setWindowFlag(Qt.WindowMinimizeButtonHint, True)
+        self.setWindowFlag(Qt.WindowMaximizeButtonHint, True)
         
         self.show()
     
