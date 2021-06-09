@@ -148,6 +148,7 @@ def main(camera_serial_number, fileName_prefix):
 												 setting_in_gui.width,
 												 setting_in_gui.height,
 												 setting_in_gui.pixelFormat)
+												 
 
 	fmt7pktInf, isValid = c.validateFormat7Settings(fmt7imgSet)
 	if not isValid:
@@ -174,6 +175,9 @@ def main(camera_serial_number, fileName_prefix):
 	printCameraInfo(c)
 	print "\n---------------- \n"
 	print "Camera: ", fileName_prefix	
+	print "mode = ", setting_in_gui.mode
+	print "width * height = ", setting_in_gui.width, "*", setting_in_gui.height
+
 
 	# --------------------------------------------------
 	# Start acquisition
