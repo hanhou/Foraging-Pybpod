@@ -642,6 +642,7 @@ random_values_M = np.random.uniform(0.,1.,2000).tolist()
 print('Random seed:', str(randomseedvalue))    
 
 # ===============  Session start ====================
+
 # Initialization for manual block switch
 if 'change_to_go_next_block' not in variables.keys():
     variables['change_to_go_next_block'] = 0  # Which never changes (backward compatibility)
@@ -1204,7 +1205,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
     
         my_bpod.send_state_machine(sma)  # Send state machine description to Bpod device
     
-        my_bpod.run_state_machine(sma)  # Run state machine
+        bpod_status = my_bpod.run_state_machine(sma)  # Run state machine
         
         # ----------- End of state machine ------------
         
@@ -1232,6 +1233,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         if L_chosen or R_chosen or M_chosen:
             ignore_trial_num_in_a_row  = 0
         else:
+            print(f'ignored {ignore_trial_num_in_a_row}')
             ignore_trial_num_in_a_row += 1
         
         # Handle reward baiting
@@ -1311,8 +1313,16 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
 
         # ------- End of this trial -------
         
+        # If STOP button has been pressed, break the remaining trials to avoid "too many ignores"
+        if ~bpod_status:  break
+    
+    # also break the remaining blocks
+    if ~bpod_status:  
+        print('STOP button pressed!')
+        break
+    
     if ignore_trial_num_in_a_row > auto_stop_max_ignored_trials_in_a_row:
-        print('too many ignores')
+        print(f'too many ignores {ignore_trial_num_in_a_row} > {auto_stop_max_ignored_trials_in_a_row}')
         # metadata = dict()
         # metadata['experiment_name'] = experiment_name
         # metadata['setup_name'] = setup_name
