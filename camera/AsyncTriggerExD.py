@@ -24,7 +24,7 @@ from sys import exit
 from time import sleep, time
 import numpy as np
 
-trial_time_out = 30  # If no frame arrives in trial_time_out, restart a new trial (overhead ~ 10 ms)
+trial_time_out = 50  # If no frame arrives in trial_time_out, restart a new trial (overhead ~ 10 ms)
 
 def printBuildInfo():
 	libVer = PyCapture2.getLibraryVersion()
