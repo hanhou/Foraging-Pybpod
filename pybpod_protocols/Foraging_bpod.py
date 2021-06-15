@@ -32,7 +32,7 @@ camera_max_before_start = 2
 camera_max_after_end = 2
 
 # Minimal camera gap
-minimal_camera_gap = 0.1   # 100 ms for video recording overhead (close .avi file and open the next)
+minimal_camera_gap = 0.2   # 100 ms for video recording overhead (close .avi file and open the next)
 
 # For more precise ITIs, iti_compensation = bpod overhead + bit code length is subtracted from the effective ITI
 bpod_load_overhead = 0.05  # measured value
