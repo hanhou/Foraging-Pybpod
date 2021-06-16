@@ -643,6 +643,8 @@ print('Random seed:', str(randomseedvalue))
 
 # ===============  Session start ====================
 
+bpod_stopped = False
+
 # Initialization for manual block switch
 if 'change_to_go_next_block' not in variables.keys():
     variables['change_to_go_next_block'] = 0  # Which never changes (backward compatibility)
@@ -1205,7 +1207,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
     
         my_bpod.send_state_machine(sma)  # Send state machine description to Bpod device
     
-        bpod_status = my_bpod.run_state_machine(sma)  # Run state machine
+        my_bpod.run_state_machine(sma)  # Run state machine
         
         # ----------- End of state machine ------------
         
@@ -1222,7 +1224,9 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             M_chosen = not np.isnan(trialdata['States timestamps']['Choice_M'][0][0])
         except:
             reward_L_consumed, reward_R_consumed, reward_M_consumed, L_chosen, R_chosen, M_chosen = [None] * 6
-                
+            # print('current_trial.export failed')
+            bpod_stopped = True    # A correct indication of STOP is pressed 
+                                   # (bpod_status = my_bpod.run_state_machine(sma) didn't work)
         
         # Update counters
         if reward_L_consumed or reward_R_consumed or reward_M_consumed:
@@ -1314,10 +1318,10 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         # ------- End of this trial -------
         
         # If STOP button has been pressed, break the remaining trials to avoid "too many ignores"
-        if ~bpod_status:  break
+        if bpod_stopped:  break
     
     # also break the remaining blocks
-    if ~bpod_status:  
+    if bpod_stopped:  
         print('STOP button pressed!')
         break
     
