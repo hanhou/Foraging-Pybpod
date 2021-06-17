@@ -18,14 +18,19 @@ highest_probability_port_must_change = True
 
 # ---- Time settings -----
 event_marker_dur = {# bitcode_channel (BNC1)
-                    'bitcode_eachbit': 0.001,   # Bitcode start is signaled by a 1.5x pulse
-                    'go_cue': 0.01,   
-                    'reward': 0.02,   
-                    'choice_L': 0.002,   
-                    'choice_R': 0.0025,
-                    'choice_M': 0.0035,
-                    'iti_start': 0.03
+                    'bitcode_eachbit': 0.01,   # Couldn't be too small (like 1ms), otherwise the timing error of 
+                                               # bpod may cause problematic bitcodes (4 trials out of 2000 trials)
+                    'go_cue': 0.005,      # Relatively time-sensitive, should be shorter 
+                    'choice_L': 0.001,    # Relatively time-sensitive, should be shorter
+                    'choice_R': 0.002,    # Relatively time-sensitive, should be shorter
+                    'choice_M': 0.003,    # Relatively time-sensitive, should be shorter
+                    'reward': 0.03,       # Not very time-sensitive
+                    'iti_start': 0.04     # Not very time-sensitive
                     }
+
+# Bitcode setting
+bitcode_digits = 20
+bitcode_first_multiplier = 2  # Bitcode start (or trial start) is signaled by a 2x pulse
 
 # Max duration of camera rolling before/after (conventional) trial start/end (in sec)
 camera_max_before_start = 2 
@@ -36,7 +41,7 @@ minimal_camera_gap = 0.2   # 100 ms for video recording overhead (close .avi fil
 
 # For more precise ITIs, iti_compensation = bpod overhead + bit code length is subtracted from the effective ITI
 bpod_load_overhead = 0.05  # measured value
-iti_compensation = 0.05 + 42 * event_marker_dur['bitcode_eachbit']  
+iti_compensation = bpod_load_overhead + (bitcode_first_multiplier + 2*bitcode_digits) * event_marker_dur['bitcode_eachbit']  
 
 # ---- Camera fps ----
 camera_face_fps = 300 # face camera, side view and bottom view
@@ -158,11 +163,10 @@ def gen_sin_wave(sampling_rate, freq, duration):
 
 def add_bitcode(sma, bitcode_channel):  
     # To be consistent with Matlab version
-    # Note that this will add 2*(1+digits)*bitcode_event_marker_dur['bitcode_eachbit'] to the ITI 
-    digits = 20
+    # Note that this will add 2*(1+bitcode_digits)*bitcode_event_marker_dur['bitcode_eachbit'] to the ITI 
     randomID = ''
     
-    for digit in range(digits):
+    for digit in range(bitcode_digits):
         sma.add_state( 
             state_name=f'OffState{digit+1}',
             state_timer=event_marker_dur['bitcode_eachbit'],
@@ -817,7 +821,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         if if_recording_rig:
             sma.add_state(
                 state_name='Start',
-                state_timer=event_marker_dur['bitcode_eachbit']*1.5,  # Signals the start of bitcode (1.5x width)
+                state_timer=event_marker_dur['bitcode_eachbit']*bitcode_first_multiplier,  # Signals the start of bitcode (1.5x width)
                 state_change_conditions={EventName.Tup: 'OffState1'},
                 output_actions = [(variables['bitcode_channel'], 1),   # Start the onset of bitcode
                                   ('GlobalTimerTrig', 7),]    # Start cameras (7 = '111' = timers 1,2,3)  
