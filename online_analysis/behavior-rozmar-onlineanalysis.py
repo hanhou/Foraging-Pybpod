@@ -554,6 +554,7 @@ class App(QDialog):
         # Add NavigationToolBar (zoom in/out). HH20200729
         self.handles['axes'] = PlotCanvas(self, width=5, height=4)
         self.handles['navigation_toolbar'] = NavigationToolbar(self.handles['axes'], self, )
+        self.handles['training_results'] =  QLineEdit(self)
         
         # Use only one canvas for all (sub)plots, which makes axis control more straightforward. HH20200729
         # self.handles['axes1'] = PlotCanvas(self, width=5, height=4)
@@ -562,9 +563,9 @@ class App(QDialog):
         # layout_axes.addWidget(self.handles['axes2'],2,0)
         # self.handles['axes1'].axes.get_shared_x_axes().join(self.handles['axes1'].axes, self.handles['axes2'].axes)
 
-        layout_axes.addWidget(self.handles['navigation_toolbar'],0,0)
-        layout_axes.addWidget(self.handles['axes'], 1, 0)
-
+        layout_axes.addWidget(self.handles['navigation_toolbar'], 0, 0, 1, 2)
+        layout_axes.addWidget(self.handles['training_results'], 0, 2, 1, 6 )
+        layout_axes.addWidget(self.handles['axes'], 1, 0, 1, 8)
 
         self.horizontalGroupBox_axes.setLayout(layout_axes)
         
@@ -1064,8 +1065,16 @@ class PlotCanvas(FigureCanvas):
                 
         # --- Plotting ---
         self.plot_licks_and_rewards(times)
-        self.plot_bias(times, values, win_width)
-        self.plot_matching(times, win_width)
+        (num_total_trials, num_finished_trials, num_rewarded_trials, for_eff_optimal, for_eff_optimal_actual, 
+                   early_licks_per_trial, double_dipping_rate) = self.plot_bias(times, values, win_width)
+        slope, intercept, r_value = self.plot_matching(times, win_width)
+        
+        valve_time = float(self.parent().parent().handles['variables_subject']['ValveOpenTime_L'].text())
+        self.parent().parent().handles['training_results'].setText(f'{num_total_trials}\t{num_finished_trials}\t'
+                                                                   f'{num_rewarded_trials}\t{for_eff_optimal*100:.1f}\t{for_eff_optimal_actual*100:.1f}\t'
+                                                                   f'{early_licks_per_trial:.2f}\t{double_dipping_rate:.2f}\t{intercept:.2f}\t{valve_time}')
+        
+        pass
 
     # Moved minethedata() to App
     # def minethedata(self,data,session):
@@ -1408,6 +1417,9 @@ class PlotCanvas(FigureCanvas):
                     self.parent().parent().save_parameters()
                 self.last_success_switch = actual_sucess_flag
                 # self.parent().parent().cache_auto_train_min_rewarded_trial_num = real_cached_min_reward # Really restore the cached value
+                
+        return (num_total_trials, num_finished_trials, num_rewarded_trials, for_eff_optimal, for_eff_optimal_actual, 
+                   early_licks_per_trial, double_dipping_rate)
             
         
     def plot_matching(self, times, win_width):       
@@ -1476,6 +1488,7 @@ class PlotCanvas(FigureCanvas):
             pass
         
         self.draw()
+        return slope, intercept, r_value
         
             
     def _foraging_eff(self, reward_rate, p_Ls, p_Rs, random_number_L=None, random_number_R=None):  # Calculate foraging efficiency (only for 2lp)
