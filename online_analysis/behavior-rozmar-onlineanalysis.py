@@ -1375,6 +1375,7 @@ class PlotCanvas(FigureCanvas):
             p_reward_ratio = values['p_reward_ratio'][~np.isnan(values['p_reward_ratio'])]
             if p_reward_ratio[-1] == 0.5:
                 self.success_switch_now = True
+                self.success_switch_once = True
             else: 
                 idx_now = len(p_reward_ratio)
                 if len(np.where(np.diff(p_reward_ratio))[0]):
