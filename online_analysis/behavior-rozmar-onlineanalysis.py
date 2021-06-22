@@ -1070,7 +1070,9 @@ class PlotCanvas(FigureCanvas):
         slope, intercept, r_value = self.plot_matching(times, win_width)
         
         valve_time = float(self.parent().parent().handles['variables_subject']['ValveOpenTime_L'].text())
-        self.parent().parent().handles['training_results'].setText(f'{num_total_trials}\t{num_finished_trials}\t'
+        setup_now = self.parent().parent().handles['filter_setup'].currentText()
+        self.parent().parent().handles['training_results'].setText(f'{setup_now}\t'
+                                                                   f'{num_total_trials}\t{num_finished_trials}\t'
                                                                    f'{num_rewarded_trials}\t{for_eff_optimal*100:.1f}\t{for_eff_optimal_actual*100:.1f}\t'
                                                                    f'{early_licks_per_trial:.2f}\t{double_dipping_rate:.2f}\t{intercept:.2f}\t{valve_time}')
         
