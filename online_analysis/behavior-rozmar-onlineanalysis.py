@@ -287,8 +287,6 @@ class App(QDialog):
                 self.handles['load_the_data'].setText('Load the data')
                 self.handles['load_the_data'].setStyleSheet('QPushButton {color: black;}')
                 
-                self.handles['select_session'].clear()
-                
                 # self.updateUI()
         else:
             print('pickle_write_thread is alive, skipping load')
@@ -1076,7 +1074,7 @@ class PlotCanvas(FigureCanvas):
         setup_now = self_parent.handles['filter_setup'].currentText()
         
         # Lickport's relative lateral position
-        aver_len = min(10, len(values['motor_position_lateral']))
+        aver_len = min(5, len(values['motor_position_lateral']))
         lat_pos_relative = np.median(values['motor_position_lateral'][-aver_len:]) - np.median(values['motor_position_lateral'][:aver_len])
         
         self_parent.handles['training_results'].setText(f'{setup_now}\t'
@@ -1496,6 +1494,7 @@ class PlotCanvas(FigureCanvas):
             ax.legend(loc='lower right', fontsize=10)
             ax.axis('equal')
         except:
+            slope, intercept, r_value = [np.nan] * 3
             pass
         
         self.draw()
