@@ -1076,7 +1076,7 @@ class PlotCanvas(FigureCanvas):
         setup_now = self_parent.handles['filter_setup'].currentText()
         
         # Lickport's relative lateral position
-        aver_len = max(10, len(values['motor_position_lateral']))
+        aver_len = min(10, len(values['motor_position_lateral']))
         lat_pos_relative = np.median(values['motor_position_lateral'][-aver_len:]) - np.median(values['motor_position_lateral'][:aver_len])
         
         self_parent.handles['training_results'].setText(f'{setup_now}\t'
