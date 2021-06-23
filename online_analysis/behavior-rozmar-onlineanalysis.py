@@ -287,7 +287,9 @@ class App(QDialog):
                 self.handles['load_the_data'].setText('Load the data')
                 self.handles['load_the_data'].setStyleSheet('QPushButton {color: black;}')
                 
-                self.updateUI()
+                self.handles['select_session'].clear()
+                
+                # self.updateUI()
         else:
             print('pickle_write_thread is alive, skipping load')
         #print('data reloaded')
@@ -1069,12 +1071,17 @@ class PlotCanvas(FigureCanvas):
                    early_licks_per_trial, double_dipping_rate) = self.plot_bias(times, values, win_width)
         slope, intercept, r_value = self.plot_matching(times, win_width)
         
-        valve_time = float(self.parent().parent().handles['variables_subject']['ValveOpenTime_L'].text())
-        setup_now = self.parent().parent().handles['filter_setup'].currentText()
-        self.parent().parent().handles['training_results'].setText(f'{setup_now}\t'
-                                                                   f'{num_total_trials}\t{num_finished_trials}\t'
-                                                                   f'{num_rewarded_trials}\t{for_eff_optimal*100:.1f}\t{for_eff_optimal_actual*100:.1f}\t'
-                                                                   f'{early_licks_per_trial:.2f}\t{double_dipping_rate:.2f}\t{intercept:.2f}\t{valve_time}')
+        self_parent = self.parent().parent()
+        valve_time = float(self_parent.handles['variables_subject']['ValveOpenTime_L'].text())
+        setup_now = self_parent.handles['filter_setup'].currentText()
+        
+        # Lickport's relative lateral position
+        lat_pos_relative = np.median(values['motor_position_lateral'][-10:]) - np.median(values['motor_position_lateral'][:10])
+        
+        self_parent.handles['training_results'].setText(f'{setup_now}\t'
+                                                        f'{num_total_trials}\t{num_finished_trials}\t'
+                                                        f'{num_rewarded_trials}\t{for_eff_optimal*100:.1f}\t{for_eff_optimal_actual*100:.1f}\t'
+                                                        f'{early_licks_per_trial:.2f}\t{double_dipping_rate:.2f}\t{intercept:.2f}\t{valve_time}\t{int(lat_pos_relative)}')
         
         pass
 
