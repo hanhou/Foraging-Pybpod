@@ -17,15 +17,18 @@ bias_check_auto_train_min_rewarded_trial_num = 1
 highest_probability_port_must_change = True
 
 # ---- Time settings -----
+# For the same dig channel, time durations with +/-20% toleratnce zones MUST not overlap!
+# i.e., ratio > 1.2/0.8 = 1.5 
 event_marker_dur = {# bitcode_channel (BNC1)
                     'bitcode_eachbit': 0.01,   # Couldn't be too small (like 1ms), otherwise the timing error of 
                                                # bpod may cause problematic bitcodes (4 trials out of 2000 trials)
+                    # bitcode_first = 2 * 0.01 = 0.02
                     'go_cue': 0.005,      # Relatively time-sensitive, should be shorter 
                     'choice_L': 0.001,    # Relatively time-sensitive, should be shorter
                     'choice_R': 0.002,    # Relatively time-sensitive, should be shorter
                     'choice_M': 0.003,    # Relatively time-sensitive, should be shorter
-                    'reward': 0.03,       # Not very time-sensitive
-                    'iti_start': 0.04     # Not very time-sensitive
+                    'reward': 0.035,       # Not very time-sensitive
+                    'iti_start': 0.07     # Not very time-sensitive
                     }
 
 # Bitcode setting
