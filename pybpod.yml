@@ -147,6 +147,7 @@ dependencies:
   - zeromq=4.3.3=ha925a31_3
   - zipp=3.4.0=pyhd3eb1b0_0
   - zlib=1.2.11=h62dcd97_4
+  - python-graphviz==0.16
   - pip:
     - aenum==2.2.6
     - anyio==2.0.2
@@ -213,7 +214,6 @@ dependencies:
     - pyqtwebengine==5.15.2
     - pyserial==3.5
     - pytest==6.2.1
-    - python-graphviz==0.16
     - pyusb==1.1.1
     - pywinpty==0.5.7
     - qscintilla==2.11.6
