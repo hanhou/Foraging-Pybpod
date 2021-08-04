@@ -518,6 +518,19 @@ else:
         variables['comport_motor'] = 'COM9'
         variables['retract_motor_signal'] = (OutputChannel.PWM2, 255)
         variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
+    elif setup_name == 'Tower-4':
+        # for setup: Tower - 4
+        variables['GoCue_ch'] = OutputChannel.PWM5
+        variables['WaterPort_L_ch_out'] = 7
+        variables['WaterPort_L_ch_in'] = EventName.Port7In
+        variables['WaterPort_R_ch_out'] = 8
+        variables['WaterPort_R_ch_in'] = EventName.Port8In
+        variables['WaterPort_M_ch_out'] = 3
+        variables['WaterPort_M_ch_in'] = EventName.Port3In
+        variables['comport_motor'] = 'COM14'
+        # variables['retract_motor_signal'] = (OutputChannel.PWM2, 255)
+        variables['retract_motor_signal'] = (OutputChannel.SoftCode, 1)
+        variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
     elif setup_name == 'Voltage-1p-rig':
         # for setup: Tower - 3
         variables['GoCue_ch'] = OutputChannel.PWM5
@@ -589,7 +602,7 @@ if if_recording_rig:
     # Serial port 1, Message #GO_CUE_SER_CMD, Content ['P' WAV_PORTS_SPEAKER WAV_NUM_GO_CUE] 
     # (Play Waveform #0 at channel combination 0000 0001)
     my_bpod.load_serial_message(1, SER_CMD_GO_CUE, [80, WAV_PORTS_SPEAKER, WAV_NUM_GO_CUE])  
-    goCue_command = (variables['GoCue_ch'], SER_CMD_GO_CUE)    # Use WavePlayer serial command #SER_CMD_GO_CUE on ephys rig!! 
+    goCue_command = (variables['GoCue_ch'], SER_CMD_GO_CUE)    # Use Wav ePlayer serial command #SER_CMD_GO_CUE on ephys rig!! 
 
 else:
     goCue_command = (variables['GoCue_ch'], 255)  # Set PWM5 to 100% duty cycle (always on), which triggers the wav trigger board
@@ -997,11 +1010,12 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         else:
             # ------ 2. GoCue (normal) --------
             # Licks detected within the response time --> Choice_X, where X is the first licked port; 
-            # Otherwise, Tup --> ITI --> end of this trial 
+            # Otherwise, Tup --> ITI` --> end of this trial 
             
             sma.add_state(
             	state_name='GoCue',
-                state_timer=event_marker_dur['go_cue'],
+                state_timer=event_marker_dur['go_cue'] 
+                            if if_recording_rig else 0.01,    # WAV trigger board may need longer durtion to trigger!!
             	state_change_conditions={EventName.Tup: 'AfterGoCue'},
             	output_actions = ([goCue_command, (variables['bitcode_channel'], 1)] 
                                   if if_recording_rig else 

@@ -28,7 +28,9 @@ try:
 except:
     pass
 print('started')
-paths = ['/home/rozmar/Data/Behavior/Behavior_rigs/Tower-2','C:\\Users\\labadmin\\Documents\\Pybpod\\Projects']
+paths = ['/home/rozmar/Data/Behavior/Behavior_rigs/Tower-2',
+         'C:\\Users\\labadmin\\My Documents\\Pybpod\\Projects',
+         'C:\\Users\\labadmin\\Documents\\Pybpod\\Projectss']
 for defpath in paths:
     print(defpath)
     if os.path.exists(defpath):
