@@ -1231,6 +1231,8 @@ class PlotCanvas(FigureCanvas):
         choice_right_num = np.zeros(len(win_centers))
         reward_left_num = np.zeros(len(win_centers))
         reward_right_num = np.zeros(len(win_centers))
+        finish_trials = np.zeros(len(win_centers))
+        all_trials = np.zeros(len(win_centers))
         
         if_3lp = 'lick_M' in times.keys() and np.nansum(values['reward_p_M']) > 0  # Better way of determining whether it's a 3lp task
         
@@ -1268,6 +1270,13 @@ class PlotCanvas(FigureCanvas):
                     choice_middle_num[idx] = sum((timenow - win_width < times['choice_M']) & (times['choice_M'] < timenow))
                 else:
                     choice_middle_num[idx] = sum((timenow - win_width/2 < times['choice_M']) & (times['choice_M'] < timenow + win_width/2))
+                    
+            # Finish rate
+            finish_trials[idx] = (sum((timenow - win_width < times['choice_L']) & (times['choice_L'] < timenow)) + 
+                                  sum((timenow - win_width < times['choice_R']) & (times['choice_R'] < timenow)) + 
+                                  sum((timenow - win_width < times['choice_M']) & (times['choice_M'] < timenow)))
+            all_trials[idx] = sum((timenow - win_width < times['trialstart']) & (times['trialstart'] < timenow))
+            
                 
         # Show the window in ax1
         if causal:
@@ -1296,6 +1305,7 @@ class PlotCanvas(FigureCanvas):
             ax.plot(times['reward_p_L'], values['reward_p_L'], 'r-',label = 'L') #'Reward probability Left')
             ax.plot(times['p_reward_ratio'], golden_reward_R_1, 'y-') #,label = 'Reward ratio')
             ax.plot(times['p_reward_ratio'], golden_reward_R_2, 'y-') #,label = 'Reward ratio')
+            ax.plot(win_centers, finish_trials / all_trials, 'c', lw=0.5, label='finish ratio')
             #ax.plot(times['p_reward_ratio'], values['p_reward_ratio'], 'y-',label = 'Reward ratio')
             ax.legend(loc='lower left', fontsize=8)
             ax.set_ylim(-0.05, 1.05)
@@ -1312,6 +1322,7 @@ class PlotCanvas(FigureCanvas):
             ax.plot(times['p_reward_ratio'], values['p_reward_ratio'], 'y-', label = 'p_R_frac')
             ax.plot(win_centers, bias_reward_R, 'g-', lw=1, label = 'reward_frac')
             ax.plot(win_centers, bias_choice_R, 'k-', lw=2, label = 'choice_frac')
+            ax.plot(win_centers, finish_trials / all_trials, 'c', lw=0.5, label='finish ratio')
             ax.legend(loc='lower left', fontsize=8)
             ax.set_yticks([0,1])
             ax.set_yticklabels(['L', 'R'])
