@@ -97,6 +97,7 @@ class App(QDialog):
                                               'response_time': 'RT',
                                               'auto_stop_max_ignored_trials_in_a_row': 'auto stop ignores >',
                                               'motor_retract_waterport': 'retract lickports?',
+                                              'double_dip_retract': 'double dipping?',
                                              },
                                      'Advanced block':{
                                               'auto_block_switch_type': 'Auto (0:off;1:now;2:once)',

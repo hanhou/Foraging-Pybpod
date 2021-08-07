@@ -1131,8 +1131,8 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         	state_change_conditions={variables['WaterPort_L_ch_in']: 'Consume_reward_return_L',     # Lick L, continue to consume water at L
                                   # If the mouse switches to other lickports or no lick after variables['WaterPort_L_ch_in'], 
                                   # retract both lickports!!!
-                                  variables['WaterPort_R_ch_in']: 'Double_dipped',  
-                                  variables['WaterPort_M_ch_in']: 'Double_dipped',  
+                                  variables['WaterPort_R_ch_in']: 'Double_dipped' if variables['double_dip_retract'] else 'Consume_reward_return_R',  
+                                  variables['WaterPort_M_ch_in']: 'Double_dipped' if variables['double_dip_retract'] else 'Consume_reward_return_M',  
                                   EventName.Tup: 'ITI'},
         	output_actions = [])
         # This dummy state is necessary to return to the Consume_reward_L state! 
@@ -1146,9 +1146,9 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         sma.add_state(
         	state_name='Consume_reward_R',
         	state_timer=variables['Reward_consume_time'],  
-        	state_change_conditions={variables['WaterPort_L_ch_in']: 'Double_dipped',
+        	state_change_conditions={variables['WaterPort_L_ch_in']: 'Double_dipped' if variables['double_dip_retract'] else 'Consume_reward_return_L',
                                   variables['WaterPort_R_ch_in']: 'Consume_reward_return_R',  
-                                  variables['WaterPort_M_ch_in']: 'Double_dipped',  
+                                  variables['WaterPort_M_ch_in']: 'Double_dipped' if variables['double_dip_retract'] else 'Consume_reward_return_M',  
                                   EventName.Tup: 'ITI'},
         	output_actions = [])
         sma.add_state(
@@ -1160,8 +1160,8 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         sma.add_state(
         	state_name='Consume_reward_M',
         	state_timer=variables['Reward_consume_time'],  
-        	state_change_conditions={variables['WaterPort_L_ch_in']: 'Double_dipped',
-                                  variables['WaterPort_R_ch_in']: 'Double_dipped',  
+        	state_change_conditions={variables['WaterPort_L_ch_in']: 'Double_dipped' if variables['double_dip_retract'] else 'Consume_reward_return_L',
+                                  variables['WaterPort_R_ch_in']: 'Double_dipped' if variables['double_dip_retract'] else 'Consume_reward_return_R',  
                                   variables['WaterPort_M_ch_in']: 'Consume_reward_return_M',  
                                   EventName.Tup: 'ITI'},
         	output_actions = [])
