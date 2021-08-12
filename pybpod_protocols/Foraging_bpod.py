@@ -36,8 +36,8 @@ bitcode_digits = 20
 bitcode_first_multiplier = 2  # Bitcode start (or trial start) is signaled by a 2x pulse
 
 # Max duration of camera rolling before/after (conventional) trial start/end (in sec)
-camera_max_before_start = 2 
-camera_max_after_end = 2
+camera_max_before_start = 10
+camera_max_after_end = 10
 
 # Minimal camera gap
 minimal_camera_gap = 0.2   # 100 ms for video recording overhead (close .avi file and open the next)
