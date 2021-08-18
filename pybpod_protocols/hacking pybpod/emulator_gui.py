@@ -77,6 +77,7 @@ class EmulatorGUI(BaseWidget):
         self._poke_label = ControlLabel("Poke")
         
         self._time_control = ControlText()   # HH
+        self._time_control.value = "0.02"  # Add default
 
         for n in range(1, number_ports + 1):
             btn_valve = ControlButton(str(n), icon=self.UNCHECKED_ICON, checkable=True)
