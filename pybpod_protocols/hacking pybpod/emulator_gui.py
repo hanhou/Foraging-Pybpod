@@ -77,6 +77,7 @@ class EmulatorGUI(BaseWidget):
         self._poke_label = ControlLabel("Poke")
         
         self._time_control = ControlText()   # HH
+        self._time_control.value = "0.02"
 
         for n in range(1, number_ports + 1):
             btn_valve = ControlButton(str(n), icon=self.UNCHECKED_ICON, checkable=True)
@@ -137,6 +138,7 @@ class EmulatorGUI(BaseWidget):
             self._modules_indexes_loaded.append(n)
             module_label = ControlLabel(f'{mod.name}')
             control_text_bytes_msg = ControlText()
+            control_text_bytes_msg.value = "'X' 6"  # Add default: stop all ports
 
             btn_send_msg_module = ControlButton(f'Send bytes')
             btn_send_msg_module.value = make_lambda_func(self.__send_msg_btn_evt,
@@ -220,7 +222,6 @@ class EmulatorGUI(BaseWidget):
             return
         module_index = btn.name[-1]
         message = f'message:{module_index}:{control_text.value}{os.linesep}'
-
         # send msg through stdin to bpod (we need to create a command first in the other side)
         self.setup.board.proc.stdin.write(message.encode('utf-8'))
         self.setup.board.proc.stdin.flush()
@@ -304,6 +305,11 @@ class EmulatorGUI(BaseWidget):
         setup = self.setup
         if self._pause_btn.checked:
             self._pause_btn.label = 'Resume'
+            
+            # Hardcode stop waveplayer command Device 1, "'X' 6"
+            self.setup.board.proc.stdin.write(f"message:1:'X' 6{os.linesep}".encode('utf-8'))
+            self.setup.board.proc.stdin.flush()
+            
             setup.pause_trial()
         else:
             setup.resume_trial()
