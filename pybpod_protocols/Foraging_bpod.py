@@ -721,6 +721,7 @@ change_to_go_next_block_previous = variables['change_to_go_next_block']
 # and wait for some time until session starts
 retract_protract_motor(variables_subject['motor_retractedposition'])  
 iti_previous = 2  
+triali_in_session = 0
 
 # For each block
 for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R'], variables['reward_probabilities_L'],variables['reward_probabilities_M'])):
@@ -773,6 +774,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
 
         triali += 1  # First trial number = 0; 
                      # By incrementing triali here, the trial number will include ignored trials.
+        triali_in_session += 1
         
         # Generate NEW reward for each port based on the predetermined random sequences
         reward_L = random_values_L.pop(0) < p_L #np.random.uniform(0.,1.) < p_L
@@ -825,6 +827,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         sma = StateMachine(my_bpod)
         print('Blocknumber:', blocki + 1)
         print('Trialnumber:', triali + 1)
+        print('Trialnumber in session:', triali_in_session)
         
         if if_recording_rig:
             # https://pybpod.readthedocs.io/projects/pybpod-api/en/v1.8.1/pybpodapi/state_machine/state_machine.html?highlight=global_timers#module-pybpodapi.state_machine.global_timers
