@@ -579,7 +579,7 @@ else:
 if if_recording_rig:
     SER_DEVICE = OutputChannel.Serial1
     SER_PORT = int(SER_DEVICE[-1])
-    SAMPLING_RATE  = 100000 # of samples per second
+    SAMPLING_RATE  = 50000 # of samples per second
     
     # --- Waveforms ---
     # 1. go cue sound
@@ -1459,6 +1459,8 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
     # ------ End of this block --------
 
 # ------- End of the whole session -----------
-    
+if if_recording_rig:
+    # Turn on any ongoing stimulation (wave player won't stop even if bpod is stopped!!)
+    my_bpod.manual_override(Bpod.ChannelTypes.OUTPUT, channel_name='Serial', channel_number=1, value=SER_CMD_STOP)    
 my_bpod.close()
 
