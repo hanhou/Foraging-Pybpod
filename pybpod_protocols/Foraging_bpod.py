@@ -54,6 +54,7 @@ camera_pulse = 0.001   # Use constant camera pulse width to minimize error due t
 # --- photo stim ---
 if_laser_early_ITI = 1
 if_laser_late_ITI = 1
+laser_amp = 1
 
 def notify_experimenter(metadata,path):
     filepath = os.path.join(path,'notifications.json')
@@ -591,7 +592,6 @@ if if_recording_rig:
     
     # 2. photostim constant power
     WAV_ID_LASER = 1
-    laser_amp = 5  # TODO: be flexible
     laser_sin_freq = 40  # 40 Hz
     laser_sin_dur = 20  # Actual duration (stop time) is controled by GlobalTimer
     laser_sin_waveform = laser_amp * (gen_sin_wave(SAMPLING_RATE, laser_sin_freq, laser_sin_dur, phy=np.pi * 3/2) + 1) / 2
@@ -607,7 +607,7 @@ if if_recording_rig:
     wav_player = WavePlayerModule('COM7')   # "Teensy USB" in device manager
     wav_player.set_trigger_mode(wav_player.TRIGGER_MODE_MASTER)   # 'Master' - triggers can force-start a new wave during playback.
     wav_player.set_sampling_period(SAMPLING_RATE)
-    wav_player.set_output_range(wav_player.RANGE_VOLTS_MINUS10_10)   # Same as MATLAB version: -10 to 10V
+    wav_player.set_output_range(wav_player.RANGE_VOLTS_MINUS5_5) 
     # W.set_loop_mode([0, 1, 1])
     
     # --- Load waveform to WavePlayer ---
