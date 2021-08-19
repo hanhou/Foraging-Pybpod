@@ -604,10 +604,12 @@ if if_recording_rig:
     
     # --- Settings ---
     # https://sites.google.com/site/bpoddocumentation/user-guide/function-reference/bpodwaveplayer
+    # https://sites.google.com/site/bpoddocumentation/user-guide/function-reference/waveplayerserialinterface
     wav_player = WavePlayerModule('COM7')   # "Teensy USB" in device manager
     wav_player.set_trigger_mode(wav_player.TRIGGER_MODE_MASTER)   # 'Master' - triggers can force-start a new wave during playback.
     wav_player.set_sampling_period(SAMPLING_RATE)
     wav_player.set_output_range(wav_player.RANGE_VOLTS_MINUS5_5) 
+    wav_player.set_bpod_events([1, 1, 1, 1, 1, 1, 1, 1])  # Set event on Ch2 (L laser) and Ch3 (R laser)
     # W.set_loop_mode([0, 1, 1])
     
     # --- Load waveform to WavePlayer ---
@@ -617,6 +619,7 @@ if if_recording_rig:
     wav_player.disconnect()
     
     # --- Load serial messages to Bpod ---
+    # https://sites.google.com/site/bpoddocumentation/user-guide/function-reference/loadserialmessages
     # https://readthedocs.org/projects/pybpod-api/downloads/pdf/v1.8.1/
     
     # Waveform starts from 0 
@@ -648,8 +651,8 @@ if if_recording_rig:
     for ser_cmd, wav_ports, wav_id in serial_cmds:
         my_bpod.load_serial_message(SER_PORT, ser_cmd, [ord('P'), wav_ports, wav_id])  
         
-    # Add stop all stim command ['X' 6]
-    my_bpod.load_serial_message(SER_PORT, SER_CMD_STOP, [ord('X'), WAV_PORTS_LASER_L + WAV_PORTS_LASER_R])
+    # Add stop all stim command ['X']
+    my_bpod.load_serial_message(SER_PORT, SER_CMD_STOP, [ord('X')])
 
     goCue_command = (SER_DEVICE, SER_CMD_GO_CUE)    # Use Wav ePlayer serial command #SER_CMD_GO_CUE on ephys rig!! 
 else:

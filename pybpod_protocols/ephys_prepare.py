@@ -18,7 +18,7 @@ from pybpodgui_plugin_waveplayer.module_api import WavePlayerModule
 # Auto reward
 water_ports = [1, 2]
 valvetime = 0.02
-iti = 30   # Reward per iti
+iti = 40   # Reward per iti
 
 # Laser on
 laser_amp = 0.05
