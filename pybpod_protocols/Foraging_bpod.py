@@ -832,6 +832,9 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         print('Trialnumber:', triali + 1)
         print('Trialnumber in session:', triali_in_session)
         
+        # -- Whether we'll have photostimulation this trial --
+        if_laser_late_ITI = if_laser_early_ITI = True if triali_in_session > 200 else False
+        
         if if_recording_rig:
             # https://pybpod.readthedocs.io/projects/pybpod-api/en/v1.8.1/pybpodapi/state_machine/state_machine.html?highlight=global_timers#module-pybpodapi.state_machine.global_timers
             # Global timer #1 (1): 300 Hz face cameras

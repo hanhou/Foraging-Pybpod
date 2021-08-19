@@ -22,7 +22,7 @@ iti = 40   # Reward per iti
 
 # Laser on
 laser_amp = 0.05
-laser_dur = 100  # sec
+laser_dur = 200  # sec
 laser_gap = 1  # sec
 laser_chans = 6  # ch2 and ch3
 laser_sin_freq = 40
@@ -46,8 +46,8 @@ wav_player.set_trigger_mode(wav_player.TRIGGER_MODE_MASTER)   # 'Master' - trigg
 wav_player.set_sampling_period(SAMPLING_RATE)
 wav_player.set_output_range(wav_player.RANGE_VOLTS_MINUS5_5) 
 
-# wav_player.set_loop_duration([0, 1, 1, 0, 0, 0, 0, 0])
-# wav_player.set_loop_mode([0, 1, 1, 0, 0, 0, 0, 0])
+wav_player.set_loop_duration([0, 1000 * SAMPLING_RATE, 1000 * SAMPLING_RATE, 0, 0, 0, 0, 0])
+wav_player.set_loop_mode([0, 1, 1, 0, 0, 0, 0, 0])
 
 laser_sin_waveform = laser_amp * (gen_sin_wave(SAMPLING_RATE, laser_sin_freq, laser_dur, phy=np.pi * 3/2) + 1) / 2
 wav_player.load_waveform(0, laser_sin_waveform) 
@@ -58,8 +58,8 @@ my_bpod.load_serial_message(SER_PORT, SER_CMD_LASER_OFF, [ord('X'), laser_chans]
 # --- Start ---
 i = 0
 
-# Manual turn on once; to turn off, set "'X' 6" in emulator
-# my_bpod.manual_override(Bpod.ChannelTypes.OUTPUT, channel_name='Serial', channel_number=1, value=SER_CMD_LASER_ON)    
+# Manual turn on once; to turn off, set "'X'" in emulator
+my_bpod.manual_override(Bpod.ChannelTypes.OUTPUT, channel_name='Serial', channel_number=1, value=SER_CMD_LASER_ON)    
 
 while True:
     i += 1
