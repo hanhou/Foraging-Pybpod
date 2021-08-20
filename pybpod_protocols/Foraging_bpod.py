@@ -610,9 +610,13 @@ if if_recording_rig:
     wav_player.set_sampling_period(SAMPLING_RATE)
     wav_player.set_output_range(wav_player.RANGE_VOLTS_MINUS5_5) 
     wav_player.set_bpod_events([1, 1, 1, 1, 1, 1, 1, 1])  # Set event on Ch2 (L laser) and Ch3 (R laser)
-    # W.set_loop_mode([0, 1, 1])
+    wav_player.set_loop_duration([0, 0, 0, 0, 0, 0, 0, 0])
+    wav_player.set_loop_mode([0, 0, 0, 0, 0, 0, 0, 0])
     
     # --- Load waveform to WavePlayer ---
+    # Clear all waveforms
+    for i in range(64):
+        wav_player.load_waveform(i, [0])    
     wav_player.load_waveform(WAV_ID_GO_CUE, go_cue_waveform)    # Waveform #0: go cue sound
     wav_player.load_waveform(WAV_ID_LASER, laser_sin_waveform)    # Waveform #1: laser
     wav_player.load_waveform(WAV_ID_LASER_RAMP, laser_sin_ramp_down_waveform)

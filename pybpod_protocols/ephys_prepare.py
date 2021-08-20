@@ -18,7 +18,7 @@ from pybpodgui_plugin_waveplayer.module_api import WavePlayerModule
 # Auto reward
 water_ports = [1, 2]
 valvetime = 0.02
-iti = 40   # Reward per iti
+iti = 30   # Reward per iti
 
 # Laser on
 laser_amp = 0.05
@@ -45,9 +45,11 @@ wav_player = WavePlayerModule('COM7')   # "Teensy USB" in device manager
 wav_player.set_trigger_mode(wav_player.TRIGGER_MODE_MASTER)   # 'Master' - triggers can force-start a new wave during playback.
 wav_player.set_sampling_period(SAMPLING_RATE)
 wav_player.set_output_range(wav_player.RANGE_VOLTS_MINUS5_5) 
-
 wav_player.set_loop_duration([0, 1000 * SAMPLING_RATE, 1000 * SAMPLING_RATE, 0, 0, 0, 0, 0])
 wav_player.set_loop_mode([0, 1, 1, 0, 0, 0, 0, 0])
+
+for i in range(64):
+    wav_player.load_waveform(i, [0])    
 
 laser_sin_waveform = laser_amp * (gen_sin_wave(SAMPLING_RATE, laser_sin_freq, laser_dur, phy=np.pi * 3/2) + 1) / 2
 wav_player.load_waveform(0, laser_sin_waveform) 
