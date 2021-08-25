@@ -44,7 +44,8 @@ minimal_camera_gap = 0.2   # 100 ms for video recording overhead (close .avi fil
 
 # For more precise ITIs, iti_compensation = bpod overhead + bit code length is subtracted from the effective ITI
 bpod_load_overhead = 0.05  # measured value
-iti_compensation = bpod_load_overhead + (bitcode_first_multiplier + 2*bitcode_digits) * event_marker_dur['bitcode_eachbit']  
+bitcode_length = (bitcode_first_multiplier + 2 * bitcode_digits) * event_marker_dur['bitcode_eachbit']  
+iti_compensation = bpod_load_overhead + bitcode_length
 
 # ---- Camera fps ----
 camera_face_fps = 300 # face camera, side view and bottom view
@@ -52,8 +53,6 @@ camera_trunk_fps = 100  # trunc camera
 camera_pulse = 0.001   # Use constant camera pulse width to minimize error due to bpod time resolution (0.1 ms)
 
 # --- photo stim ---
-if_laser_early_ITI = 1
-if_laser_late_ITI = 1
 laser_amp = 1.0
 mask_amp = 2.0
 
@@ -847,7 +846,6 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         print('Trialnumber in session:', triali_in_session)
         
         # -- Whether we'll have photostimulation this trial --
-        if_laser_late_ITI = if_laser_early_ITI = True if triali_in_session > 0 else False
         
         if if_recording_rig:
             # https://pybpod.readthedocs.io/projects/pybpod-api/en/v1.8.1/pybpodapi/state_machine/state_machine.html?highlight=global_timers#module-pybpodapi.state_machine.global_timers
@@ -888,23 +886,27 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             
             # Global timer #4 (8): photostimulation, late ITI (ITI before the trial)
             sma.set_global_timer(timer_id=4, 
-                                 timer_duration=iti_before,  # TODO: flexible
-                                 on_set_delay=0,   # TODO: flexible
+                                 timer_duration=min(variables['laser_late_ITI_dur'], 
+                                                    iti_before + bitcode_length - variables['laser_late_ITI_offset']
+                                                    ) - laser_sin_ramp_down_dur,
+                                 on_set_delay=variables['laser_late_ITI_offset'],
                                  channel=SER_DEVICE,
                                  on_message=SER_CMD_LASER_LR,  # TODO: flexible
-                                 off_message=SER_CMD_LASER_RAMP_LR,
+                                 off_message=SER_CMD_LASER_RAMP_LR,  # TODO: flexible
                                  loop_mode=0, 
                                  send_events=0,
                                  )
             
              # Global timer #5 (16): photostimulation, early ITI (ITI after the trial)
             sma.set_global_timer(timer_id=5, 
-                                 timer_duration=iti_after + 2,  # +2: to make sure it covers the bpod gap 
-                                                                # (but must be turned off manually at the start of the next trial!!)
-                                 on_set_delay=0,   # TODO: flexible
+                                 timer_duration=min(variables['laser_early_ITI_dur'], 
+                                                    iti_after - variables['laser_early_ITI_offset'] + 2
+                                                    ) - laser_sin_ramp_down_dur,
+                                                # (will be turned off manually at the start of the next trial!!)
+                                 on_set_delay=variables['laser_early_ITI_offset'],
                                  channel=SER_DEVICE,
-                                 on_message=SER_CMD_LASER_LR, 
-                                 off_message=SER_CMD_STOP,  #  No ramping down here
+                                 on_message=SER_CMD_LASER_LR,  # TODO: flexible
+                                 off_message=SER_CMD_LASER_RAMP_LR,  # TODO: flexible
                                  loop_mode=0, 
                                  send_events=0,
                                  )
@@ -912,15 +914,15 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         # ------- 0. Start of a trial (bit code if necessary) ---------
         # ---------- Now the trial starts with ITIBefore ----------
         # ITI_before = ITI_before_video_on + ITI_before_video_off
-        if if_laser_early_ITI:
+        if variables['laser_early_ITI_dur']:
              sma.add_state(
                 state_name='StopWavePlayer',
                 state_timer=0,
-                state_change_conditions={EventName.Tup: 'ITIBeforeLaserTimerStart' if if_laser_late_ITI else 'MaskFlashOn'},
+                state_change_conditions={EventName.Tup: 'ITIBeforeLaserTimerStart' if variables['laser_late_ITI_dur'] else 'MaskFlashOn'},
                 output_actions = [(SER_DEVICE, SER_CMD_STOP)]  # Manually turn off laser from the last bpod trial                
             )           
         
-        if if_laser_late_ITI:  # Late ITI is before the trial
+        if variables['laser_late_ITI_dur']:  # Late ITI is before the trial
             sma.add_state(
                 state_name='ITIBeforeLaserTimerStart',
                 state_timer=0,
@@ -1319,11 +1321,11 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         sma.add_state(
         	state_name='ITI',
         	state_timer=event_marker_dur['iti_start'],
-        	state_change_conditions={EventName.Tup: 'ITIAfterLaserTimerStart' if if_laser_early_ITI else 'ITIAfterVideoOn'},
+        	state_change_conditions={EventName.Tup: 'ITIAfterLaserTimerStart' if variables['laser_early_ITI_dur'] else 'ITIAfterVideoOn'},
         	output_actions = temp_action
             )
         
-        if if_laser_early_ITI:  # Early ITI is after a trial
+        if variables['laser_early_ITI_dur']:  # Early ITI is after a trial
             sma.add_state(
                 state_name='ITIAfterLaserTimerStart',
                 state_timer=0,

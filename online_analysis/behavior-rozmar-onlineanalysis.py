@@ -104,6 +104,12 @@ class App(QDialog):
                                               'auto_block_switch_threshold': 'auto switch threshold',
                                               'auto_block_switch_points': 'points in a row',
                                               'change_to_go_next_block': 'Next block NOW! (0->1)',
+                                             }, 
+                                     'Photostimulation':{
+                                              'laser_early_ITI_dur': 'early ITI dur',
+                                              'laser_late_ITI_dur': 'late ITI dur',
+                                              'laser_early_ITI_offset': 'early ITI offset',
+                                              'laser_late_ITI_offset': 'late ITI offset',
                                              }
                                      }
         free_water = {
@@ -828,8 +834,6 @@ class App(QDialog):
                 self.handles['success_switched'] = QLabel('')
                 layout_subject.addWidget(self.handles['success_switched'], 7, 10, 1, 2)
                 
-                # self.cache_auto_train_min_rewarded_trial_num = int(self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].text())
-                        
                 self.horizontalGroupBox_variables_subject.setLayout(layout_subject)
                 self.variables=dict()
             else:
@@ -995,7 +999,10 @@ class App(QDialog):
                             print('not proper value')
                             
                 else:   # If json file has missing parameters, we add this new parameter (backward compatibility). HH20200730
-                    self.variables[dicttext][key] = int(self.handles['variables_'+dicttext][key].text())   # Only consider int now
+                    if type(self.handles['variables_'+dicttext][key].text()) == int:
+                        self.variables[dicttext][key] = int(self.handles['variables_'+dicttext][key].text())   # Only consider int now
+                    else:
+                        self.variables[dicttext][key] = float(self.handles['variables_'+dicttext][key].text())   # Only consider int now
                         
         with open(self.variables['setup_file'], 'w') as outfile:
             json.dump(self.variables['setup'], outfile)
