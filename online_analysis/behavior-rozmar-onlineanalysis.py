@@ -112,6 +112,18 @@ class App(QDialog):
                                               'laser_late_ITI_offset': 'late ITI offset',
                                              }
                                      }
+        
+        # Map power of sine wave (mW) to amplitude (V); copyed from bpod code
+        self.laser_power_mapper = [    #  mW , V
+                                [0.1, 0.05],
+                                [1.0, 0.2],
+                                [2.0, 0.5],
+                                [3.0, 0.65],
+                                [5.0, 1.0],
+                                [10.0, 2.0],
+                                [20.0, 4.5],                      
+                            ] 
+        
         free_water = {
                       'difficulty_ratio_pair_num' : 0,
                       'response_time' : 2.,
@@ -834,6 +846,20 @@ class App(QDialog):
                 self.handles['success_switched'] = QLabel('')
                 layout_subject.addWidget(self.handles['success_switched'], 7, 10, 1, 2)
                 
+                # Laser power selector
+                self.handles['laser_power'] = QComboBox(self)
+                self.handles['laser_power'].setFocusPolicy(Qt.NoFocus)
+                self.handles['laser_power'].addItem('0')
+                self.handles['laser_power'].addItems([str(pow) for pow, _ in self.laser_power_mapper])
+                self.handles['laser_power'].currentIndexChanged.connect(self.save_parameters)
+                if 'laser_power' in self.handles['variables_subject']:
+                     self.handles['laser_power'].setCurrentIndex(
+                         [id for id, (pow, _) in enumerate(self.laser_power_mapper) 
+                          if pow == self.handles['variables_subject']['laser_power']])
+                    
+                layout_subject.addWidget(QLabel('power (mW)'), row, 10, alignment=Qt.AlignRight)
+                layout_subject.addWidget(self.handles['laser_power'], row, 11, 1, 1)
+        
                 self.horizontalGroupBox_variables_subject.setLayout(layout_subject)
                 self.variables=dict()
             else:
@@ -1003,6 +1029,9 @@ class App(QDialog):
                         self.variables[dicttext][key] = int(self.handles['variables_'+dicttext][key].text())   # Only consider int now
                     else:
                         self.variables[dicttext][key] = float(self.handles['variables_'+dicttext][key].text())   # Only consider int now
+        
+        # Laser power
+        self.variables['subject']['laser_power'] = float(self.handles['laser_power'].currentText())
                         
         with open(self.variables['setup_file'], 'w') as outfile:
             json.dump(self.variables['setup'], outfile)

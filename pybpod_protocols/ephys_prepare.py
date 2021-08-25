@@ -21,9 +21,7 @@ valvetime = 0.02
 iti = 30   # Reward per iti
 
 # Laser on
-laser_amp = 0.05  # 0.04 V is the minimal visible level
 laser_dur = 1000  # sec
-laser_gap = 1  # sec
 laser_chans = 6  # ch2 and ch3
 laser_sin_freq = 40
 
@@ -33,44 +31,23 @@ mask_chan = 8  # ch4
 ############################################################
 
 my_bpod = Bpod()
+
+# Same as Foraging_bpod to avoid time-consuming overload
 SER_DEVICE = OutputChannel.Serial1
 SER_PORT = int(SER_DEVICE[-1])
-SER_CMD_LASER_ON = 1
-SER_CMD_MASK_ON = 253  # Max 254
-SER_CMD_ALL_OFF = 254
 
-# --- Load waveform to WavePlayer ---
-def gen_sin_wave(sampling_rate, freq, duration, phy=0):
-    # Duration in seconds
-    t = np.arange(0, duration, 1 / sampling_rate)
-    return np.sin(2 * np.pi * freq * t + phy)
+WAV_ID_LASER_RAMP_START = 10
 
-SAMPLING_RATE = 10000
+# Don't reload waveforms, only change loop mode
+SAMPLING_RATE = 50000
 wav_player = WavePlayerModule('COM7')   # "Teensy USB" in device manager
-wav_player.set_trigger_mode(wav_player.TRIGGER_MODE_MASTER)   # 'Master' - triggers can force-start a new wave during playback.
-wav_player.set_sampling_period(SAMPLING_RATE)
-wav_player.set_output_range(wav_player.RANGE_VOLTS_MINUS5_5)    
 wav_player.set_loop_duration([0, laser_dur * SAMPLING_RATE, laser_dur * SAMPLING_RATE, laser_dur * SAMPLING_RATE, 0, 0, 0, 0])
 wav_player.set_loop_mode([0, 1, 1, 1, 0, 0, 0, 0])
-
-# for i in range(64):
-#     wav_player.load_waveform(i, [0])    
-
-laser_sin_waveform = laser_amp * (gen_sin_wave(SAMPLING_RATE, laser_sin_freq, 10/laser_sin_freq, phy=np.pi * 3/2) + 1) / 2
-laser_sqaure_waveform = [laser_amp]  # Just one sample point is enough
-
-# Note that for the LUXdrive 3021-D of masking flash, the output current is INVERSELY modulated by control voltage...
-# http://www.leddynamics.com/wp-content/uploads/2018/11/03021_03023_BuckPuck_v3-1.pdf
-masking_flash_waveform = mask_amp * (gen_sin_wave(SAMPLING_RATE, laser_sin_freq, 10/laser_sin_freq, phy=np.pi * 3/2) + 1) / 2
-
-wav_player.load_waveform(1, laser_sin_waveform) 
-# wav_player.load_waveform(2, laser_sqaure_waveform) 
-wav_player.load_waveform(63, masking_flash_waveform)
 wav_player.disconnect()
 
-my_bpod.load_serial_message(SER_PORT, SER_CMD_LASER_ON, [ord('P'), laser_chans, 1])  # Turn on both
-my_bpod.load_serial_message(SER_PORT, SER_CMD_MASK_ON, [ord('P'), mask_chan, 63])  # Mask flash
-my_bpod.load_serial_message(SER_PORT, SER_CMD_ALL_OFF, [ord('X')])  # Stop both
+my_bpod.load_serial_message(SER_PORT, 1, [ord('P'), laser_chans, WAV_ID_LASER_RAMP_START + 0])  # Lowest power
+my_bpod.load_serial_message(SER_PORT, 2, [ord('P'), mask_chan, 63])  # Mask flash
+my_bpod.load_serial_message(SER_PORT, 3, [ord('X')])  # Stop both
 
 # --- Start ---
 i = 0
@@ -91,14 +68,14 @@ while True:
         state_timer=valvetime,
         state_change_conditions={EventName.Tup: 'ITI'},
         output_actions = [('Valve', water_ports[i % len(water_ports)])] \
-                         + [(SER_DEVICE, SER_CMD_MASK_ON)] if i == 1 else []  # Only trigger once so that it can be manually turned off by 'X'
+                         + [(SER_DEVICE, 2)] if i == 1 else []  # Only trigger once so that it can be manually turned off by 'X'
         )   # Give reward in turn
     
     sma.add_state(
         state_name='ITI',
         state_timer=iti,
         state_change_conditions={EventName.Tup: 'exit'},
-        output_actions = [(SER_DEVICE, SER_CMD_LASER_ON)] if i == 1 else [])
+        output_actions = [(SER_DEVICE, 1)] if i == 1 else [])
         
     my_bpod.send_state_machine(sma)  # Send state machine description to Bpod device
     my_bpod.run_state_machine(sma)  # Run state machine
@@ -109,7 +86,7 @@ while True:
     except:
         break
 
-my_bpod.manual_override(Bpod.ChannelTypes.OUTPUT, channel_name='Serial', channel_number=1, value=SER_CMD_ALL_OFF) 
+my_bpod.manual_override(Bpod.ChannelTypes.OUTPUT, channel_name='Serial', channel_number=1, value=3) 
 my_bpod.close()
 
 

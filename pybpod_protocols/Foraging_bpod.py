@@ -53,8 +53,18 @@ camera_trunk_fps = 100  # trunc camera
 camera_pulse = 0.001   # Use constant camera pulse width to minimize error due to bpod time resolution (0.1 ms)
 
 # --- photo stim ---
-laser_amp = 1.0
-mask_amp = 2.0
+reload_wav_player = False  # Only reload when neccessary to speed up protocol initialization
+laser_power_mapper = [ #   mW , V
+                      [0.1, 0.05],
+                      [1.0, 0.2],
+                      [2.0, 0.5],
+                      [3.0, 0.65],
+                      [5.0, 1.0],
+                      [10.0, 2.0],
+                      [20.0, 4.5],                      
+                    ]  # Map power of sine wave (mW) to amplitude (V)
+laser_sin_ramp_down_dur = 0.2  # TODO: be flexible
+mask_amp = 2.0  # Amplitude for masking flash
 
 def notify_experimenter(metadata,path):
     filepath = os.path.join(path,'notifications.json')
@@ -578,35 +588,11 @@ else:
 
 # ================ Define WavePlayer if this is a recording rig ==============
 if if_recording_rig:
+    
     SER_DEVICE = OutputChannel.Serial1
     SER_PORT = int(SER_DEVICE[-1])
     SAMPLING_RATE  = 50000 # of samples per second
-    
-    # --- Waveforms ---
-    # 1. go cue sound
-    WAV_ID_GO_CUE = 0
-    go_cue_amp = 2
-    go_cue_freq  = 3000  # of cycles per second (Hz) (frequency of the sine waves)
-    go_cue_dur = 0.1
-    go_cue_waveform = go_cue_amp * gen_sin_wave(SAMPLING_RATE, go_cue_freq, go_cue_dur)
-    
-    # 2. photostim constant power
-    WAV_ID_LASER = 1
-    laser_sin_freq = 40  # 40 Hz
-    laser_sin_dur = 20  # Actual duration (stop time) is controled by GlobalTimer
-    laser_sin_waveform = laser_amp * (gen_sin_wave(SAMPLING_RATE, laser_sin_freq, laser_sin_dur, phy=np.pi * 3/2) + 1) / 2
-    
-    # 3. photostim ramping down 
-    WAV_ID_LASER_RAMP = 2
-    laser_sin_ramp_down_dur = 0.2  # TODO: be flexible
-    laser_sin_ramp_down_waveform = laser_amp * (gen_sin_wave(SAMPLING_RATE, laser_sin_freq, laser_sin_ramp_down_dur, phy=np.pi * 1/2) + 1) / 2
-    laser_sin_ramp_down_waveform *= np.linspace(1, 0, len(laser_sin_ramp_down_waveform))
-    
-    # 4. masking flash
-    WAV_ID_MASK = 63  # Max = 63
-    # Same frequency as laser. Use loop on this channel, so only one circle is enough
-    mask_sin_waveform = mask_amp * (gen_sin_wave(SAMPLING_RATE, laser_sin_freq, 1 / laser_sin_freq, phy=np.pi * 3/2) + 1) / 2
-   
+ 
     # --- Settings ---
     # https://sites.google.com/site/bpoddocumentation/user-guide/function-reference/bpodwaveplayer
     # https://sites.google.com/site/bpoddocumentation/user-guide/function-reference/waveplayerserialinterface
@@ -617,15 +603,50 @@ if if_recording_rig:
     wav_player.set_bpod_events([1, 1, 1, 1, 1, 1, 1, 1])  # Set event on Ch2 (L laser) and Ch3 (R laser)
     wav_player.set_loop_duration([0, 0, 0, 100 * SAMPLING_RATE, 0, 0, 0, 0])  # loop chan4 (masking flash)
     wav_player.set_loop_mode([0, 0, 0, 1, 0, 0, 0, 0])
+        
+    WAV_ID_GO_CUE = 0
+    WAV_ID_LASER_START = 10  # 10, 11, 12, 13, ...
+    WAV_ID_LASER_RAMP_START = 20  # 20, 21, 22, 23, ...
+    WAV_ID_MASK = 63  # Max = 63
     
-    # --- Load waveform to WavePlayer ---
-    # Clear all waveforms
-    for i in range(64):
-        wav_player.load_waveform(i, [0])    
-    wav_player.load_waveform(WAV_ID_GO_CUE, go_cue_waveform)    # Waveform #0: go cue sound
-    wav_player.load_waveform(WAV_ID_LASER, laser_sin_waveform)    # Waveform #1: laser
-    wav_player.load_waveform(WAV_ID_LASER_RAMP, laser_sin_ramp_down_waveform)
-    wav_player.load_waveform(WAV_ID_MASK, mask_sin_waveform)
+
+    if reload_wav_player:  # Only reload when neccessary to speed up protocol initialization
+        # --- Waveforms ---
+        # 1. go cue sound
+        go_cue_amp = 2
+        go_cue_freq  = 3000  # of cycles per second (Hz) (frequency of the sine waves)
+        go_cue_dur = 0.1
+        go_cue_waveform = go_cue_amp * gen_sin_wave(SAMPLING_RATE, go_cue_freq, go_cue_dur)
+        
+        # 2. photostim constant power
+        laser_sin_freq = 40  # 40 Hz
+        laser_sin_dur = 20  # Actual duration (stop time) is controled by GlobalTimer
+        laser_sin_waveform = []
+        for _, amp in laser_power_mapper:
+            laser_sin_waveform.append(amp * (gen_sin_wave(SAMPLING_RATE, laser_sin_freq, laser_sin_dur, phy=np.pi * 3/2) + 1) / 2)
+        
+        # 3. photostim ramping down 
+        laser_sin_ramp_down_waveform = []
+        for _, amp in laser_power_mapper:
+            laser_sin_ramp_down_waveform.append(amp * (gen_sin_wave(SAMPLING_RATE, laser_sin_freq, laser_sin_ramp_down_dur, phy=np.pi * 1/2) + 1) / 2)
+            laser_sin_ramp_down_waveform[-1] *= np.linspace(1, 0, len(laser_sin_ramp_down_waveform[-1]))
+        
+        # 4. masking flash
+        # Same frequency as laser. Use loop on this channel, so only one circle is enough
+        mask_sin_waveform = mask_amp * (gen_sin_wave(SAMPLING_RATE, laser_sin_freq, 1 / laser_sin_freq, phy=np.pi * 3/2) + 1) / 2
+        
+        # --- Load waveform to WavePlayer ---
+        # Clear all waveforms
+        for i in range(64):
+            wav_player.load_waveform(i, [0])    
+        wav_player.load_waveform(WAV_ID_GO_CUE, go_cue_waveform)    # Waveform #0: go cue sound
+        
+        for amp_id, (_, amp) in enumerate(laser_power_mapper):  # Add a series of laser waveform with different amps
+            wav_player.load_waveform(WAV_ID_LASER_START + amp_id, laser_sin_waveform[amp_id])    # Waveform #1: laser
+            wav_player.load_waveform(WAV_ID_LASER_RAMP_START + amp_id, laser_sin_ramp_down_waveform[amp_id])
+        
+        wav_player.load_waveform(WAV_ID_MASK, mask_sin_waveform)
+   
     wav_player.disconnect()
     
     # --- Load serial messages to Bpod ---
@@ -640,33 +661,37 @@ if if_recording_rig:
     
     # serial command starts from 1... (max 254)
     SER_CMD_GO_CUE = 1    
-    SER_CMD_LASER_L = 2   
-    SER_CMD_LASER_R = 3   
-    SER_CMD_LASER_LR = 4  
-    SER_CMD_LASER_RAMP_L = 5  
-    SER_CMD_LASER_RAMP_R = 6  
-    SER_CMD_LASER_RAMP_LR = 7  
     SER_CMD_MASK = 253
     SER_CMD_STOP = 254
 
-    # Batch load serial command
-    serial_cmds = [
+    SER_CMD_LASER_L_START = 20
+    SER_CMD_LASER_R_START = 30
+    SER_CMD_LASER_LR_START = 40
+    SER_CMD_LASER_RAMP_L_START = 50
+    SER_CMD_LASER_RAMP_R_START = 60
+    SER_CMD_LASER_RAMP_LR_START = 70
+     
+    # Load serial commands
+    my_bpod.load_serial_message(SER_PORT, SER_CMD_GO_CUE, [ord('P'), WAV_PORTS_SPEAKER, WAV_ID_GO_CUE])  # go cue
+    my_bpod.load_serial_message(SER_PORT, SER_CMD_MASK, [ord('P'), WAV_PORTS_MASK, WAV_ID_MASK])  # masking flash
+    my_bpod.load_serial_message(SER_PORT, SER_CMD_STOP, [ord('X')])  # stop all waveform
+       
+    laser_cmds = [
         #  ser_cmd_id,     wav_ports,     wav_id
-        [SER_CMD_GO_CUE, WAV_PORTS_SPEAKER, WAV_ID_GO_CUE],   # Cmd 1: go cue
-        [SER_CMD_LASER_L, WAV_PORTS_LASER_L, WAV_ID_LASER],   # Cmd 2: left photostimulation
-        [SER_CMD_LASER_R, WAV_PORTS_LASER_R, WAV_ID_LASER],
-        [SER_CMD_LASER_LR, WAV_PORTS_LASER_L + WAV_PORTS_LASER_R, WAV_ID_LASER],
-        [SER_CMD_LASER_RAMP_L, WAV_PORTS_LASER_L, WAV_ID_LASER_RAMP],
-        [SER_CMD_LASER_RAMP_R, WAV_PORTS_LASER_R, WAV_ID_LASER_RAMP],
-        [SER_CMD_LASER_RAMP_LR, WAV_PORTS_LASER_L + WAV_PORTS_LASER_R, WAV_ID_LASER_RAMP],
-        [SER_CMD_MASK, WAV_PORTS_MASK, WAV_ID_MASK],
+        [SER_CMD_LASER_L_START, WAV_PORTS_LASER_L, WAV_ID_LASER_START],
+        [SER_CMD_LASER_R_START, WAV_PORTS_LASER_R, WAV_ID_LASER_START],
+        [SER_CMD_LASER_LR_START, WAV_PORTS_LASER_L + WAV_PORTS_LASER_R, WAV_ID_LASER_START],
+        [SER_CMD_LASER_RAMP_L_START, WAV_PORTS_LASER_L, WAV_ID_LASER_RAMP_START],
+        [SER_CMD_LASER_RAMP_R_START, WAV_PORTS_LASER_R, WAV_ID_LASER_RAMP_START],
+        [SER_CMD_LASER_RAMP_LR_START, WAV_PORTS_LASER_L + WAV_PORTS_LASER_R, WAV_ID_LASER_RAMP_START],
         ]
-    for ser_cmd, wav_ports, wav_id in serial_cmds:
-        my_bpod.load_serial_message(SER_PORT, ser_cmd, [ord('P'), wav_ports, wav_id])  
+    
+    for laser_cmd_id, laser_wav_port, laser_wav_id in laser_cmds:
+        for amp_id, (_, amp) in enumerate(laser_power_mapper):
+            my_bpod.load_serial_message(SER_PORT, laser_cmd_id + amp_id, 
+                                        [ord('P'), laser_wav_port, laser_wav_id + amp_id])  # Left
         
-    # Add stop all stim command ['X']
-    my_bpod.load_serial_message(SER_PORT, SER_CMD_STOP, [ord('X')])
-
+    # Command shorthand for state machine
     goCue_command = (SER_DEVICE, SER_CMD_GO_CUE)    # Use Wav ePlayer serial command #SER_CMD_GO_CUE on ephys rig!! 
 else:
     goCue_command = (variables['GoCue_ch'], 255)  # Set PWM5 to 100% duty cycle (always on), which triggers the wav trigger board
@@ -884,45 +909,51 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                                  send_events=0,
                                  ) 
             
-            # Global timer #4 (8): photostimulation, late ITI (ITI before the trial)
-            sma.set_global_timer(timer_id=4, 
-                                 timer_duration=min(variables['laser_late_ITI_dur'], 
-                                                    iti_before + bitcode_length - variables['laser_late_ITI_offset']
-                                                    ) - laser_sin_ramp_down_dur,
-                                 on_set_delay=variables['laser_late_ITI_offset'],
-                                 channel=SER_DEVICE,
-                                 on_message=SER_CMD_LASER_LR,  # TODO: flexible
-                                 off_message=SER_CMD_LASER_RAMP_LR,  # TODO: flexible
-                                 loop_mode=0, 
-                                 send_events=0,
-                                 )
+            # Interpret laser power
+            laser_power = variables_subject['laser_power'] if 'laser_power' in variables_subject.keys() else 0
             
-             # Global timer #5 (16): photostimulation, early ITI (ITI after the trial)
-            sma.set_global_timer(timer_id=5, 
-                                 timer_duration=min(variables['laser_early_ITI_dur'], 
-                                                    iti_after - variables['laser_early_ITI_offset'] + 2
-                                                    ) - laser_sin_ramp_down_dur,
-                                                # (will be turned off manually at the start of the next trial!!)
-                                 on_set_delay=variables['laser_early_ITI_offset'],
-                                 channel=SER_DEVICE,
-                                 on_message=SER_CMD_LASER_LR,  # TODO: flexible
-                                 off_message=SER_CMD_LASER_RAMP_LR,  # TODO: flexible
-                                 loop_mode=0, 
-                                 send_events=0,
-                                 )
+            if laser_power:
+                amp_id =  [id for id, (pow, _) in enumerate(laser_power_mapper) if pow == laser_power][0]
+                print('laser power (mW, V):', laser_power_mapper[amp_id])
+                
+                # Global timer #4 (8): photostimulation, late ITI (ITI before the trial)
+                sma.set_global_timer(timer_id=4, 
+                                    timer_duration=min(variables['laser_late_ITI_dur'], 
+                                                        iti_before + bitcode_length - variables['laser_late_ITI_offset']
+                                                        ) - laser_sin_ramp_down_dur,
+                                    on_set_delay=variables['laser_late_ITI_offset'],
+                                    channel=SER_DEVICE,
+                                    on_message=SER_CMD_LASER_LR_START + amp_id,
+                                    off_message=SER_CMD_LASER_RAMP_LR_START + amp_id,
+                                    loop_mode=0, 
+                                    send_events=0,
+                                    )
+                
+                # Global timer #5 (16): photostimulation, early ITI (ITI after the trial)
+                sma.set_global_timer(timer_id=5, 
+                                    timer_duration=min(variables['laser_early_ITI_dur'], 
+                                                        iti_after - variables['laser_early_ITI_offset'] + 2
+                                                        ) - laser_sin_ramp_down_dur,
+                                                    # (will be turned off manually at the start of the next trial!!)
+                                    on_set_delay=variables['laser_early_ITI_offset'],
+                                    channel=SER_DEVICE,
+                                    on_message=SER_CMD_LASER_LR_START + amp_id,
+                                    off_message=SER_CMD_LASER_RAMP_LR_START + amp_id,
+                                    loop_mode=0, 
+                                    send_events=0,
+                                    )
        
         # ------- 0. Start of a trial (bit code if necessary) ---------
         # ---------- Now the trial starts with ITIBefore ----------
         # ITI_before = ITI_before_video_on + ITI_before_video_off
-        if variables['laser_early_ITI_dur']:
-             sma.add_state(
-                state_name='StopWavePlayer',
-                state_timer=0,
-                state_change_conditions={EventName.Tup: 'ITIBeforeLaserTimerStart' if variables['laser_late_ITI_dur'] else 'MaskFlashOn'},
-                output_actions = [(SER_DEVICE, SER_CMD_STOP)]  # Manually turn off laser from the last bpod trial                
+        sma.add_state(
+            state_name='StopWavePlayer',
+            state_timer=0,
+            state_change_conditions={EventName.Tup: 'ITIBeforeLaserTimerStart' if laser_power and variables['laser_late_ITI_dur'] else 'MaskFlashOn'},
+            output_actions = [(SER_DEVICE, SER_CMD_STOP)]  # Manually turn off laser from the last bpod trial                
             )           
         
-        if variables['laser_late_ITI_dur']:  # Late ITI is before the trial
+        if  laser_power and variables['laser_late_ITI_dur']:  # Late ITI is before the trial
             sma.add_state(
                 state_name='ITIBeforeLaserTimerStart',
                 state_timer=0,
@@ -1321,11 +1352,11 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         sma.add_state(
         	state_name='ITI',
         	state_timer=event_marker_dur['iti_start'],
-        	state_change_conditions={EventName.Tup: 'ITIAfterLaserTimerStart' if variables['laser_early_ITI_dur'] else 'ITIAfterVideoOn'},
+        	state_change_conditions={EventName.Tup: 'ITIAfterLaserTimerStart' if laser_power and variables['laser_early_ITI_dur'] else 'ITIAfterVideoOn'},
         	output_actions = temp_action
             )
         
-        if variables['laser_early_ITI_dur']:  # Early ITI is after a trial
+        if laser_power and variables['laser_early_ITI_dur']:  # Early ITI is after a trial
             sma.add_state(
                 state_name='ITIAfterLaserTimerStart',
                 state_timer=0,
