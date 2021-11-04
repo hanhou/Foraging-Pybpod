@@ -18,15 +18,15 @@ from pybpodgui_plugin_waveplayer.module_api import WavePlayerModule
 # Auto reward
 water_ports = [1, 2]
 valvetime = 0.02
-iti = 30   # Reward per iti
+iti = 20   # Reward per iti
 
 # Laser on
-laser_dur = 1000  # sec
+laser_dur = 3000  # sec
 laser_chans = 6  # ch2 and ch3
 laser_sin_freq = 40
 
 # Masking flash on
-mask_amp = 2  #
+mask_amp = 0.5 #
 mask_chan = 8  # ch4
 ############################################################
 
@@ -49,6 +49,14 @@ my_bpod.load_serial_message(SER_PORT, 1, [ord('P'), laser_chans, WAV_ID_LASER_RA
 my_bpod.load_serial_message(SER_PORT, 2, [ord('P'), mask_chan, 63])  # Mask flash
 my_bpod.load_serial_message(SER_PORT, 3, [ord('X')])  # Stop both
 
+# Also add go cue
+WAV_ID_GO_CUE = 0
+WAV_PORTS_SPEAKER = 1  # [0000 0001], Chan 1 only
+SER_CMD_GO_CUE = 4   
+my_bpod.load_serial_message(SER_PORT, SER_CMD_GO_CUE, [ord('P'), WAV_PORTS_SPEAKER, WAV_ID_GO_CUE])  # go cue
+goCue_command = (SER_DEVICE, SER_CMD_GO_CUE)    # Use Wav ePlayer serial command #SER_CMD_GO_CUE on ephys rig!! 
+
+
 # --- Start ---
 i = 0
 
@@ -62,13 +70,20 @@ while True:
     print(f'Trial: {i}, valve: {water_ports[i % len(water_ports)]} ', i)
     
     sma = StateMachine(my_bpod)
+    
+    sma.add_state(
+        state_name='GoCue_real',
+        state_timer=0.01,
+        state_change_conditions={EventName.Tup: 'Open'},
+        output_actions = ([goCue_command])
+                    ) 
 
     sma.add_state(
         state_name='Open',
         state_timer=valvetime,
         state_change_conditions={EventName.Tup: 'ITI'},
         output_actions = [('Valve', water_ports[i % len(water_ports)])] \
-                         + [(SER_DEVICE, 2)] if i == 1 else []  # Only trigger once so that it can be manually turned off by 'X'
+                         + ([(SER_DEVICE, 2)] if i == 1 else [])  # Only trigger once so that it can be manually turned off by 'X'
         )   # Give reward in turn
     
     sma.add_state(
