@@ -63,8 +63,8 @@ laser_power_mapper = [ #   mW , V
                       [10.0, 2.0],
                       [20.0, 4.5],                      
                     ]  # Map power of sine wave (mW) to amplitude (V)
-laser_sin_ramp_down_dur = 0.2  # TODO: be flexible
-mask_amp = 2.0  # Amplitude for masking flash
+laser_sin_ramp_down_dur = 0.2  # 1TODO: be flexible
+mask_amp = 0.5  # Amplitude for masking flash
 
 def notify_experimenter(metadata,path):
     filepath = os.path.join(path,'notifications.json')
@@ -912,7 +912,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             # Interpret laser power
             laser_power = variables_subject['laser_power'] if 'laser_power' in variables_subject.keys() else 0
             
-            if laser_power:
+            if laser_power and (variables['laser_late_ITI_dur'] or variables['laser_early_ITI_dur']):
                 amp_id =  [id for id, (pow, _) in enumerate(laser_power_mapper) if pow == laser_power][0]
                 print('laser power (mW, V):', laser_power_mapper[amp_id])
                 
