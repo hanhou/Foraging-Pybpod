@@ -1229,6 +1229,14 @@ class PlotCanvas(FigureCanvas):
         ax.legend(loc='lower left', fontsize=8)
         ax.set_xticks([])
         
+        # HH20211124 photostimulation indicators
+        try:
+            ax.plot(times['EarlyITI'], np.zeros(len(times['EarlyITI']))+1.05, 'cs', markerfacecolor = 'c')
+            ax.plot(times['LaterITI'], np.zeros(len(times['LaterITI']))+1.1, 'cs', markerfacecolor = 'c')
+        except:
+            pass
+        
+        
         #if  handles and handles['plot_timeback'].text().isnumeric():
             #ax.set_xlim(self.startime,endtime)
         self.draw()
@@ -1317,9 +1325,9 @@ class PlotCanvas(FigureCanvas):
                 
         # Show the window in ax1
         if causal:
-            self.ax1.plot([np.max(times['alltimes']) - win_width, np.max(times['alltimes'])], [-0.1] * 2, color='c', lw=4)
+            self.ax1.plot([np.max(times['alltimes']) - win_width, np.max(times['alltimes'])], [-0.1] * 2, color='k', lw=4)
         else:
-            self.ax1.plot([np.max(times['alltimes']) - win_width/2, np.max(times['alltimes'])+ win_width/2], [-0.1] * 2, color='c', lw=4)
+            self.ax1.plot([np.max(times['alltimes']) - win_width/2, np.max(times['alltimes'])+ win_width/2], [-0.1] * 2, color='k', lw=4)
         
         # ax.cla()
         if if_3lp: # 'lick_M' in times.keys():

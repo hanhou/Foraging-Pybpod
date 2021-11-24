@@ -573,8 +573,12 @@ def minethedata_online(data):
             idxes['autowater_M'] = (data['MSG'] == 'Auto_Water_M') & (data['TYPE'] == 'TRANSITION')
             times['autowater_M'] = data['PC-TIME'][idxes['autowater_M']]    
             
-        idxes['trialstart'] = data['TYPE'] == 'TRIAL'
+        # idxes['trialstart'] = data['TYPE'] == 'TRIAL'
+        # times['trialstart'] = data['PC-TIME'][idxes['trialstart']]
+        
+        idxes['trialstart'] = (data['MSG'] == 'Start') & (data['TYPE'] == 'TRANSITION')
         times['trialstart'] = data['PC-TIME'][idxes['trialstart']]
+                
         idxes['trialend'] = data['TYPE'] == 'END-TRIAL'
         times['trialend'] = data['PC-TIME'][idxes['trialend']]
         idxes['GoCue'] = (data['MSG'] == 'GoCue') & (data['TYPE'] == 'TRANSITION')
@@ -598,6 +602,14 @@ def minethedata_online(data):
         idxes['reward_p_R'] = idxes['GoCue']
         times['reward_p_R'] = data['PC-TIME'][idxes['reward_p_R']]
         values['reward_p_R'] = data['reward_p_R'][idxes['reward_p_R']]
+        
+        # HH20211124 Add photostimulation indicators
+        idxes['EarlyITI'] = (data['MSG'] == 'ITIAfterLaserTimerStart') & (data['TYPE'] == 'TRANSITION')
+        times['EarlyITI'] = data['PC-TIME'][idxes['EarlyITI']]
+
+        idxes['LaterITI'] = (data['MSG'] == 'ITIBeforeLaserTimerStart') & (data['TYPE'] == 'TRANSITION')
+        times['LaterITI'] = data['PC-TIME'][idxes['LaterITI']]
+        
         
         # HH20200912 Use random seed to reproduce random numbers
         random_seed = data['random_seed'][0]
