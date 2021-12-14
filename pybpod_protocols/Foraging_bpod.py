@@ -689,7 +689,7 @@ if if_recording_rig:
     for laser_cmd_id, laser_wav_port, laser_wav_id in laser_cmds:
         for amp_id, (_, amp) in enumerate(laser_power_mapper):
             my_bpod.load_serial_message(SER_PORT, laser_cmd_id + amp_id, 
-                                        [ord('P'), laser_wav_port, laser_wav_id + amp_id])  # Left
+                                        [ord('P'), laser_wav_port, laser_wav_id + amp_id])
         
     # Command shorthand for state machine
     goCue_command = (SER_DEVICE, SER_CMD_GO_CUE)    # Use Wav ePlayer serial command #SER_CMD_GO_CUE on ephys rig!! 
@@ -910,11 +910,13 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                                  ) 
             
             # Interpret laser power
-            laser_power = variables_subject['laser_power'] if 'laser_power' in variables_subject.keys() else 0
+            laser_power = variables_subject['laser_power'] if 'laser_power' in variables_subject.keys() else 0 
+            laser_side = variables_subject['laser_side'] if 'laser_side' in variables_subject.keys() else 2  # Default bilateral
             
-            if laser_power and (variables['laser_late_ITI_dur'] or variables['laser_early_ITI_dur']):
+            if laser_power > 0 and (variables['laser_late_ITI_dur'] or variables['laser_early_ITI_dur']):
                 amp_id =  [id for id, (pow, _) in enumerate(laser_power_mapper) if pow == laser_power][0]
                 print('laser power (mW, V):', laser_power_mapper[amp_id])
+                print('laser side (0:L; 1:R; 2:LR):', laser_side)
                 
                 # Global timer #4 (8): photostimulation, late ITI (ITI before the trial)
                 sma.set_global_timer(timer_id=4, 
@@ -923,8 +925,14 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                                                         ) - laser_sin_ramp_down_dur,
                                     on_set_delay=variables['laser_late_ITI_offset'],
                                     channel=SER_DEVICE,
-                                    on_message=SER_CMD_LASER_LR_START + amp_id,
-                                    off_message=SER_CMD_LASER_RAMP_LR_START + amp_id,
+                                    on_message=((SER_CMD_LASER_LR_START if laser_side == 2 else
+                                                SER_CMD_LASER_L_START if laser_side == 0 else
+                                                SER_CMD_LASER_R_START)
+                                                + amp_id),
+                                    off_message=((SER_CMD_LASER_RAMP_LR_START if laser_side == 2 else
+                                                 SER_CMD_LASER_RAMP_L_START if laser_side == 0 else
+                                                 SER_CMD_LASER_RAMP_R_START)
+                                                 + amp_id),
                                     loop_mode=0, 
                                     send_events=0,
                                     )
@@ -937,8 +945,14 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                                                     # (will be turned off manually at the start of the next trial!!)
                                     on_set_delay=variables['laser_early_ITI_offset'],
                                     channel=SER_DEVICE,
-                                    on_message=SER_CMD_LASER_LR_START + amp_id,
-                                    off_message=SER_CMD_LASER_RAMP_LR_START + amp_id,
+                                    on_message=((SER_CMD_LASER_LR_START if laser_side == 2 else
+                                                SER_CMD_LASER_L_START if laser_side == 0 else
+                                                SER_CMD_LASER_R_START)
+                                                + amp_id),
+                                    off_message=((SER_CMD_LASER_RAMP_LR_START if laser_side == 2 else
+                                                 SER_CMD_LASER_RAMP_L_START if laser_side == 0 else
+                                                 SER_CMD_LASER_RAMP_R_START)
+                                                 + amp_id),
                                     loop_mode=0, 
                                     send_events=0,
                                     )

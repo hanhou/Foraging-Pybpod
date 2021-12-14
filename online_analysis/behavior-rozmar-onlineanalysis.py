@@ -105,16 +105,21 @@ class App(QDialog):
                                               'auto_block_switch_points': 'points in a row',
                                               'change_to_go_next_block': 'Next block NOW! (0->1)',
                                              }, 
-                                     'Photostimulation':{
+                                     'Photostimulation (time)':{
                                               'laser_early_ITI_dur': 'early ITI dur',
                                               'laser_late_ITI_dur': 'late ITI dur',
                                               'laser_early_ITI_offset': 'early ITI offset',
                                               'laser_late_ITI_offset': 'late ITI offset',
-                                             }
+                                             },
+                                     '             (schedule)':{
+                                              'laser_side': 'side (0:L;1:R;2:LR)',
+                                              'laser_random_ratio': 'random ratio (0:manual)',
+                                              'laser_min_non_stim_before': 'min non stim before',                                                                }
                                      }
         
         # Map power of sine wave (mW) to amplitude (V); copyed from bpod code
         self.laser_power_mapper = [    #  mW , V
+                                [0.0, 0.0],
                                 [0.1, 0.05],
                                 [1.0, 0.2],
                                 [2.0, 0.5],
@@ -849,16 +854,17 @@ class App(QDialog):
                 # Laser power selector
                 self.handles['laser_power'] = QComboBox(self)
                 self.handles['laser_power'].setFocusPolicy(Qt.NoFocus)
-                self.handles['laser_power'].addItem('0')
                 self.handles['laser_power'].addItems([str(pow) for pow, _ in self.laser_power_mapper])
-                self.handles['laser_power'].currentIndexChanged.connect(self.save_parameters)
-                if 'laser_power' in self.handles['variables_subject']:
-                     self.handles['laser_power'].setCurrentIndex(
+                
+                if 'laser_power' in variables_subject:
+                     self.handles['laser_power'].setCurrentIndex(  # Should be placed BEFORE the next line!!
                          [id for id, (pow, _) in enumerate(self.laser_power_mapper) 
-                          if pow == self.handles['variables_subject']['laser_power']])
+                          if pow == variables_subject['laser_power']][0])
+                                          
+                self.handles['laser_power'].currentIndexChanged.connect(self.save_parameters)
                     
-                layout_subject.addWidget(QLabel('power (mW)'), row, 10, alignment=Qt.AlignRight)
-                layout_subject.addWidget(self.handles['laser_power'], row, 11, 1, 1)
+                layout_subject.addWidget(QLabel('power (mW)'), 8, 10, alignment=Qt.AlignRight)
+                layout_subject.addWidget(self.handles['laser_power'], 8, 11, 1, 1)
         
                 self.horizontalGroupBox_variables_subject.setLayout(layout_subject)
                 self.variables=dict()
@@ -881,6 +887,9 @@ class App(QDialog):
             self.variables['setup'] = variables_setup
             self.variables['subject_file'] = subject_var_file
             self.variables['setup_file'] = setup_var_file
+            
+        self.enable_disable_fields()            
+
             
     def load_parameters_from_file(self):
         project_now = self.handles['filter_project'].currentText()
@@ -960,6 +969,11 @@ class App(QDialog):
                     # self.handles['variables_subject'][key].setText("NA")
                     self.handles['variables_subject'][key].setStyleSheet('QLineEdit {background: grey;}')
         
+        self.enable_disable_fields()            
+        self.show_actual_reward_prob()
+        qApp.processEvents()
+
+    def enable_disable_fields(self):
         # self.cache_auto_train_min_rewarded_trial_num = int(self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].text())
         if self.handles['variables_subject']['auto_block_switch_type'].text() == 'NA' or not int(self.handles['variables_subject']['auto_block_switch_type'].text()):
             self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].setEnabled(True)
@@ -986,9 +1000,14 @@ class App(QDialog):
         else:
             self.handles['variables_subject']['ValveOpenTime_M'].setEnabled(True)
             
-        self.show_actual_reward_prob()
-        qApp.processEvents()
-        
+        try:
+            if float(self.handles['variables_subject']['laser_random_ratio'].text()) == 0:
+                self.handles['variables_subject']['laser_min_non_stim_before'].setEnabled(False)
+            else:
+                self.handles['variables_subject']['laser_min_non_stim_before'].setEnabled(True)
+        except:
+            pass
+            
     def save_parameters(self):
         project_now = self.handles['filter_project'].currentText()
         experiment_now = self.handles['filter_experiment'].currentText()
