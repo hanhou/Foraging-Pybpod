@@ -917,13 +917,55 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                 amp_id =  [id for id, (pow, _) in enumerate(laser_power_mapper) if pow == laser_power][0]
                 print('laser power (mW, V):', laser_power_mapper[amp_id])
                 print('laser side (0:L, 1:R, 2:LR):', laser_side)
+                print( min(variables['laser_early_ITI_dur'],
+                                             iti_after - variables['laser_early_ITI_offset'] + 2 
+                                             ) - laser_sin_ramp_down_dur, iti_before, iti_after)
                 
+                if variables['laser_late_ITI_offset'] >= 0:   # Original definition
+                    late_ITI_duration = min(variables['laser_late_ITI_dur'], 
+                                            iti_before + bitcode_length - variables['laser_late_ITI_offset']
+                                            ) - laser_sin_ramp_down_dur
+                    late_ITI_offset = variables['laser_late_ITI_offset']
+                    
+                    early_ITI_duration = min(variables['laser_early_ITI_dur'],
+                                             iti_after - variables['laser_early_ITI_offset']
+                                             ) - laser_sin_ramp_down_dur
+                                         # (will be turned off manually at the start of the next trial!!)
+                    early_ITI_offset = variables['laser_early_ITI_offset']
+                    early_ITI_duration += 2  # +2: make sure it covers the gap. 
+
+                    
+                else:  # Photostimulation is "right-aligned" to start of the next trial
+                    # Determine stimulation during iti_before (late_ITI in terms of stimulation)
+                    if variables['laser_late_ITI_dur'] - laser_sin_ramp_down_dur \
+                        <= iti_before + bitcode_length - abs(variables['laser_late_ITI_offset']):
+                        late_ITI_duration = variables['laser_late_ITI_dur'] - laser_sin_ramp_down_dur
+                        late_ITI_offset = (iti_before + bitcode_length - abs(variables['laser_late_ITI_offset']))\
+                                          - (variables['laser_late_ITI_dur'] - laser_sin_ramp_down_dur)  # must be >=0
+                    else:
+                        late_ITI_duration = iti_before + bitcode_length - abs(variables['laser_late_ITI_offset'])
+                        late_ITI_offset = 0
+                        
+                    # Determine stimulation during iti_after (early_ITI in terms of stimulation)
+                    if variables['laser_late_ITI_dur'] - laser_sin_ramp_down_dur <= iti_after + bitcode_length - abs(variables['laser_late_ITI_offset']):
+                        early_ITI_duration = 0
+                        early_ITI_offset = 0
+                    else:
+                        early_ITI_duration = (variables['laser_late_ITI_dur'] - laser_sin_ramp_down_dur)\
+                                            - (iti_after + bitcode_length - abs(variables['laser_late_ITI_offset'])) # Note the total time is longer because of bpod gap
+                        early_ITI_offset = max(0, iti_after - early_ITI_duration)
+                        early_ITI_duration += 2  # +2: make sure it covers the gap. 
+
+                    
+                print('early_ITI_duration:', early_ITI_duration)
+                print('early_ITI_offset:', early_ITI_offset)
+                print('late_ITI_duration:', late_ITI_duration)
+                print('late_ITI_offset:', late_ITI_offset)
+                    
                 # Global timer #4 (8): photostimulation, late ITI (ITI before the trial)
                 sma.set_global_timer(timer_id=4, 
-                                    timer_duration=min(variables['laser_late_ITI_dur'], 
-                                                        iti_before + bitcode_length - variables['laser_late_ITI_offset']
-                                                        ) - laser_sin_ramp_down_dur,
-                                    on_set_delay=variables['laser_late_ITI_offset'],
+                                    timer_duration=late_ITI_duration,
+                                    on_set_delay=late_ITI_offset,
                                     channel=SER_DEVICE,
                                     on_message=((SER_CMD_LASER_LR_START if laser_side == 2 else
                                                 SER_CMD_LASER_L_START if laser_side == 0 else
@@ -939,11 +981,9 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                 
                 # Global timer #5 (16): photostimulation, early ITI (ITI after the trial)
                 sma.set_global_timer(timer_id=5, 
-                                    timer_duration=min(variables['laser_early_ITI_dur'], 
-                                                        iti_after - variables['laser_early_ITI_offset'] + 2
-                                                        ) - laser_sin_ramp_down_dur,
+                                    timer_duration=early_ITI_duration,
                                                     # (will be turned off manually at the start of the next trial!!)
-                                    on_set_delay=variables['laser_early_ITI_offset'],
+                                    on_set_delay=early_ITI_offset,
                                     channel=SER_DEVICE,
                                     on_message=((SER_CMD_LASER_LR_START if laser_side == 2 else
                                                 SER_CMD_LASER_L_START if laser_side == 0 else

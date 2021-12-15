@@ -107,9 +107,9 @@ class App(QDialog):
                                              }, 
                                      'Photostimulation (time)':{
                                               'laser_early_ITI_dur': 'early ITI dur',
-                                              'laser_late_ITI_dur': 'late ITI dur',
                                               'laser_early_ITI_offset': 'early ITI offset',
-                                              'laser_late_ITI_offset': 'late ITI offset',
+                                              'laser_late_ITI_dur': 'late ITI dur',
+                                              'laser_late_ITI_offset': 'late ITI offset (<0: right-aligned)',
                                              },
                                      '             (schedule)':{
                                               'laser_side': 'side (0:L;1:R;2:LR)',
@@ -863,8 +863,8 @@ class App(QDialog):
                                           
                 self.handles['laser_power'].currentIndexChanged.connect(self.save_parameters)
                     
-                layout_subject.addWidget(QLabel('power (mW)'), 8, 10, alignment=Qt.AlignRight)
-                layout_subject.addWidget(self.handles['laser_power'], 8, 11, 1, 1)
+                layout_subject.addWidget(QLabel('power (mW)'), 9, 10, alignment=Qt.AlignRight)
+                layout_subject.addWidget(self.handles['laser_power'], 9, 11, 1, 1)
         
                 self.horizontalGroupBox_variables_subject.setLayout(layout_subject)
                 self.variables=dict()
@@ -1005,6 +1005,14 @@ class App(QDialog):
                 self.handles['variables_subject']['laser_min_non_stim_before'].setEnabled(False)
             else:
                 self.handles['variables_subject']['laser_min_non_stim_before'].setEnabled(True)
+                
+            if float(self.handles['variables_subject']['laser_late_ITI_offset'].text()) < 0:   # 'right-aligned'
+                self.handles['variables_subject']['laser_early_ITI_dur'].setEnabled(False)
+                self.handles['variables_subject']['laser_early_ITI_offset'].setEnabled(False)
+            else:
+                self.handles['variables_subject']['laser_early_ITI_dur'].setEnabled(True)
+                self.handles['variables_subject']['laser_early_ITI_offset'].setEnabled(True)
+                
         except:
             pass
             
