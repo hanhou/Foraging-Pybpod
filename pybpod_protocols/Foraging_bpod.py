@@ -916,7 +916,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             if laser_power > 0 and (variables['laser_late_ITI_dur'] or variables['laser_early_ITI_dur']):
                 amp_id =  [id for id, (pow, _) in enumerate(laser_power_mapper) if pow == laser_power][0]
                 print('laser power (mW, V):', laser_power_mapper[amp_id])
-                print('laser side (0:L; 1:R; 2:LR):', laser_side)
+                print('laser side (0:L, 1:R, 2:LR):', laser_side)
                 
                 # Global timer #4 (8): photostimulation, late ITI (ITI before the trial)
                 sma.set_global_timer(timer_id=4, 
