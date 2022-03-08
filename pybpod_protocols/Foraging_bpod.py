@@ -576,7 +576,7 @@ else:
         variables['WaterPort_R_ch_in'] = EventName.Port2In
         variables['WaterPort_M_ch_out'] = 3
         variables['WaterPort_M_ch_in'] = EventName.Port3In
-        variables['comport_motor'] = 'COM8'
+        variables['comport_motor'] = 'COM3'
         variables['retract_motor_signal'] = (OutputChannel.PWM8, 255)  # Use direct trigger to Zaber motor
         # variables['retract_motor_signal'] = (OutputChannel.SoftCode, 1)  # Use softcode (slightly slower)
         variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
@@ -596,7 +596,7 @@ if if_recording_rig:
     # --- Settings ---
     # https://sites.google.com/site/bpoddocumentation/user-guide/function-reference/bpodwaveplayer
     # https://sites.google.com/site/bpoddocumentation/user-guide/function-reference/waveplayerserialinterface
-    wav_player = WavePlayerModule('COM7')   # "Teensy USB" in device manager
+    wav_player = WavePlayerModule('COM5')   # "Teensy USB" in device manager
     wav_player.set_trigger_mode(wav_player.TRIGGER_MODE_MASTER)   # 'Master' - triggers can force-start a new wave during playback.
     wav_player.set_sampling_period(SAMPLING_RATE)
     wav_player.set_output_range(wav_player.RANGE_VOLTS_MINUS5_5) 

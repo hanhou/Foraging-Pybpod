@@ -30,7 +30,8 @@ except:
 print('started')
 paths = ['/home/rozmar/Data/Behavior/Behavior_rigs/Tower-2',
          'C:\\Users\\labadmin\\My Documents\\Pybpod\\Projects',
-         'C:\\Users\\labadmin\\Documents\\Pybpod\\Projectss']
+         'C:\\Users\\labadmin\\Documents\\Pybpod\\Projectss',
+         'C:\\Users\\Han2\\Documents\\Pybpod\\Projects']
 for defpath in paths:
     print(defpath)
     if os.path.exists(defpath):

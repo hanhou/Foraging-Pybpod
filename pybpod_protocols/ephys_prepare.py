@@ -40,7 +40,7 @@ WAV_ID_LASER_RAMP_START = 10
 
 # Don't reload waveforms, only change loop mode
 SAMPLING_RATE = 50000
-wav_player = WavePlayerModule('COM7')   # "Teensy USB" in device manager
+wav_player = WavePlayerModule('COM5')   # "Teensy USB" in device manager
 wav_player.set_loop_duration([0, laser_dur * SAMPLING_RATE, laser_dur * SAMPLING_RATE, laser_dur * SAMPLING_RATE, 0, 0, 0, 0])
 wav_player.set_loop_mode([0, 1, 1, 1, 0, 0, 0, 0])
 wav_player.disconnect()
