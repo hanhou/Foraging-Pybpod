@@ -183,7 +183,9 @@ def main(camera_serial_number, fileName_prefix):
 	# Start acquisition
 	c.startCapture()
 
-	avi = PyCapture2.AVIRecorder()
+	# avi = PyCapture2.AVIRecorder()  # This doesn't work for v2.13
+	avi = PyCapture2.FlyCapture2Video()
+
 	#fRateProp = c.getProperty(PyCapture2.PROPERTY_TYPE.FRAME_RATE)
 	#frameRate = fRateProp.absValue
 	frameRate = 30
