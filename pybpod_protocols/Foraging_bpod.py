@@ -472,7 +472,7 @@ if os.path.exists(setupfile):
 else:
     if setup_name =='Tower-1':
         # for setup: Tower - 1
-        variables['GoCue_ch'] = OutputChannel.PWM5
+        variables['GoCue_ch'] = OutputChannel.PWM3
         variables['WaterPort_L_ch_out'] = 7
         variables['WaterPort_L_ch_in'] = EventName.Port7In
         variables['WaterPort_R_ch_out'] = 8
@@ -483,7 +483,7 @@ else:
 #         variables['Choice_cue_L_ch'] = OutputChannel.PWM1
 #         variables['Choice_cue_R_ch'] = OutputChannel.PWM2
 # =============================================================================
-        variables['comport_motor'] = 'COM6'
+        variables['comport_motor'] = 'COM4'
         variables['retract_motor_signal'] = (OutputChannel.PWM1, 255)
         variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
     elif setup_name =='Tower-2':
@@ -989,7 +989,8 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             # In the autowater mode, it is the 'GoCue_real' that tells the mouse to lick
             sma.add_state(
             	state_name='GoCue_real',
-            	state_timer=event_marker_dur['go_cue'],
+            	state_timer=event_marker_dur['go_cue'] 
+                            if if_recording_rig else 0.01,    # WAV trigger board may need longer durtion to trigger!!
             	state_change_conditions={EventName.Tup: 'AfterGoCue'},
             	output_actions = ([goCue_command, (variables['bitcode_channel'], 1)]
                                   if if_recording_rig else
