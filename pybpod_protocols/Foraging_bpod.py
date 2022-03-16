@@ -1103,13 +1103,34 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             # Define actual punishiment
             if variables['early_lick_punishment'] > 0 or not variables['motor_retract_waterport']:
                 # Add timeout (during which more early licks will be ignored), then restart the trial
+                
+                # Updated delay logic
+                #     [delay_now] = x sec   (trunc. exp.)
+                #     [early_lick_punishment] =  y sec  (fixed)
+                # 
+                # Old logic: 
+                #                                      |---- else --> {GoCue}
+                #      {DelayStart} -> if lick during x -> {BackToDelayStart} -> additional y sec, during which we don't detect licks; after y sec --> go back to {DelayStart} --|
+                #           ^--------------------------------------------------------------------------------------------------------------------------------------------------|
+                #
+                # New logic:
+                #    {DelayStart} -> if lick during x -> {BackToDelayStart} -> During additional y sec, if lick, reset y sec ;   else, --> {GoCue}
+                #                                                 ^---------- {BackToDelayStartAgain} --------------------|
+                
                 sma.add_state(
                 	state_name='BackToDelayStart',
-                	# state_timer=2,
-                    # state_timer=variables['delay'],  # Control timeout by delay itself
                     state_timer = abs(variables['early_lick_punishment']), # As the timeout
-                	state_change_conditions={EventName.Tup: 'DelayStart'},
+                	state_change_conditions={variables['WaterPort_L_ch_in']: 'BackToDelayStartAgain', 
+                                             variables['WaterPort_R_ch_in']: 'BackToDelayStartAgain',
+                                             variables['WaterPort_M_ch_in']: 'BackToDelayStartAgain',
+                                             EventName.Tup: 'GoCue'},
                 	output_actions = [])
+                
+                sma.add_state(
+                	state_name='BackToDelayStartAgain',
+                    state_timer = 0, 
+                	state_change_conditions={EventName.Tup: 'BackToDelayStart'},
+                	output_actions = [])                
                 
             elif variables['early_lick_punishment'] < 0:   
                 # Abort the trial directly (avoid guessing during delay period)
