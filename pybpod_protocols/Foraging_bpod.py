@@ -465,115 +465,129 @@ variables_subject = variables.copy()
 # =================== Define rig-specific vSariables (ports, etc.) =========================
 variables = dict()
 setupfile = os.path.join(setuppath,'variables.json')
-if os.path.exists(setupfile):
-    with open(setupfile) as json_file:
-        variables = json.load(json_file)
-    print('setup variables loaded from Json file')
-else:
-    if setup_name =='Tower-1':
-        # for setup: Tower - 1
-        variables['GoCue_ch'] = OutputChannel.PWM3
-        variables['WaterPort_L_ch_out'] = 7
-        variables['WaterPort_L_ch_in'] = EventName.Port7In
-        variables['WaterPort_R_ch_out'] = 8
-        variables['WaterPort_R_ch_in'] = EventName.Port8In
-        variables['WaterPort_M_ch_out'] = 3
-        variables['WaterPort_M_ch_in'] = EventName.Port3In
-# =============================================================================
-#         variables['Choice_cue_L_ch'] = OutputChannel.PWM1
-#         variables['Choice_cue_R_ch'] = OutputChannel.PWM2
-# =============================================================================
-        variables['comport_motor'] = 'COM4'
-        variables['retract_motor_signal'] = (OutputChannel.PWM1, 255)
-        variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
-    elif setup_name =='Tower-2':
-        # for setup: Tower - 2
-        variables['GoCue_ch'] = OutputChannel.PWM3
-        variables['WaterPort_L_ch_out'] = 7
-        variables['WaterPort_L_ch_in'] = EventName.Port7In
-        variables['WaterPort_R_ch_out'] = 8
-        variables['WaterPort_R_ch_in'] = EventName.Port8In
-        variables['WaterPort_M_ch_out'] = 3
-        variables['WaterPort_M_ch_in'] = EventName.Port4In
-# =============================================================================
-#         variables['Choice_cue_L_ch'] = OutputChannel.PWM1
-#         variables['Choice_cue_R_ch'] = OutputChannel.PWM2
-# =============================================================================
-        variables['comport_motor'] = 'COM5'
-        variables['retract_motor_signal'] = (OutputChannel.PWM1, 255)
-        variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
-    elif setup_name == 'Tower-3':
-        # for setup: Tower - 3
-        variables['GoCue_ch'] = OutputChannel.PWM5
-        variables['WaterPort_L_ch_out'] = 7
-        variables['WaterPort_L_ch_in'] = EventName.Port7In
-        variables['WaterPort_R_ch_out'] = 8
-        variables['WaterPort_R_ch_in'] = EventName.Port8In
-        variables['WaterPort_M_ch_out'] = 3
-        variables['WaterPort_M_ch_in'] = EventName.Port3In
-# =============================================================================
-#         variables['Choice_cue_L_ch'] = OutputChannel.PWM1
-#         variables['Choice_cue_R_ch'] = OutputChannel.PWM2
-# =============================================================================
-        variables['comport_motor'] = 'COM9'
-        variables['retract_motor_signal'] = (OutputChannel.PWM2, 255)
-        variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
-    elif setup_name == 'Tower-4':
-        # for setup: Tower - 4
-        variables['GoCue_ch'] = OutputChannel.PWM5
-        variables['WaterPort_L_ch_out'] = 7
-        variables['WaterPort_L_ch_in'] = EventName.Port7In
-        variables['WaterPort_R_ch_out'] = 8
-        variables['WaterPort_R_ch_in'] = EventName.Port8In
-        variables['WaterPort_M_ch_out'] = 3
-        variables['WaterPort_M_ch_in'] = EventName.Port3In
-        variables['comport_motor'] = 'COM14'
-        # variables['retract_motor_signal'] = (OutputChannel.PWM2, 255)
-        variables['retract_motor_signal'] = (OutputChannel.SoftCode, 1)
-        variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
-    elif setup_name == 'Voltage-1p-rig':
-        # for setup: Tower - 3
-        variables['GoCue_ch'] = OutputChannel.PWM5
-        variables['WaterPort_L_ch_out'] = 1
-        variables['WaterPort_L_ch_in'] = EventName.Port1In
-        variables['WaterPort_R_ch_out'] = 2
-        variables['WaterPort_R_ch_in'] = EventName.Port2In
-        variables['WaterPort_M_ch_out'] = 3
-        variables['WaterPort_M_ch_in'] = EventName.Port3In
-# =============================================================================
-#         variables['Choice_cue_L_ch'] = OutputChannel.PWM1
-#         variables['Choice_cue_R_ch'] = OutputChannel.PWM2
-# =============================================================================
-        variables['comport_motor'] = 'COM5'
-        variables['retract_motor_signal'] = (OutputChannel.SoftCode, 1)
-        variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
-    elif setup_name == 'Ephys_Han':
-        # for setup: Ephys_Han
-        variables['if_recording_rig'] = True
-        variables['bitcode_channel'] = OutputChannel.BNC1  # e.g., bitcode and go
-        variables['trial_indicator_channel'] = OutputChannel.BNC2  # e.g., trial indicator
-        variables['camera_face_trig'] = OutputChannel.Wire1    # Face camera trigger
-        variables['camera_trunk_trig'] = OutputChannel.Wire2   # Trunk camera trigger
+# if os.path.exists(setupfile):
+#     with open(setupfile) as json_file:
+#         variables = json.load(json_file)
+#     print('setup variables loaded from Json file')
+# else:
 
-        variables['GoCue_ch'] = OutputChannel.Serial1    # Use WavePlayer serial command #1 on ephys rig!!
-        variables['WaterPort_L_ch_out'] = 1
-        variables['WaterPort_L_ch_in'] = EventName.Port1In
-        variables['WaterPort_R_ch_out'] = 2
-        variables['WaterPort_R_ch_in'] = EventName.Port2In
-        variables['WaterPort_M_ch_out'] = 3
-        variables['WaterPort_M_ch_in'] = EventName.Port3In
-        variables['comport_motor'] = 'COM8'
-        variables['retract_motor_signal'] = (OutputChannel.PWM8, 255)  # Use direct trigger to Zaber motor
-        # variables['retract_motor_signal'] = (OutputChannel.SoftCode, 1)  # Use softcode (slightly slower)
-        variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
+# Always rewrite rig setup file
+if setup_name =='Tower-1':
+    # for setup: Tower - 1
+    variables['GoCue_ch'] = OutputChannel.PWM3
+    variables['WaterPort_L_ch_out'] = 7
+    variables['WaterPort_L_ch_in'] = EventName.Port7In
+    variables['WaterPort_R_ch_out'] = 8
+    variables['WaterPort_R_ch_in'] = EventName.Port8In
+    variables['WaterPort_M_ch_out'] = 3
+    variables['WaterPort_M_ch_in'] = EventName.Port3In
+# =============================================================================
+#         variables['Choice_cue_L_ch'] = OutputChannel.PWM1
+#         variables['Choice_cue_R_ch'] = OutputChannel.PWM2
+# =============================================================================
+    variables['comport_motor'] = 'COM4'
+    variables['retract_motor_signal'] = (OutputChannel.PWM1, 255)
+    variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
+
+    variables['bitcode_channel'] = OutputChannel.BNC1  # e.g., bitcode and go
+    variables['trial_indicator_channel'] = OutputChannel.BNC2  # e.g., trial indicator
+    variables['camera_face_trig'] = OutputChannel.Wire1    # Face camera trigger
+    variables['camera_trunk_trig'] = OutputChannel.Wire2   # Trunk camera trigger
+
+elif setup_name =='Tower-2':
+    # for setup: Tower - 2
+    variables['GoCue_ch'] = OutputChannel.PWM3
+    variables['WaterPort_L_ch_out'] = 7
+    variables['WaterPort_L_ch_in'] = EventName.Port7In
+    variables['WaterPort_R_ch_out'] = 8
+    variables['WaterPort_R_ch_in'] = EventName.Port8In
+    variables['WaterPort_M_ch_out'] = 3
+    variables['WaterPort_M_ch_in'] = EventName.Port4In
+# =============================================================================
+#         variables['Choice_cue_L_ch'] = OutputChannel.PWM1
+#         variables['Choice_cue_R_ch'] = OutputChannel.PWM2
+# =============================================================================
+    variables['comport_motor'] = 'COM5'
+    variables['retract_motor_signal'] = (OutputChannel.PWM1, 255)
+    variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
+
+    variables['bitcode_channel'] = OutputChannel.BNC1  # e.g., bitcode and go
+    variables['trial_indicator_channel'] = OutputChannel.BNC2  # e.g., trial indicator
+    variables['camera_face_trig'] = OutputChannel.Wire1    # Face camera trigger
+    variables['camera_trunk_trig'] = OutputChannel.Wire2   # Trunk camera trigger
+
+elif setup_name == 'Tower-3':
+    # for setup: Tower - 3
+    variables['GoCue_ch'] = OutputChannel.PWM5
+    variables['WaterPort_L_ch_out'] = 7
+    variables['WaterPort_L_ch_in'] = EventName.Port7In
+    variables['WaterPort_R_ch_out'] = 8
+    variables['WaterPort_R_ch_in'] = EventName.Port8In
+    variables['WaterPort_M_ch_out'] = 3
+    variables['WaterPort_M_ch_in'] = EventName.Port3In
+# =============================================================================
+#         variables['Choice_cue_L_ch'] = OutputChannel.PWM1
+#         variables['Choice_cue_R_ch'] = OutputChannel.PWM2
+# =============================================================================
+    variables['comport_motor'] = 'COM9'
+    variables['retract_motor_signal'] = (OutputChannel.PWM2, 255)
+    variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
+
+    variables['bitcode_channel'] = OutputChannel.BNC1  # e.g., bitcode and go
+    variables['trial_indicator_channel'] = OutputChannel.BNC2  # e.g., trial indicator
+    variables['camera_face_trig'] = OutputChannel.Wire1    # Face camera trigger
+    variables['camera_trunk_trig'] = OutputChannel.Wire2   # Trunk camera trigger
+
+elif setup_name == 'Tower-4':
+    # for setup: Tower - 4
+    variables['GoCue_ch'] = OutputChannel.PWM5
+    variables['WaterPort_L_ch_out'] = 7
+    variables['WaterPort_L_ch_in'] = EventName.Port7In
+    variables['WaterPort_R_ch_out'] = 8
+    variables['WaterPort_R_ch_in'] = EventName.Port8In
+    variables['WaterPort_M_ch_out'] = 3
+    variables['WaterPort_M_ch_in'] = EventName.Port3In
+    variables['comport_motor'] = 'COM14'
+    # variables['retract_motor_signal'] = (OutputChannel.PWM2, 255)
+    variables['retract_motor_signal'] = (OutputChannel.SoftCode, 1)
+    variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
+
+    variables['bitcode_channel'] = OutputChannel.BNC1  # e.g., bitcode and go
+    variables['trial_indicator_channel'] = OutputChannel.BNC2  # e.g., trial indicator
+    variables['camera_face_trig'] = OutputChannel.Wire1    # Face camera trigger
+    variables['camera_trunk_trig'] = OutputChannel.Wire2   # Trunk camera trigger
+
+elif setup_name == 'Ephys_Han':
+    # for setup: Ephys_Han
+    variables['if_recording_rig'] = True
+    variables['bitcode_channel'] = OutputChannel.BNC1  # e.g., bitcode and go
+    variables['trial_indicator_channel'] = OutputChannel.BNC2  # e.g., trial indicator
+    variables['camera_face_trig'] = OutputChannel.Wire1    # Face camera trigger
+    variables['camera_trunk_trig'] = OutputChannel.Wire2   # Trunk camera trigger
+
+    variables['GoCue_ch'] = OutputChannel.Serial1    # Use WavePlayer serial command #1 on ephys rig!!
+    variables['WaterPort_L_ch_out'] = 1
+    variables['WaterPort_L_ch_in'] = EventName.Port1In
+    variables['WaterPort_R_ch_out'] = 2
+    variables['WaterPort_R_ch_in'] = EventName.Port2In
+    variables['WaterPort_M_ch_out'] = 3
+    variables['WaterPort_M_ch_in'] = EventName.Port3In
+    variables['comport_motor'] = 'COM8'
+    variables['retract_motor_signal'] = (OutputChannel.PWM8, 255)  # Use direct trigger to Zaber motor
+    # variables['retract_motor_signal'] = (OutputChannel.SoftCode, 1)  # Use softcode (slightly slower)
+    variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
 
 if 'if_recording_rig' in variables.keys() and variables['if_recording_rig']:
-    if_recording_rig = True
+    if_use_analog_module = True
+    if_bit_code = True
+    if_camera_trig = True
 else:
-    if_recording_rig = False
+    if_use_analog_module = False
+    if_bit_code = True
+    if_camera_trig = True
 
 # ================ Define WavePlayer if this is a recording rig ==============
-if if_recording_rig:
+if if_use_analog_module:
     WAV_PORTS_SPEAKER = 1  # [0000 0001], first channel only
     WAV_NUM_GO_CUE, SER_CMD_GO_CUE = 0, 1    # Waveform starts from 0, serial command starts from 1...
 
@@ -606,6 +620,8 @@ if if_recording_rig:
 
 else:
     goCue_command = (variables['GoCue_ch'], 255)  # Set PWM5 to 100% duty cycle (always on), which triggers the wav trigger board
+
+
 
 
 variables_setup = variables.copy()
@@ -779,9 +795,9 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         print('Blocknumber:', blocki + 1)
         print('Trialnumber:', triali + 1)
 
-        if if_recording_rig:
-            # Use global timer to trigger cameras
-            # https://pybpod.readthedocs.io/projects/pybpod-api/en/v1.8.1/pybpodapi/state_machine/state_machine.html?highlight=global_timers#module-pybpodapi.state_machine.global_timers
+        if if_camera_trig:
+        # Use global timer to trigger cameras
+        # https://pybpod.readthedocs.io/projects/pybpod-api/en/v1.8.1/pybpodapi/state_machine/state_machine.html?highlight=global_timers#module-pybpodapi.state_machine.global_timers
             sma.set_global_timer(timer_id=1,
                                  timer_duration=camera_pulse,
                                  on_set_delay=0,
@@ -804,6 +820,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                                  loop_intervals=1/camera_trunk_fps - camera_pulse,
                                  )
 
+        if if_bit_code:
             # 3rd global timer for trial indicator
             sma.set_global_timer(timer_id=3,
                                  timer_duration=777,  # Infinity
@@ -822,19 +839,19 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                 state_name='ITIBeforeVideoOff',
                 state_timer=iti_before_video_off,
                 state_change_conditions={EventName.Tup: 'ITIBeforeVideoOn'},
-                output_actions = [('GlobalTimerTrig', 4)] if if_recording_rig else []      # Start global timer #3 (trial indicator)
+                output_actions = [('GlobalTimerTrig', 4)] if if_bit_code else []      # Start global timer #3 (trial indicator)
                 )
 
         sma.add_state(
                 state_name='ITIBeforeVideoOn',
                 state_timer=iti_before_video_on,
                 state_change_conditions={EventName.Tup: 'Start'},
-                output_actions = [('GlobalTimerTrig', 3)] if if_recording_rig else []     # Start global timer #1 & #2 (cameras)
+                output_actions = [('GlobalTimerTrig', 3)] if if_camera_trig else []     # Start global timer #1 & #2 (cameras)
                 )
 
         # Now real trial start
         # Bit code
-        if if_recording_rig:
+        if if_bit_code:
             sma.add_state(
                 state_name='Start',
                 state_timer=event_marker_dur['bitcode_eachbit']*bitcode_first_multiplier,  # Signals the start of bitcode (1.5x width)
@@ -987,15 +1004,27 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                 	output_actions = [])
 
             # In the autowater mode, it is the 'GoCue_real' that tells the mouse to lick
+
+            # Now go_cue duration will always be event_marker_dur['go_cue'],
+            # but for rigs that use wav trig board, add another state to ensure success trigger.
+            # By doing this, we keep the GoCue bitcode duration the same across all rigs (for Kenta's photometry experiments on training rigs)
             sma.add_state(
             	state_name='GoCue_real',
-            	state_timer=event_marker_dur['go_cue'] 
-                            if if_recording_rig else 0.01,    # WAV trigger board may need longer durtion to trigger!!
-            	state_change_conditions={EventName.Tup: 'AfterGoCue'},
-            	output_actions = ([goCue_command, (variables['bitcode_channel'], 1)]
-                                  if if_recording_rig else
-                                  [goCue_command])
-                               )   # Reaction time
+                state_timer=event_marker_dur['go_cue'],    # Now go_cue duration will always be event_marker_dur['go_cue']
+            	state_change_conditions={EventName.Tup: 'AfterGoCue'
+                                         if if_use_analog_module else
+                                        'GoCue_WavTrigBoard'},
+            	output_actions = ([goCue_command, (variables['bitcode_channel'], 1)]  # Go cue command & bitcode
+                                  if if_bit_code else
+                                  [goCue_command])   # Go cue command only
+                               )
+
+            if not if_use_analog_module:
+                sma.add_state(
+                   	state_name='GoCue_WavTrigBoard',
+                    state_timer=0.01,   # WAV trigger board need longer durtion to trigger
+                   	state_change_conditions={EventName.Tup: 'AfterGoCue'},
+                   	output_actions = [goCue_command])
 
             sma.add_state(
             	state_name='AfterGoCue',
@@ -1013,15 +1042,26 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             # Licks detected within the response time --> Choice_X, where X is the first licked port;
             # Otherwise, Tup --> ITI` --> end of this trial
 
+            # Now go_cue duration will always be event_marker_dur['go_cue'],
+            # but for rigs that use wav trig board, add another state to ensure success trigger.
+            # By doing this, we keep the GoCue bitcode duration the same across all rigs (for Kenta's photometry experiments on training rigs)
             sma.add_state(
             	state_name='GoCue',
-                state_timer=event_marker_dur['go_cue']
-                            if if_recording_rig else 0.01,    # WAV trigger board may need longer durtion to trigger!!
-            	state_change_conditions={EventName.Tup: 'AfterGoCue'},
-            	output_actions = ([goCue_command, (variables['bitcode_channel'], 1)]
-                                  if if_recording_rig else
-                                  [goCue_command])
+                state_timer=event_marker_dur['go_cue'],    # Now go_cue duration will always be event_marker_dur['go_cue']
+            	state_change_conditions={EventName.Tup: 'AfterGoCue'
+                                         if if_use_analog_module else
+                                        'GoCue_WavTrigBoard'},
+            	output_actions = ([goCue_command, (variables['bitcode_channel'], 1)]  # Go cue command & bitcode
+                                  if if_bit_code else
+                                  [goCue_command])   # Go cue command only
                                )
+
+            if not if_use_analog_module:
+                sma.add_state(
+                   	state_name='GoCue_WavTrigBoard',
+                    state_timer=0.01,   # WAV trigger board need longer durtion to trigger
+                   	state_change_conditions={EventName.Tup: 'AfterGoCue'},
+                   	output_actions = [goCue_command])
 
             sma.add_state(
             	state_name='AfterGoCue',
@@ -1066,7 +1106,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                                      'Reward_L'  if reward_L or reward_L_accumulated  # reward_L: reward generated in the current trial
                                                                                       # reward_L_accumulated: reward baited from the last trial
                                      else 'Consume_reward_L'},         # No reward
-        	output_actions = [(variables['bitcode_channel'], 1)] if if_recording_rig else [])  #(variables['Choice_cue_L_ch'],255)   # Not to confuse the mice with too many sounds.
+        	output_actions = [(variables['bitcode_channel'], 1)] if if_bit_code else [])  #(variables['Choice_cue_L_ch'],255)   # Not to confuse the mice with too many sounds.
 
         sma.add_state(
         	state_name='Choice_R',
@@ -1074,7 +1114,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         	state_change_conditions={EventName.Tup:
                                      'Reward_R'  if reward_R or reward_R_accumulated
                                      else 'Consume_reward_R'},
-        	output_actions = [(variables['bitcode_channel'], 1)] if if_recording_rig else [])  #(variables['Choice_cue_L_ch'],255)   # Not to confuse the mice with too many sounds.
+        	output_actions = [(variables['bitcode_channel'], 1)] if if_bit_code else [])  #(variables['Choice_cue_L_ch'],255)   # Not to confuse the mice with too many sounds.
 
         sma.add_state(
         	state_name='Choice_M',
@@ -1082,7 +1122,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         	state_change_conditions={EventName.Tup:
                                      'Reward_M'  if reward_M or reward_M_accumulated
                                      else 'Consume_reward_M'},
-        	output_actions = [(variables['bitcode_channel'], 1)] if if_recording_rig else [])  #(variables['Choice_cue_L_ch'],255)   # Not to confuse the mice with too many sounds.
+        	output_actions = [(variables['bitcode_channel'], 1)] if if_bit_code else [])  #(variables['Choice_cue_L_ch'],255)   # Not to confuse the mice with too many sounds.
 
 
         for lickport in ('L', 'R', 'M'):
@@ -1095,7 +1135,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             	state_name=f'EventMarker_reward_{lickport}',
             	state_timer=event_marker_dur['reward'],
             	state_change_conditions={EventName.Tup: f'Consume_reward_{lickport}'},
-            	output_actions = [(variables['bitcode_channel'], 1)] if if_recording_rig else [])
+            	output_actions = [(variables['bitcode_channel'], 1)] if if_bit_code else [])
 
 
         # sma.add_state(
@@ -1195,7 +1235,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         if variables['motor_retract_waterport']:
             temp_action.append(variables['retract_motor_signal'])
 
-        if if_recording_rig:
+        if if_bit_code:
             temp_action.append((variables['bitcode_channel'], 1))
 
         sma.add_state(
