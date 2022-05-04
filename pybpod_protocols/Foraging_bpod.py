@@ -518,7 +518,7 @@ elif setup_name =='Tower-2':
 
 elif setup_name == 'Tower-3':
     # for setup: Tower - 3
-    variables['GoCue_ch'] = OutputChannel.PWM5
+    variables['GoCue_ch'] = OutputChannel.PWM3
     variables['WaterPort_L_ch_out'] = 7
     variables['WaterPort_L_ch_in'] = EventName.Port7In
     variables['WaterPort_R_ch_out'] = 8
@@ -530,7 +530,7 @@ elif setup_name == 'Tower-3':
 #         variables['Choice_cue_R_ch'] = OutputChannel.PWM2
 # =============================================================================
     variables['comport_motor'] = 'COM9'
-    variables['retract_motor_signal'] = (OutputChannel.PWM2, 255)
+    variables['retract_motor_signal'] = (OutputChannel.PWM1, 255)
     variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
 
     variables['bitcode_channel'] = OutputChannel.BNC1  # e.g., bitcode and go
