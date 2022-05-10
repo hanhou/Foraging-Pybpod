@@ -863,7 +863,7 @@ class App(QDialog):
                 # Laser power selector
                 self.handles['laser_power'] = QComboBox(self)
                 self.handles['laser_power'].setFocusPolicy(Qt.NoFocus)
-                self.handles['laser_power'].addItems([f'{pow:>6} mW: L {L_v:>5} V, R {R_v:>5} V' for pow, L_v, R_v in self.laser_power_mapper])
+                self.handles['laser_power'].addItems([f'{pow:>6} mW : L = {L_v:>5} V, R = {R_v:>5} V' for pow, L_v, R_v in self.laser_power_mapper])
                 
                 if 'laser_power' in variables_subject:
                      self.handles['laser_power'].setCurrentIndex(  # Should be placed BEFORE the next line!!
@@ -1067,7 +1067,7 @@ class App(QDialog):
                         self.variables[dicttext][key] = float(self.handles['variables_'+dicttext][key].text())   # Only consider int now
         
         # Laser power
-        self.variables['subject']['laser_power'] = float(self.handles['laser_power'].currentText())
+        self.variables['subject']['laser_power'] = float(self.handles['laser_power'].currentText().split('mW')[0])
                         
         with open(self.variables['setup_file'], 'w') as outfile:
             json.dump(self.variables['setup'], outfile)
