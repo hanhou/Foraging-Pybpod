@@ -119,15 +119,23 @@ class App(QDialog):
                                      }
         
         # Map power of sine wave (mW) to amplitude (V); copyed from bpod code
-        self.laser_power_mapper = [    #  mW , V
-                                [0.0, 0.0],
-                                [0.1, 0.05],
-                                [1.0, 0.2],
-                                [2.0, 0.5],
-                                [3.0, 0.65],
-                                [5.0, 1.0],
-                                [10.0, 2.0],
-                                [20.0, 4.5],                      
+        self.laser_power_mapper = [    #  mW , left V, right V
+                                [0.0, 0.0, 0.0],
+                                [0.5, 0.14, 0.08],
+                                [1.0, 0.25, 0.15],
+                                [2.5, 0.75, 0.55],
+                                [5.0, 1.5, 1.1],
+                                [7.5, 2.2, 1.65],
+                                [10.0, 2.95, 2.25],
+                                [13.5, 4.8, 3.7],  
+                                # [0.0, 0.0],
+                                # [0.1, 0.05],
+                                # [1.0, 0.2],
+                                # [2.0, 0.5],
+                                # [3.0, 0.65],
+                                # [5.0, 1.0],
+                                # [10.0, 2.0],
+                                # [20.0, 4.5], 
                             ] 
         
         free_water = {
@@ -855,11 +863,11 @@ class App(QDialog):
                 # Laser power selector
                 self.handles['laser_power'] = QComboBox(self)
                 self.handles['laser_power'].setFocusPolicy(Qt.NoFocus)
-                self.handles['laser_power'].addItems([str(pow) for pow, _ in self.laser_power_mapper])
+                self.handles['laser_power'].addItems([f'{pow:>6} mW: L {L_v:>5} V, R {R_v:>5} V' for pow, L_v, R_v in self.laser_power_mapper])
                 
                 if 'laser_power' in variables_subject:
                      self.handles['laser_power'].setCurrentIndex(  # Should be placed BEFORE the next line!!
-                         [id for id, (pow, _) in enumerate(self.laser_power_mapper) 
+                         [id for id, (pow, _, _) in enumerate(self.laser_power_mapper) 
                           if pow == variables_subject['laser_power']][0])
                                           
                 self.handles['laser_power'].currentIndexChanged.connect(self.save_parameters)

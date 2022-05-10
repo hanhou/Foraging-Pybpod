@@ -478,8 +478,10 @@ class BpodCOMProtocol(BpodBase):
 
         self.msg_id_list[message_id] = True
 
-        if len(serial_message) > 3:
-            raise BpodErrorException('Error: Serial messages cannot be more than 3 bytes in length.')
+        # Hacked by Han Hou 2022/5/10
+        # Allow serial message to be longer than 3 for triggering two different waveforms to different analog out channels
+        if len(serial_message) > 3 and len(serial_message) % 3 != 0:
+            raise BpodErrorException('Error: Serial messages length must be a multiple of 3 if it is longer than 3')
 
         if not (1 <= message_id <= 255):
             raise BpodErrorException('Error: Bpod can only store 255 serial messages (indexed 1-255). You used the message_id {0}'.format(message_id))
