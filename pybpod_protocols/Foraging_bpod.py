@@ -1088,7 +1088,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                 state_timer=event_marker_dur['bitcode_eachbit']*bitcode_first_multiplier,  # Signals the start of bitcode (1.5x width)
                 state_change_conditions={EventName.Tup: 'OffState1'},
                 output_actions = [(variables['bitcode_channel'], 1),   # Start the onset of bitcode
-                                  ('GlobalTimerTrig', 7),]    # Start cameras (7 = '111' = timers 1,2,3)  
+                                 ]
                 )
             randomID, sma = add_bitcode(sma, variables['bitcode_channel'])
             print('TrialBitCode: ', randomID)    # Moved it here to avoid the bug where there is ITI but no bitcode
