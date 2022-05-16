@@ -36,20 +36,35 @@ bitcode_digits = 20
 bitcode_first_multiplier = 2  # Bitcode start (or trial start) is signaled by a 2x pulse
 
 # Max duration of camera rolling before/after (conventional) trial start/end (in sec)
-camera_max_before_start = 10
-camera_max_after_end = 10
+camera_max_before_start = 100  # Very large value to ensure we record the video as long as possible
+camera_max_after_end = 100
 
 # Minimal camera gap
 minimal_camera_gap = 0.2   # 100 ms for video recording overhead (close .avi file and open the next)
 
 # For more precise ITIs, iti_compensation = bpod overhead + bit code length is subtracted from the effective ITI
 bpod_load_overhead = 0.05  # measured value
-iti_compensation = bpod_load_overhead + (bitcode_first_multiplier + 2*bitcode_digits) * event_marker_dur['bitcode_eachbit']
+bitcode_length = (bitcode_first_multiplier + 2 * bitcode_digits) * event_marker_dur['bitcode_eachbit']  
 
 # ---- Camera fps ----
 camera_face_fps = 300 # face camera, side view and bottom view
 camera_trunk_fps = 100  # trunc camera
 camera_pulse = 0.001   # Use constant camera pulse width to minimize error due to bpod time resolution (0.1 ms)
+
+# --- photo stim ---
+reload_wav_player =  False  # Only reload when neccessary to speed up protocol initialization
+laser_power_mapper = [ #   mW , left V,  right V (calibrated @ 5/9/2022, 200um 0.39NA neurophotometrics fiber from Kenta)
+                      [0.5, 0.14, 0.08],
+                      [1.0, 0.25, 0.15],
+                      [2.5, 0.75, 0.55],
+                      [5.0, 1.5, 1.1],
+                      [7.5, 2.2, 1.65],
+                      [10.0, 2.95, 2.25],
+                      [13.5, 4.8, 3.7],           
+                    ]  # Map power of sine wave (mW) to amplitude (V)
+laser_sin_ramp_down_dur = 0.2  # TODO: be flexible
+mask_amp = 0.5  # Amplitude for masking flash
+
 
 def notify_experimenter(metadata,path):
     filepath = os.path.join(path,'notifications.json')
@@ -158,11 +173,10 @@ def set_motor_speed():
                 print('can''t access Zaber ' + str(zabertry_i))
                 time.sleep(.01)
 
-def gen_sin_wave(sampling_rate, freq, duration):
+def gen_sin_wave(sampling_rate, freq, duration, phy=0):
     # Duration in seconds
-    dt = 1 / sampling_rate;
-    t = np.arange(0, duration, dt);
-    return np.sin(2 * np.pi * freq * t)
+    t = np.arange(0, duration, 1 / sampling_rate)
+    return np.sin(2 * np.pi * freq * t + phy)
 
 def add_bitcode(sma, bitcode_channel):
     # To be consistent with Matlab version
@@ -572,11 +586,12 @@ elif setup_name == 'Ephys_Han':
     variables['WaterPort_R_ch_in'] = EventName.Port2In
     variables['WaterPort_M_ch_out'] = 3
     variables['WaterPort_M_ch_in'] = EventName.Port3In
-    variables['comport_motor'] = 'COM8'
+    variables['comport_motor'] = 'COM3'
     variables['retract_motor_signal'] = (OutputChannel.PWM8, 255)  # Use direct trigger to Zaber motor
     # variables['retract_motor_signal'] = (OutputChannel.SoftCode, 1)  # Use softcode (slightly slower)
     variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
-
+    
+    
 if 'if_recording_rig' in variables.keys() and variables['if_recording_rig']:
     if_use_analog_module = True
     if_bit_code = True
@@ -588,36 +603,129 @@ else:
 
 # ================ Define WavePlayer if this is a recording rig ==============
 if if_use_analog_module:
-    WAV_PORTS_SPEAKER = 1  # [0000 0001], first channel only
-    WAV_NUM_GO_CUE, SER_CMD_GO_CUE = 0, 1    # Waveform starts from 0, serial command starts from 1...
 
-    # --- Waveforms ---
-    amplitude   = 2
-    freq        = 3000 # of cycles per second (Hz) (frequency of the sine waves)
-    go_cue_duration = 0.1
-    sampling_rate  = 100000 # of samples per second
-    go_cue_waveform    = amplitude * gen_sin_wave(sampling_rate, freq, go_cue_duration)
-
+    SER_DEVICE = OutputChannel.Serial1
+    SER_PORT = int(SER_DEVICE[-1])
+    SAMPLING_RATE  = 50000 # of samples per second
+ 
     # --- Settings ---
-    # https://sites.google.com/site/bpoddocumentation/bpod-user-guide/function-reference-beta/bpodwaveplayer
-    W = WavePlayerModule('COM7')   # "Teensy USB" in device manager
-    W.set_trigger_mode(W.TRIGGER_MODE_MASTER)   # 'Master' - triggers can force-start a new wave during playback.
-    W.set_sampling_period(sampling_rate)
-    W.set_output_range(W.RANGE_VOLTS_MINUS10_10)   # Same as MATLAB version: -10 to 10V
+    # https://sites.google.com/site/bpoddocumentation/user-guide/function-reference/bpodwaveplayer
+    # https://sites.google.com/site/bpoddocumentation/user-guide/function-reference/waveplayerserialinterface
+    wav_player = WavePlayerModule('COM5')   # "Teensy USB" in device manager
+    wav_player.set_trigger_mode(wav_player.TRIGGER_MODE_MASTER)   # 'Master' - triggers can force-start a new wave during playback.
+    wav_player.set_sampling_period(SAMPLING_RATE)
+    wav_player.set_output_range(wav_player.RANGE_VOLTS_MINUS5_5) 
+    wav_player.set_bpod_events([1, 1, 1, 1, 1, 1, 1, 1])  # Set event on Ch2 (L laser) and Ch3 (R laser)
+    wav_player.set_loop_duration([0, 0, 0, 100 * SAMPLING_RATE, 0, 0, 0, 0])  # loop chan4 (masking flash)
+    wav_player.set_loop_mode([0, 0, 0, 1, 0, 0, 0, 0])
+        
+    WAV_ID_GO_CUE = 0
+    WAV_ID_LASER_LEFT_START = 10  # 10, 11, 12, 13, ... for different amps_left (assuming the length of amp_wrapper < 10)
+    WAV_ID_LASER_RIGHT_START = 20  # right sinosoid 
+    WAV_ID_LASER_RAMP_LEFT_START = 30 # left ramp starts from 30
+    WAV_ID_LASER_RAMP_RIGHT_START = 40  # Right ramp starts from 40
+    WAV_ID_MASK = 63  # Max = 63
 
-    # --- Load waveform to WavePlayer ---
-    W.load_waveform(WAV_NUM_GO_CUE, go_cue_waveform)    # Waveform #0: go cue sound
 
-    W.disconnect()
+    if reload_wav_player:  # Only reload when neccessary to speed up protocol initialization
+        # --- Waveforms ---
+        # 1. go cue sound
+        go_cue_amp = 2
+        go_cue_freq  = 3000  # of cycles per second (Hz) (frequency of the sine waves)
+        go_cue_dur = 0.1
+        go_cue_waveform = go_cue_amp * gen_sin_wave(SAMPLING_RATE, go_cue_freq, go_cue_dur)
+        
+        # 2. photostim constant power
+        laser_sin_freq = 40  # 40 Hz
+        laser_sin_dur = 20  # Actual duration (stop time) is controled by GlobalTimer
+        laser_sin_waveform_left = []
+        laser_sin_waveform_right = []
+        for _, amp_left, amp_right in laser_power_mapper:
+            laser_sin_waveform_left.append(amp_left *   (gen_sin_wave(SAMPLING_RATE, laser_sin_freq, laser_sin_dur, phy=np.pi * 3/2) + 1) / 2)
+            laser_sin_waveform_right.append(amp_right * (gen_sin_wave(SAMPLING_RATE, laser_sin_freq, laser_sin_dur, phy=np.pi * 3/2) + 1) / 2)
+       
+        # 3. photostim ramping down 
+        laser_sin_ramp_down_waveform_left = []
+        laser_sin_ramp_down_waveform_right = []
+        for _, amp_left, amp_right in laser_power_mapper:
+            laser_sin_ramp_down_waveform_left.append(amp_left * (gen_sin_wave(SAMPLING_RATE, laser_sin_freq, laser_sin_ramp_down_dur, phy=np.pi * 1/2) + 1) / 2)
+            laser_sin_ramp_down_waveform_left[-1] *= np.linspace(1, 0, len(laser_sin_ramp_down_waveform_left[-1]))
+
+            laser_sin_ramp_down_waveform_right.append(amp_right * (gen_sin_wave(SAMPLING_RATE, laser_sin_freq, laser_sin_ramp_down_dur, phy=np.pi * 1/2) + 1) / 2)
+            laser_sin_ramp_down_waveform_right[-1] *= np.linspace(1, 0, len(laser_sin_ramp_down_waveform_right[-1]))
+        
+        # 4. masking flash
+        # Same frequency as laser. Use loop on this channel, so only one circle is enough
+        mask_sin_waveform = mask_amp * (gen_sin_wave(SAMPLING_RATE, laser_sin_freq, 1 / laser_sin_freq, phy=np.pi * 3/2) + 1) / 2
+        
+        # --- Load waveform to WavePlayer ---
+        # Clear all waveforms
+        for i in range(64):
+            wav_player.load_waveform(i, [0])    
+
+        wav_player.load_waveform(WAV_ID_GO_CUE, go_cue_waveform)
+        
+        for amp_id, _ in enumerate(laser_power_mapper):  # Add a series of laser waveform with different amps
+            wav_player.load_waveform(WAV_ID_LASER_LEFT_START + amp_id, laser_sin_waveform_left[amp_id])
+            wav_player.load_waveform(WAV_ID_LASER_RIGHT_START + amp_id, laser_sin_waveform_right[amp_id])
+
+            wav_player.load_waveform(WAV_ID_LASER_RAMP_LEFT_START + amp_id, laser_sin_ramp_down_waveform_left[amp_id])
+            wav_player.load_waveform(WAV_ID_LASER_RAMP_RIGHT_START + amp_id, laser_sin_ramp_down_waveform_right[amp_id])
+        
+        wav_player.load_waveform(WAV_ID_MASK, mask_sin_waveform)
+   
+    wav_player.disconnect()
 
     # --- Load serial messages to Bpod ---
+    # https://sites.google.com/site/bpoddocumentation/user-guide/function-reference/loadserialmessages
     # https://readthedocs.org/projects/pybpod-api/downloads/pdf/v1.8.1/
+    
+    # Waveform starts from 0 
+    WAV_PORTS_SPEAKER = 1  # [0000 0001], Chan 1 only
+    WAV_PORTS_LASER_L = 2  # Chan 2
+    WAV_PORTS_LASER_R = 4  # Chan 3
+    WAV_PORTS_MASK = 8  # Chan 4
+    
+    # serial command starts from 1... (max 254)
+    SER_CMD_GO_CUE = 1    
+    SER_CMD_MASK = 253
+    SER_CMD_STOP = 254
 
-    # Serial port 1, Message #GO_CUE_SER_CMD, Content ['P' WAV_PORTS_SPEAKER WAV_NUM_GO_CUE]
-    # (Play Waveform #0 at channel combination 0000 0001)
-    my_bpod.load_serial_message(1, SER_CMD_GO_CUE, [80, WAV_PORTS_SPEAKER, WAV_NUM_GO_CUE])
-    goCue_command = (variables['GoCue_ch'], SER_CMD_GO_CUE)    # Use Wav ePlayer serial command #SER_CMD_GO_CUE on ephys rig!!
-
+    SER_CMD_LASER_L_START = 20
+    SER_CMD_LASER_R_START = 30
+    SER_CMD_LASER_LR_START = 40
+    SER_CMD_LASER_RAMP_L_START = 50
+    SER_CMD_LASER_RAMP_R_START = 60
+    SER_CMD_LASER_RAMP_LR_START = 70
+     
+    # Load serial commands
+    my_bpod.load_serial_message(SER_PORT, SER_CMD_GO_CUE, [ord('P'), WAV_PORTS_SPEAKER, WAV_ID_GO_CUE])  # go cue
+    my_bpod.load_serial_message(SER_PORT, SER_CMD_MASK, [ord('P'), WAV_PORTS_MASK, WAV_ID_MASK])  # masking flash
+    my_bpod.load_serial_message(SER_PORT, SER_CMD_STOP, [ord('X')])  # stop all waveform
+       
+    for amp_id, _ in enumerate(laser_power_mapper):
+        # To send out different voltages according to the calibration curves of the two laseres, 
+        # one serial message should play two different waveform to two wave ports.
+        #!!! To let this line work, I changed Line 481 of pybpodapi\bpod\bpod_com_protocol.py
+        my_bpod.load_serial_message(SER_PORT, SER_CMD_LASER_LR_START + amp_id, 
+                                    [ord('P'), WAV_PORTS_LASER_L, WAV_ID_LASER_LEFT_START + amp_id,
+                                     ord('P'), WAV_PORTS_LASER_R, WAV_ID_LASER_RIGHT_START + amp_id])
+        my_bpod.load_serial_message(SER_PORT, SER_CMD_LASER_RAMP_LR_START + amp_id, 
+                            [ord('P'), WAV_PORTS_LASER_L, WAV_ID_LASER_RAMP_LEFT_START + amp_id,
+                             ord('P'), WAV_PORTS_LASER_R, WAV_ID_LASER_RAMP_RIGHT_START + amp_id])
+        
+        my_bpod.load_serial_message(SER_PORT, SER_CMD_LASER_L_START + amp_id, 
+                                    [ord('P'), WAV_PORTS_LASER_L, WAV_ID_LASER_LEFT_START + amp_id])
+        my_bpod.load_serial_message(SER_PORT, SER_CMD_LASER_RAMP_L_START + amp_id, 
+                            [ord('P'), WAV_PORTS_LASER_L, WAV_ID_LASER_RAMP_LEFT_START + amp_id])
+       
+        my_bpod.load_serial_message(SER_PORT, SER_CMD_LASER_R_START + amp_id, 
+                                    [ord('P'), WAV_PORTS_LASER_R, WAV_ID_LASER_RIGHT_START + amp_id])
+        my_bpod.load_serial_message(SER_PORT, SER_CMD_LASER_RAMP_R_START + amp_id, 
+                            [ord('P'), WAV_PORTS_LASER_R, WAV_ID_LASER_RAMP_RIGHT_START + amp_id])
+    
+    # Command shorthand for state machine
+    goCue_command = (SER_DEVICE, SER_CMD_GO_CUE)    # Use Wav ePlayer serial command #SER_CMD_GO_CUE on ephys rig!! 
 else:
     goCue_command = (variables['GoCue_ch'], 255)  # Set PWM5 to 100% duty cycle (always on), which triggers the wav trigger board
 
@@ -688,8 +796,13 @@ change_to_go_next_block_previous = variables['change_to_go_next_block']
 
 # Retract the lickport to standby position
 # and wait for some time until session starts
-retract_protract_motor(variables_subject['motor_retractedposition'])
-iti_previous = 2
+retract_protract_motor(variables_subject['motor_retractedposition'])  
+triali_in_session = 0
+
+# For randomized photostim
+laser_number_of_trials_no_stim_before = 0  # Number of trials before this trial that don't have photostim
+laser_baited = 0  # Whether laser has been assigned previously but not delivered because 
+                  # laser_number_of_trials_no_stim_before < min_non_stim_before 
 
 # For each block
 for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R'], variables['reward_probabilities_L'],variables['reward_probabilities_M'])):
@@ -732,7 +845,8 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             variables_subject = variables_subject_new.copy()
             print('Variables updated:',variables)  # Print to csv after each parameter update
             auto_train_min_rewarded_trial_num =  variables['auto_train_min_rewarded_trial_num']
-
+            laser_baited = 0  # Reset baited laser trials (even other parameters are changed...)
+        
         # Manual override to go to the next block immediately if variables['change_to_go_next_block'] has changed from 0 to 1
         if change_to_go_next_block_previous == 0 and variables['change_to_go_next_block'] == 1:
             change_to_go_next_block_previous = variables['change_to_go_next_block']
@@ -742,7 +856,8 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
 
         triali += 1  # First trial number = 0;
                      # By incrementing triali here, the trial number will include ignored trials.
-
+        triali_in_session += 1
+        
         # Generate NEW reward for each port based on the predetermined random sequences
         reward_L = random_values_L.pop(0) < p_L #np.random.uniform(0.,1.) < p_L
         reward_R = random_values_R.pop(0) < p_R # np.random.uniform(0.,1.) < p_R
@@ -753,11 +868,11 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         #iti_this = 0
         if iti_this > variables['iti_max']:
             iti_this = variables['iti_max']
-
+        
         # Generate delay period for this trial
-        delay_now =  np.random.exponential(variables['delay'],1)+variables['delay_min']# np.random.normal(variables['delay'],variables['delay_rate'])
-        if delay_now > variables['delay_max']:
-            delay_now = variables['delay_max']
+        delay_this =  np.random.exponential(variables['delay'],1)+variables['delay_min']# np.random.normal(variables['delay'],variables['delay_rate'])
+        if delay_this > variables['delay_max']:
+            delay_this = variables['delay_max']
 
         # If bias check: at the begining of the session, force the mouse to navigate all the lickports in sequence (two rounds)
         if start_with_bias_check == 1 and blocki < bias_check_blocknum:
@@ -769,38 +884,45 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             reward_M_accumulated = False
             # Regular timing
             iti_this = 2
-            delay_now = 1
+            delay_this = 1
         # (Else: If no bias check or bias check has been done --> Normal trial begins)
 
         # --------- New way of handling ITI ------
         # Compensate for bpod overhead and bitcode length
-        iti_this -= iti_compensation
+        iti_this -= bpod_load_overhead + bitcode_length
 
-        # Then split iti_this into half, one before START and the other after END
-        # This is to ensure the "camera blackout" has the least effect
-        iti_before = iti_previous / 2
-        iti_before_video_on = min(iti_before - minimal_camera_gap/2, camera_max_before_start)
-        iti_before_video_off = iti_before - iti_before_video_on
+        # (obsoleted!) Then split iti_this into half, one before START and the other after END
+        # (obsoleted!) This is to ensure the "camera blackout" has the least effect
+        # iti_before = iti_previous / 2  # For a historical reason, ITI before a trial is defined by the ITI generated from the last trial
+        # iti_after = iti_this / 2
 
-        iti_after = iti_this / 2
-        iti_after_video_on = min(iti_after - minimal_camera_gap/2, camera_max_after_end)
-        iti_after_video_off = iti_after - iti_after_video_on
+        # iti_before_video_on = min(iti_before - minimal_camera_gap/2, camera_max_before_start)
+        # iti_before_video_off = iti_before - iti_before_video_on
+                
+        # iti_after_video_on = min(iti_after - minimal_camera_gap/2, camera_max_after_end)
+        # iti_after_video_off = iti_after - iti_after_video_on
 
-        # print(f'iti_before = {iti_before_video_off} + {iti_before_video_on}')
-
-        iti_previous = iti_this
-
+        # (latest!) Now I decide to move the blackout period to the END of the last trial, for two reasons:
+        # (1) this maximizes the duration of uninterrupted video recording when aligned to either ITI_start or next_trial_start 
+        # (2) easier to handle photostimulation
+        # but I still leave the "iti_before" and "iti_after" implementation here for a kind of flexibility
+        iti_video_on_duration = min(iti_this - (minimal_camera_gap - bpod_load_overhead), camera_max_before_start)  # Also move the minimal_camera_gap to ITI before
+        iti_video_off_duration = iti_this - iti_video_on_duration  
+                
         # ============= StateMachine ===========
         sma = StateMachine(my_bpod)
         print('Blocknumber:', blocki + 1)
         print('Trialnumber:', triali + 1)
+        print('Trialnumber in session:', triali_in_session)
 
         if if_camera_trig:
-        # Use global timer to trigger cameras
-        # https://pybpod.readthedocs.io/projects/pybpod-api/en/v1.8.1/pybpodapi/state_machine/state_machine.html?highlight=global_timers#module-pybpodapi.state_machine.global_timers
-            sma.set_global_timer(timer_id=1,
-                                 timer_duration=camera_pulse,
-                                 on_set_delay=0,
+        	# Use global timer to trigger cameras
+        	# https://pybpod.readthedocs.io/projects/pybpod-api/en/v1.8.1/pybpodapi/state_machine/state_machine.html?highlight=global_timers#module-pybpodapi.state_machine.global_timers
+
+            # Global timer #1 (1): 300 Hz face cameras
+            sma.set_global_timer(timer_id=1, 
+                                 timer_duration=camera_pulse, 
+                                 on_set_delay=0, 
                                  channel=variables['camera_face_trig'],
                                  on_message=1,
                                  off_message=1,
@@ -808,7 +930,8 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                                  send_events=0,
                                  loop_intervals=1/camera_face_fps - camera_pulse,
                                  )
-
+            
+            # Global timer #2 (2): 100 Hz body camera
             sma.set_global_timer(timer_id=2,
                                  timer_duration=camera_pulse,
                                  on_set_delay=0,
@@ -821,7 +944,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                                  )
 
         if if_bit_code:
-            # 3rd global timer for trial indicator
+            # Global timer #3 (4): bpod trial indicator
             sma.set_global_timer(timer_id=3,
                                  timer_duration=777,  # Infinity
                                  on_set_delay=0,
@@ -832,24 +955,132 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                                  send_events=0,
                                  )
 
+        laser_this_trial = False  # By default
+
+        if if_use_analog_module:
+            # -- Prepare photostim --
+            laser_power = variables_subject['laser_power'] if 'laser_power' in variables_subject.keys() else 0
+
+            # Assign laser to this trial
+            if laser_power > 0 and variables['laser_duration']:  # As a master switch
+                laser_random = np.random.uniform(0, 1) < variables_subject['laser_random_ratio']
+                laser_baited += laser_random  # laser trials could be accumulated to ensure the overall ratio
+                print('laser baited = ', laser_baited)
+                if laser_baited > 0 and laser_number_of_trials_no_stim_before >= variables_subject['laser_min_non_stim_before']:
+                    laser_this_trial = True
+                    laser_baited -= 1
+                
+                                        
+            if not laser_this_trial:
+                laser_number_of_trials_no_stim_before += 1
+            else:  # Do it
+                laser_number_of_trials_no_stim_before = 0
+                amp_id =  [id for id, (pow, _, _) in enumerate(laser_power_mapper) if pow == laser_power][0]
+                laser_side = variables_subject['laser_side'] if 'laser_side' in variables_subject.keys() else 2  # Default bilateral
+
+                print('laser power (mW, V):', laser_power_mapper[amp_id])
+                print('laser side (0:L, 1:R, 2:LR):', laser_side)
+                # print( min(variables['laser_early_ITI_dur'],
+                #                              iti_after - variables['laser_early_ITI_offset'] + 2 
+                #                              ) - laser_sin_ramp_down_dur, iti_before, iti_after)
+                
+                # -- Handle temporal laser alignment --
+                # New logic (05/15/2022)
+                # see https://alleninstitute.sharepoint.com/:p:/s/NeuralDynamics/ESNj88mJ8v5IoAAUYGpuDyEBsHLNQbFJbreWGf75jqpa9A?e=PWRCcH&nav=eyJzSWQiOjI1NywiY0lkIjozMjA4NzYxMjB9 
+                # variables_subject['laser_align_to'] = {'After ITI START', 'Before GO CUE', 'After GO CUE'}
+                
+                iti_to_go_cue = iti_this + bitcode_length + delay_this  # both iti_this and delay_this don't include bitcode length
+                
+                if variables_subject['laser_align_to'] == 'After ITI START':   # Left-aligned to ITI start, ramping down before Go Cue
+                    laser_timer_duration = min(variables['laser_duration'], iti_to_go_cue - variables['laser_offset']) - laser_sin_ramp_down_dur
+                    laser_timer_offset = variables['laser_offset']
+                elif variables_subject['laser_align_to'] == 'Before GO CUE':   # Right-aligned to Go Cue, start no earlier than last ITI start
+                    laser_timer_duration = min(variables['laser_duration'], iti_to_go_cue - variables['laser_offset']) - laser_sin_ramp_down_dur
+                    laser_timer_offset = iti_to_go_cue - laser_timer_duration - laser_sin_ramp_down_dur - variables['laser_offset']
+                elif variables_subject['laser_align_to'] == 'After GO CUE':  # Left-aligned to Go Cue, hard stop at the next ITI start
+                    laser_timer_duration = variables['laser_duration'] - laser_sin_ramp_down_dur   # If this is longer than actual Go Cue to the next ITI start (which is controlled by the mouse), the laser will be terminated by next ITI start
+                    laser_timer_offset = variables['laser_offset']                    
+
+                # Global timer #4 (8): photostimulation (triggered by either ITI start or Go cue)
+                sma.set_global_timer(timer_id=4, 
+                                    timer_duration=max(laser_timer_duration, 0),
+                                    on_set_delay=max(laser_timer_offset, 0),
+                                    channel=SER_DEVICE,
+                                    on_message=((SER_CMD_LASER_LR_START if laser_side == 2 else
+                                                SER_CMD_LASER_L_START if laser_side == 0 else
+                                                SER_CMD_LASER_R_START)
+                                                + amp_id),   # 40 Hz
+                                    off_message=((SER_CMD_LASER_RAMP_LR_START if laser_side == 2 else
+                                                 SER_CMD_LASER_RAMP_L_START if laser_side == 0 else
+                                                 SER_CMD_LASER_RAMP_R_START)
+                                                 + amp_id),  # Ramping down
+                                    loop_mode=0, 
+                                    send_events=0,
+                                    )
+                
+                # # Global timer #5 (16): photostimulation, early ITI (ITI after the trial)
+                # sma.set_global_timer(timer_id=5, 
+                #                     timer_duration=early_ITI_duration,
+                #                                     # (will be turned off manually at the start of the next trial!!)
+                #                     on_set_delay=early_ITI_offset,
+                #                     channel=SER_DEVICE,
+                #                     on_message=((SER_CMD_LASER_LR_START if laser_side == 2 else
+                #                                 SER_CMD_LASER_L_START if laser_side == 0 else
+                #                                 SER_CMD_LASER_R_START)
+                #                                 + amp_id),
+                #                     off_message=((SER_CMD_LASER_RAMP_LR_START if laser_side == 2 else
+                #                                  SER_CMD_LASER_RAMP_L_START if laser_side == 0 else
+                #                                  SER_CMD_LASER_RAMP_R_START)
+                #                                  + amp_id),
+                #                     loop_mode=0, 
+                #                     send_events=0,
+                #                     )
+       
         # ------- 0. Start of a trial (bit code if necessary) ---------
         # ---------- Now the trial starts with ITIBefore ----------
         # ITI_before = ITI_before_video_on + ITI_before_video_off
-        sma.add_state(
-                state_name='ITIBeforeVideoOff',
-                state_timer=iti_before_video_off,
-                state_change_conditions={EventName.Tup: 'ITIBeforeVideoOn'},
-                output_actions = [('GlobalTimerTrig', 4)] if if_bit_code else []      # Start global timer #3 (trial indicator)
+        if if_use_analog_module:
+            sma.add_state(
+                state_name='StopWavePlayer',
+                state_timer=0,
+                state_change_conditions={EventName.Tup: 
+                                        'ITIBeforeLaserTimerStart' 
+                                        if laser_this_trial and variables_subject['laser_align_to'] in ['After ITI START', 'Before GO CUE']
+                                        else 'MaskFlashOn'},
+                output_actions = [(SER_DEVICE, SER_CMD_STOP)]  # Manually turn off all waveform output from the previous trial                
                 )
-
-        sma.add_state(
-                state_name='ITIBeforeVideoOn',
-                state_timer=iti_before_video_on,
-                state_change_conditions={EventName.Tup: 'Start'},
-                output_actions = [('GlobalTimerTrig', 3)] if if_camera_trig else []     # Start global timer #1 & #2 (cameras)
+         
+        if laser_this_trial and variables_subject['laser_align_to'] in ['After ITI START', 'Before GO CUE']:
+            sma.add_state(
+                state_name='ITIBeforeLaserTimerStart',  # I keep the name for backward compatibility
+                state_timer=0,
+                state_change_conditions={EventName.Tup: 'MaskFlashOn'},
+                output_actions = [('GlobalTimerTrig', 8)]  # Start photostim timer (#4)
                 )
+            
+        if if_use_analog_module:
+            sma.add_state(
+                state_name='MaskFlashOn',  # Always turn on mask flash as soon as bpod starts running
+                state_timer=0, 
+                state_change_conditions={EventName.Tup: 'ITIBeforeVideoOff'},
+                output_actions = [(SER_DEVICE, SER_CMD_MASK)]   # Start masking flash
+	            ) 
+        
+        sma.add_state(
+            state_name='ITIBeforeVideoOff',
+            state_timer=max(iti_video_off_duration, 0), 
+            state_change_conditions={EventName.Tup: 'ITIBeforeVideoOn'},
+            output_actions = [('GlobalTimerTrig', 4)] if if_bit_code else []      # Start global timer #3 (trial indicator)
+            )    
+        
+        sma.add_state(
+            state_name='ITIBeforeVideoOn',
+            state_timer=max(iti_video_on_duration, 0), 
+            state_change_conditions={EventName.Tup: 'Start'},
+            output_actions = [('GlobalTimerTrig', 3)] if if_camera_trig else []     # Start global timer #1 & #2 (cameras)
+																					#!!! To let this line work, I changed Line 241 of pybpodapi\state_machine\state_machine_base.py
+            )    
 
-        # Now real trial start
         # Bit code
         if if_bit_code:
             sma.add_state(
@@ -857,8 +1088,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                 state_timer=event_marker_dur['bitcode_eachbit']*bitcode_first_multiplier,  # Signals the start of bitcode (1.5x width)
                 state_change_conditions={EventName.Tup: 'OffState1'},
                 output_actions = [(variables['bitcode_channel'], 1),   # Start the onset of bitcode
-                                  ('GlobalTimerTrig', 7),]    # Start cameras (7 = '111' = timers 1,2,3)
-                                                              #!!! To let this line work, I changed Line 241 of pybpodapi\state_machine\state_machine_base.py
+                                  ('GlobalTimerTrig', 7),]    # Start cameras (7 = '111' = timers 1,2,3)  
                 )
             randomID, sma = add_bitcode(sma, variables['bitcode_channel'])
             print('TrialBitCode: ', randomID)    # Moved it here to avoid the bug where there is ITI but no bitcode
@@ -898,14 +1128,14 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             # If NO early lick punishment: start the go cue after the FIXED delay period
             sma.add_state(
                 state_name='DelayStart',
-                state_timer=delay_now,
+                state_timer=delay_this,
                 state_change_conditions={EventName.Tup: 'GoCue'},
                 output_actions = [])
         else:
             # If early lick punishment, go to a state called BackToDelayStart
             sma.add_state(
                 state_name='DelayStart',
-                state_timer=delay_now,
+                state_timer=delay_this,
                 state_change_conditions={variables['WaterPort_L_ch_in']: 'BackToDelayStart',
                                          variables['WaterPort_R_ch_in']: 'BackToDelayStart',
                                          variables['WaterPort_M_ch_in']: 'BackToDelayStart',
@@ -1048,13 +1278,24 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             sma.add_state(
             	state_name='GoCue',
                 state_timer=event_marker_dur['go_cue'],    # Now go_cue duration will always be event_marker_dur['go_cue']
-            	state_change_conditions={EventName.Tup: 'AfterGoCue'
-                                         if if_use_analog_module else
-                                        'GoCue_WavTrigBoard'},
-            	output_actions = ([goCue_command, (variables['bitcode_channel'], 1)]  # Go cue command & bitcode
-                                  if if_bit_code else
-                                  [goCue_command])   # Go cue command only
+            	state_change_conditions={EventName.Tup: 
+                                          'AfterGoCueLaserTimerStart'
+                                          if laser_this_trial and variables_subject['laser_align_to'] in ['After GO CUE']
+                                          else 'AfterGoCue'
+										  if if_use_analog_module else
+                                          'GoCue_WavTrigBoard'},
+            	output_actions = ([goCue_command, (variables['bitcode_channel'], 1)] 
+                                  if if_bit_code else 
+                                  [goCue_command]) 
                                )
+            
+            if laser_this_trial and variables_subject['laser_align_to'] in ['After GO CUE']:
+                sma.add_state(
+                    state_name='AfterGoCueLaserTimerStart',  # I keep the name for backward compatibility
+                    state_timer=0,
+                    state_change_conditions={EventName.Tup: 'AfterGoCue'},
+                    output_actions = [('GlobalTimerTrig', 8)]   # Start photostim timer (#4)
+                )
 
             if not if_use_analog_module:
                 sma.add_state(
@@ -1228,8 +1469,6 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         # 	output_actions = [])
 
         # --- 4. ITI_after ----
-        # ITI_after = ITI_after_video_on + ITI_after_video_off
-
         # For backward compatibility,  "ITI" here retract motor and signal the ITI pulse
         temp_action = []
         if variables['motor_retract_waterport']:
@@ -1241,30 +1480,16 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         sma.add_state(
         	state_name='ITI',
         	state_timer=event_marker_dur['iti_start'],
-        	state_change_conditions={EventName.Tup: 'ITIAfterVideoOn'},
+        	state_change_conditions={EventName.Tup: 'End'},
         	output_actions = temp_action
             )
-
-        sma.add_state(
-                state_name='ITIAfterVideoOn',
-                state_timer=iti_after_video_on,
-                state_change_conditions={EventName.Tup: 'ITIAfterVideoOff'},
-                output_actions = []
-                )
-
-        sma.add_state(
-                state_name='ITIAfterVideoOff',
-                state_timer=iti_after_video_off,
-                state_change_conditions={EventName.Tup: 'End'},
-                output_actions = [('GlobalTimerCancel', 3)]      # Stop global timer #1 & #2 (cameras)
-                )
-
-        # --- 5. Now the "End" state should be in the middle of this trial END and next trial START ---
+            
+        # --- 5. All ITI is now placed in the next bpod trial, before next trial start ---    
         sma.add_state(
             state_name = 'End',
             state_timer = 0,
             state_change_conditions={EventName.Tup: 'exit'},
-            output_actions=[])
+            output_actions=[('GlobalTimerCancel', 3)] if if_camera_trig else [])     # Stop global timer #1 & #2 (cameras)
 
 
         my_bpod.send_state_machine(sma)  # Send state machine description to Bpod device
@@ -1401,5 +1626,8 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
     # ------ End of this block --------
 
 # ------- End of the whole session -----------
-
+if if_use_analog_module:
+    # Turn on any ongoing stimulation (wave player won't stop even if bpod is stopped!!)
+    my_bpod.manual_override(Bpod.ChannelTypes.OUTPUT, channel_name='Serial', channel_number=1, value=SER_CMD_STOP)    
+    
 my_bpod.close()

@@ -30,9 +30,15 @@ except:
 print('started')
 paths = ['/home/rozmar/Data/Behavior/Behavior_rigs/Tower-2',
          'C:\\Users\\labadmin\\My Documents\\Pybpod\\Projects',
+<<<<<<< .mine
          'C:\\Users\\labadmin\\Documents\\Pybpod\\Projectss',
          'C:\\Users\\labadmin\\Documents\\foraging_projects\\Projects',
          'C:\\Users\\labadmin\Documents\\PyBpod\\Projects']
+=======
+         'C:\\Users\\labadmin\\Documents\\Pybpod\\Projectss',
+         'C:\\Users\\Han2\\Documents\\Pybpod\\Projects']
+
+>>>>>>> .theirs
 for defpath in paths:
     print(defpath)
     if os.path.exists(defpath):
@@ -106,8 +112,41 @@ class App(QDialog):
                                               'auto_block_switch_threshold': 'auto switch threshold',
                                               'auto_block_switch_points': 'points in a row',
                                               'change_to_go_next_block': 'Next block NOW! (0->1)',
-                                             }
+                                             }, 
+                                     'Photostimulation (time)':{
+                                            #   'laser_early_ITI_dur': 'early ITI dur',
+                                            #   'laser_early_ITI_offset': 'early ITI offset',
+                                            #   'laser_late_ITI_dur': 'late ITI dur',
+                                            #   'laser_late_ITI_offset': 'late ITI offset (<0: right-aligned)',
+                                              'laser_offset': 'offset (sec)',
+                                              'laser_duration': 'duration (sec)',
+                                             },
+                                     '             (schedule)':{
+                                              'laser_side': 'side (0:L;1:R;2:LR)',
+                                              'laser_random_ratio': 'random ratio',
+                                              'laser_min_non_stim_before': 'min non stim before',                                                                }
                                      }
+        
+        # Map power of sine wave (mW) to amplitude (V); copyed from bpod code
+        self.laser_power_mapper = [    #  mW , left V, right V
+                                [0.0, 0.0, 0.0],
+                                [0.5, 0.14, 0.08],
+                                [1.0, 0.25, 0.15],
+                                [2.5, 0.75, 0.55],
+                                [5.0, 1.5, 1.1],
+                                [7.5, 2.2, 1.65],
+                                [10.0, 2.95, 2.25],
+                                [13.5, 4.8, 3.7],  
+                                # [0.0, 0.0],
+                                # [0.1, 0.05],
+                                # [1.0, 0.2],
+                                # [2.0, 0.5],
+                                # [3.0, 0.65],
+                                # [5.0, 1.0],
+                                # [10.0, 2.0],
+                                # [20.0, 4.5], 
+                            ] 
+        
         free_water = {
                       'difficulty_ratio_pair_num' : 0,
                       'response_time' : 2.,
@@ -830,8 +869,34 @@ class App(QDialog):
                 self.handles['success_switched'] = QLabel('')
                 layout_subject.addWidget(self.handles['success_switched'], 7, 10, 1, 2)
 
-                # self.cache_auto_train_min_rewarded_trial_num = int(self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].text())
+                # Laser power selector
+                self.handles['laser_power'] = QComboBox(self)
+                self.handles['laser_power'].setFocusPolicy(Qt.NoFocus)
+                self.handles['laser_power'].addItems([f'{pow:>6} mW : L = {L_v:>5} V, R = {R_v:>5} V' for pow, L_v, R_v in self.laser_power_mapper])
+                
+                if 'laser_power' in variables_subject:
+                     self.handles['laser_power'].setCurrentIndex(  # Should be placed BEFORE the next line!!
+                         [id for id, (pow, _, _) in enumerate(self.laser_power_mapper) 
+                          if pow == variables_subject['laser_power']][0])
+                                          
+                self.handles['laser_power'].currentIndexChanged.connect(self.save_parameters)
+                    
+                layout_subject.addWidget(QLabel('power (mW)'), 9, 10, alignment=Qt.AlignRight)
+                layout_subject.addWidget(self.handles['laser_power'], 9, 11, 1, 1)
 
+                # Laser start alignment selector
+                self.handles['laser_align_to'] = QComboBox(self)
+                self.handles['laser_align_to'].setFocusPolicy(Qt.NoFocus)
+                self.handles['laser_align_to'].addItems(['After ITI START', 'Before GO CUE', 'After GO CUE'])
+                
+                if 'laser_align_to' in variables_subject:
+                     self.handles['laser_align_to'].setCurrentText(variables_subject['laser_align_to'])
+                                          
+                self.handles['laser_align_to'].currentIndexChanged.connect(self.save_parameters)
+
+                layout_subject.addWidget(QLabel('start aligned to'), 8, 6, alignment=Qt.AlignRight)
+                layout_subject.addWidget(self.handles['laser_align_to'], 8, 7, 1, 1)
+        
                 self.horizontalGroupBox_variables_subject.setLayout(layout_subject)
                 self.variables=dict()
             else:
@@ -854,6 +919,9 @@ class App(QDialog):
             self.variables['subject_file'] = subject_var_file
             self.variables['setup_file'] = setup_var_file
 
+        self.enable_disable_fields()            
+
+            
     def load_parameters_from_file(self):
         project_now = self.handles['filter_project'].currentText()
         fname = QFileDialog.getOpenFileName(self, 'Open file',
@@ -932,6 +1000,11 @@ class App(QDialog):
                     # self.handles['variables_subject'][key].setText("NA")
                     self.handles['variables_subject'][key].setStyleSheet('QLineEdit {background: grey;}')
 
+        self.enable_disable_fields()            
+        self.show_actual_reward_prob()
+        qApp.processEvents()
+
+    def enable_disable_fields(self):
         # self.cache_auto_train_min_rewarded_trial_num = int(self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].text())
         if self.handles['variables_subject']['auto_block_switch_type'].text() == 'NA' or not int(self.handles['variables_subject']['auto_block_switch_type'].text()):
             self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].setEnabled(True)
@@ -958,9 +1031,22 @@ class App(QDialog):
         else:
             self.handles['variables_subject']['ValveOpenTime_M'].setEnabled(True)
 
-        self.show_actual_reward_prob()
-        qApp.processEvents()
-
+        try:
+            if float(self.handles['variables_subject']['laser_random_ratio'].text()) == -1:
+                self.handles['variables_subject']['laser_min_non_stim_before'].setEnabled(False)
+            else:
+                self.handles['variables_subject']['laser_min_non_stim_before'].setEnabled(True)
+                
+            # if float(self.handles['variables_subject']['laser_late_ITI_offset'].text()) < 0:   # 'right-aligned'
+                # self.handles['variables_subject']['laser_early_ITI_dur'].setEnabled(False)
+                # self.handles['variables_subject']['laser_early_ITI_offset'].setEnabled(False)
+            # else:
+                # self.handles['variables_subject']['laser_early_ITI_dur'].setEnabled(True)
+                # self.handles['variables_subject']['laser_early_ITI_offset'].setEnabled(True)
+                
+        except:
+            pass
+            
     def save_parameters(self):
         project_now = self.handles['filter_project'].currentText()
         experiment_now = self.handles['filter_experiment'].currentText()
@@ -997,7 +1083,16 @@ class App(QDialog):
                             print('not proper value')
 
                 else:   # If json file has missing parameters, we add this new parameter (backward compatibility). HH20200730
-                    self.variables[dicttext][key] = int(self.handles['variables_'+dicttext][key].text())   # Only consider int now
+                    if type(self.handles['variables_'+dicttext][key].text()) == int:
+                        self.variables[dicttext][key] = int(self.handles['variables_'+dicttext][key].text())   # Only consider int now
+                    else:
+                        self.variables[dicttext][key] = float(self.handles['variables_'+dicttext][key].text())   # Only consider int now
+        
+        # Laser power
+        self.variables['subject']['laser_power'] = float(self.handles['laser_power'].currentText().split('mW')[0])
+        
+        # Laser alignment
+        self.variables['subject']['laser_align_to'] = self.handles['laser_align_to'].currentText()
 
         with open(self.variables['setup_file'], 'w') as outfile:
             json.dump(self.variables['setup'], outfile)
@@ -1195,6 +1290,15 @@ class PlotCanvas(FigureCanvas):
         ax.legend(loc='lower left', fontsize=8)
         ax.set_xticks([])
 
+        # HH20211124 photostimulation indicators
+        try:
+            # ax.plot(times['EarlyITI'], np.zeros(len(times['EarlyITI']))+1.05, 'cs', markerfacecolor = 'c')
+            ax.plot(times['laserITI'], np.zeros(len(times['laserITI']))+1.05, 'cs', markerfacecolor = 'c')
+            ax.plot(times['laserGoCue'], np.zeros(len(times['laserGoCue']))+1.10, 'gs', markerfacecolor = 'g')
+        except:
+            pass
+        
+        
         #if  handles and handles['plot_timeback'].text().isnumeric():
             #ax.set_xlim(self.startime,endtime)
         self.draw()
@@ -1283,9 +1387,9 @@ class PlotCanvas(FigureCanvas):
 
         # Show the window in ax1
         if causal:
-            self.ax1.plot([np.max(times['alltimes']) - win_width, np.max(times['alltimes'])], [-0.1] * 2, color='c', lw=4)
+            self.ax1.plot([np.max(times['alltimes']) - win_width, np.max(times['alltimes'])], [-0.1] * 2, color='k', lw=4)
         else:
-            self.ax1.plot([np.max(times['alltimes']) - win_width/2, np.max(times['alltimes'])+ win_width/2], [-0.1] * 2, color='c', lw=4)
+            self.ax1.plot([np.max(times['alltimes']) - win_width/2, np.max(times['alltimes'])+ win_width/2], [-0.1] * 2, color='k', lw=4)
 
         # ax.cla()
         if if_3lp: # 'lick_M' in times.keys():
