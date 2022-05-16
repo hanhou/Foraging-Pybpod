@@ -30,15 +30,10 @@ except:
 print('started')
 paths = ['/home/rozmar/Data/Behavior/Behavior_rigs/Tower-2',
          'C:\\Users\\labadmin\\My Documents\\Pybpod\\Projects',
-<<<<<<< .mine
          'C:\\Users\\labadmin\\Documents\\Pybpod\\Projectss',
          'C:\\Users\\labadmin\\Documents\\foraging_projects\\Projects',
-         'C:\\Users\\labadmin\Documents\\PyBpod\\Projects']
-=======
-         'C:\\Users\\labadmin\\Documents\\Pybpod\\Projectss',
          'C:\\Users\\Han2\\Documents\\Pybpod\\Projects']
 
->>>>>>> .theirs
 for defpath in paths:
     print(defpath)
     if os.path.exists(defpath):
@@ -1123,7 +1118,7 @@ class App(QDialog):
                 if reward_rate_family <= 1:
                     reward_ratio_pairs=[[.4,.05],[.3857,.0643],[.3375,.1125],[.225,.225]]#,        # 8:1, 6:1, 3:1, 1:1
                 elif reward_rate_family == 2:
-                    reward_ratio_pairs=[[8/9,1/9],[6/7,1/7],[3/4,1/4],[2/3,1/3],[.5,.5]]#,        # 8:1, 6:1, 3:1, 2:1, 1:1
+                    reward_ratio_pairs=[[8, 1], [1, 1]]   # 8:1, 1:1
                 elif reward_rate_family == 3:
                     reward_ratio_pairs=[[1,0],[.9,.1],[.8,.2],[.7,.3],[.6,.4],[.5,.5]]#,
                 elif reward_rate_family == 4:       # Starting from 6:1, 3:1, 1:1 (Lau2005 = {6:1, 3:1})
