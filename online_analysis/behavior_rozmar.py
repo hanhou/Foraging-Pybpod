@@ -604,11 +604,14 @@ def minethedata_online(data):
         values['reward_p_R'] = data['reward_p_R'][idxes['reward_p_R']]
         
         # HH20211124 Add photostimulation indicators
-        idxes['EarlyITI'] = (data['MSG'] == 'ITIAfterLaserTimerStart') & (data['TYPE'] == 'TRANSITION')
-        times['EarlyITI'] = data['PC-TIME'][idxes['EarlyITI']]
+        # idxes['EarlyITI'] = (data['MSG'] == 'ITIAfterLaserTimerStart') & (data['TYPE'] == 'TRANSITION')
+        # times['EarlyITI'] = data['PC-TIME'][idxes['EarlyITI']]
 
-        idxes['LaterITI'] = (data['MSG'] == 'ITIBeforeLaserTimerStart') & (data['TYPE'] == 'TRANSITION')
-        times['LaterITI'] = data['PC-TIME'][idxes['LaterITI']]
+        idxes['laserITI'] = (data['MSG'] == 'ITIBeforeLaserTimerStart') & (data['TYPE'] == 'TRANSITION')
+        times['laserITI'] = data['PC-TIME'][idxes['laserITI']]
+        
+        idxes['laserGoCue'] = (data['MSG'] == 'AfterGoCueLaserTimerStart') & (data['TYPE'] == 'TRANSITION')
+        times['laserGoCue'] = data['PC-TIME'][idxes['laserGoCue']]
         
         
         # HH20200912 Use random seed to reproduce random numbers

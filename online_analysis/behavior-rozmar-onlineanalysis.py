@@ -107,14 +107,16 @@ class App(QDialog):
                                               'change_to_go_next_block': 'Next block NOW! (0->1)',
                                              }, 
                                      'Photostimulation (time)':{
-                                              'laser_early_ITI_dur': 'early ITI dur',
-                                              'laser_early_ITI_offset': 'early ITI offset',
-                                              'laser_late_ITI_dur': 'late ITI dur',
-                                              'laser_late_ITI_offset': 'late ITI offset (<0: right-aligned)',
+                                            #   'laser_early_ITI_dur': 'early ITI dur',
+                                            #   'laser_early_ITI_offset': 'early ITI offset',
+                                            #   'laser_late_ITI_dur': 'late ITI dur',
+                                            #   'laser_late_ITI_offset': 'late ITI offset (<0: right-aligned)',
+                                              'laser_offset': 'offset (sec)',
+                                              'laser_duration': 'duration (sec)',
                                              },
                                      '             (schedule)':{
                                               'laser_side': 'side (0:L;1:R;2:LR)',
-                                              'laser_random_ratio': 'random ratio (0:manual)',
+                                              'laser_random_ratio': 'random ratio',
                                               'laser_min_non_stim_before': 'min non stim before',                                                                }
                                      }
         
@@ -874,6 +876,19 @@ class App(QDialog):
                     
                 layout_subject.addWidget(QLabel('power (mW)'), 9, 10, alignment=Qt.AlignRight)
                 layout_subject.addWidget(self.handles['laser_power'], 9, 11, 1, 1)
+
+                # Laser start alignment selector
+                self.handles['laser_align_to'] = QComboBox(self)
+                self.handles['laser_align_to'].setFocusPolicy(Qt.NoFocus)
+                self.handles['laser_align_to'].addItems(['After ITI START', 'Before GO CUE', 'After GO CUE'])
+                
+                if 'laser_align_to' in variables_subject:
+                     self.handles['laser_align_to'].setCurrentText(variables_subject['laser_align_to'])
+                                          
+                self.handles['laser_align_to'].currentIndexChanged.connect(self.save_parameters)
+
+                layout_subject.addWidget(QLabel('start aligned to'), 8, 6, alignment=Qt.AlignRight)
+                layout_subject.addWidget(self.handles['laser_align_to'], 8, 7, 1, 1)
         
                 self.horizontalGroupBox_variables_subject.setLayout(layout_subject)
                 self.variables=dict()
@@ -1010,17 +1025,17 @@ class App(QDialog):
             self.handles['variables_subject']['ValveOpenTime_M'].setEnabled(True)
             
         try:
-            if float(self.handles['variables_subject']['laser_random_ratio'].text()) == 0:
+            if float(self.handles['variables_subject']['laser_random_ratio'].text()) == -1:
                 self.handles['variables_subject']['laser_min_non_stim_before'].setEnabled(False)
             else:
                 self.handles['variables_subject']['laser_min_non_stim_before'].setEnabled(True)
                 
-            if float(self.handles['variables_subject']['laser_late_ITI_offset'].text()) < 0:   # 'right-aligned'
-                self.handles['variables_subject']['laser_early_ITI_dur'].setEnabled(False)
-                self.handles['variables_subject']['laser_early_ITI_offset'].setEnabled(False)
-            else:
-                self.handles['variables_subject']['laser_early_ITI_dur'].setEnabled(True)
-                self.handles['variables_subject']['laser_early_ITI_offset'].setEnabled(True)
+            # if float(self.handles['variables_subject']['laser_late_ITI_offset'].text()) < 0:   # 'right-aligned'
+                # self.handles['variables_subject']['laser_early_ITI_dur'].setEnabled(False)
+                # self.handles['variables_subject']['laser_early_ITI_offset'].setEnabled(False)
+            # else:
+                # self.handles['variables_subject']['laser_early_ITI_dur'].setEnabled(True)
+                # self.handles['variables_subject']['laser_early_ITI_offset'].setEnabled(True)
                 
         except:
             pass
@@ -1068,6 +1083,9 @@ class App(QDialog):
         
         # Laser power
         self.variables['subject']['laser_power'] = float(self.handles['laser_power'].currentText().split('mW')[0])
+        
+        # Laser alignment
+        self.variables['subject']['laser_align_to'] = self.handles['laser_align_to'].currentText()
                         
         with open(self.variables['setup_file'], 'w') as outfile:
             json.dump(self.variables['setup'], outfile)
@@ -1267,8 +1285,9 @@ class PlotCanvas(FigureCanvas):
         
         # HH20211124 photostimulation indicators
         try:
-            ax.plot(times['EarlyITI'], np.zeros(len(times['EarlyITI']))+1.05, 'cs', markerfacecolor = 'c')
-            ax.plot(times['LaterITI'], np.zeros(len(times['LaterITI']))+1.1, 'cs', markerfacecolor = 'c')
+            # ax.plot(times['EarlyITI'], np.zeros(len(times['EarlyITI']))+1.05, 'cs', markerfacecolor = 'c')
+            ax.plot(times['laserITI'], np.zeros(len(times['laserITI']))+1.05, 'cs', markerfacecolor = 'c')
+            ax.plot(times['laserGoCue'], np.zeros(len(times['laserGoCue']))+1.10, 'gs', markerfacecolor = 'g')
         except:
             pass
         
