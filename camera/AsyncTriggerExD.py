@@ -124,7 +124,7 @@ def main(camera_serial_number, fileName_prefix):
 	#fireVal = 0x83100000
 	#c.writeRegister(externalTrigger, fireVal)
 
-	c.setConfiguration(grabTimeout = 100000)
+	c.setConfiguration(grabTimeout = 1000000)
 
 	# Print camera details
 	fmt7info, supported = c.getFormat7Info(1)
@@ -227,7 +227,7 @@ def main(camera_serial_number, fileName_prefix):
 					#avi.AVIOpen(fileName, frameRate)
 					avi.MJPGOpen(fileName, frameRate, 95)
 					#avi.H264Open(fileName, frameRate, image.getCols(), image.getRows(), 100000)
-					c.setConfiguration(grabTimeout = 100000)
+					c.setConfiguration(grabTimeout = 1000000)
 
 					intervals.append(time() - last_frame)  # Gap between receiving the last frame and starting new file (including 100ms Timeout)
 					#continue
