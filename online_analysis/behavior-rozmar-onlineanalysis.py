@@ -99,8 +99,8 @@ class App(QDialog):
                                      'Misc': {
                                               'response_time': 'RT',
                                               'auto_stop_max_ignored_trials_in_a_row': 'auto stop ignores >',
-                                              'motor_retract_waterport': 'retract lickports?',
-                                              'double_dip_retract': 'double dipping?',
+                                              'motor_retract_waterport': 'retract on ITI?',
+                                              'double_dip_retract': 'retract on double dipping?',
                                              },
                                      'Advanced block':{
                                               'auto_block_switch_type': 'Auto (0:off;1:now;2:once)',
@@ -1025,7 +1025,7 @@ class App(QDialog):
             self.handles['variables_subject']['ValveOpenTime_M'].setEnabled(False)
         else:
             self.handles['variables_subject']['ValveOpenTime_M'].setEnabled(True)
-
+            
         try:
             if float(self.handles['variables_subject']['laser_random_ratio'].text()) == -1:
                 self.handles['variables_subject']['laser_min_non_stim_before'].setEnabled(False)
@@ -1161,7 +1161,7 @@ class PlotCanvas(FigureCanvas):
         # --- Plotting ---
         self.plot_licks_and_rewards(times)
         (num_total_trials, num_finished_trials, num_rewarded_trials, for_eff_optimal, for_eff_optimal_actual,
-                   early_licks_per_trial, double_dipping_rate) = self.plot_bias(times, values, win_width)
+                   early_licks_per_trial, double_dipping_per_trial) = self.plot_bias(times, values, win_width)
         slope, intercept, r_value = self.plot_matching(times, win_width)
 
         self_parent = self.parent().parent()
@@ -1175,7 +1175,7 @@ class PlotCanvas(FigureCanvas):
         self_parent.handles['training_results'].setText(f'{setup_now}\t'
                                                         f'{num_total_trials}\t{num_finished_trials}\t'
                                                         f'{num_rewarded_trials}\t{for_eff_optimal*100:.1f}\t{for_eff_optimal_actual*100:.1f}\t'
-                                                        f'{early_licks_per_trial:.2f}\t{double_dipping_rate:.2f}\t{intercept:.2f}\t{valve_time}\t{int(lat_pos_relative)}')
+                                                        f'{early_licks_per_trial:.2f}\t{double_dipping_per_trial:.2f}\t{intercept:.2f}\t{valve_time}\t{int(lat_pos_relative)}')
 
         pass
 
@@ -1450,10 +1450,10 @@ class PlotCanvas(FigureCanvas):
         # Double dipping
         if 'Double_dipped' in times.keys():
             num_double_dipping = times['Double_dipped'].size
-            double_dipping_rate = num_double_dipping / num_finished_trials if num_finished_trials else np.nan
+            double_dipping_per_trial = num_double_dipping / num_finished_trials if num_finished_trials else np.nan
         else:
             num_double_dipping = np.nan
-            double_dipping_rate = np.nan
+            double_dipping_per_trial = np.nan
 
         # Early licks (there can be multiple early licks per trial)
         if 'early_licks' in times.keys() and num_finished_trials > 0:
@@ -1481,7 +1481,7 @@ class PlotCanvas(FigureCanvas):
         self.ax1.set_title(f'Total={num_total_trials}, finished={num_finished_trials}({num_finished_trials/num_total_trials:.1%}). '
                      f'Rewarded={num_rewarded_trials}({num_rewarded_trials_L}+{num_rewarded_trials_R}, {reward_rate:.1%}). '
                      f'Efficiency: classic = {for_eff_classic:.1%}, optimal(actual) = {for_eff_optimal:.1%}({for_eff_optimal_actual:.1%})\n'
-                     f'Early lick pulishment per trial = {early_licks_per_trial:.2f}. Double dipped trials = {num_double_dipping} ({double_dipping_rate:.1%})', fontsize=10)
+                     f'Early lick pulishment per finished trial = {early_licks_per_trial:.2f}. Double-dippings per finished trial = {double_dipping_per_trial:.2f}', fontsize=10)
 
         # ax.set_title('Lick and reward bias')
         self.draw()
@@ -1543,7 +1543,7 @@ class PlotCanvas(FigureCanvas):
                 # self.parent().parent().cache_auto_train_min_rewarded_trial_num = real_cached_min_reward # Really restore the cached value
 
         return (num_total_trials, num_finished_trials, num_rewarded_trials, for_eff_optimal, for_eff_optimal_actual,
-                   early_licks_per_trial, double_dipping_rate)
+                   early_licks_per_trial, double_dipping_per_trial)
 
 
     def plot_matching(self, times, win_width):

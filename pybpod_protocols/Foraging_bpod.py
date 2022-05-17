@@ -1262,7 +1262,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             	state_change_conditions={variables['WaterPort_L_ch_in']: 'Choice_L',
                                          variables['WaterPort_R_ch_in']: 'Choice_R',
                                          variables['WaterPort_M_ch_in']: 'Choice_M',
-                                         EventName.Tup: 'ITI'},
+                                         EventName.Tup: 'ITI_retract' if variables['motor_retract_waterport'] else 'ITI'},
             	output_actions = [])   # Reaction time
 
             # End of autowater's gocue
@@ -1310,7 +1310,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             	state_change_conditions={variables['WaterPort_L_ch_in']: 'Choice_L_fixation_reward',
                                          variables['WaterPort_R_ch_in']: 'Choice_R_fixation_reward',
                                          variables['WaterPort_M_ch_in']: 'Choice_M_fixation_reward',
-                                         EventName.Tup: 'ITI'},
+                                         EventName.Tup: 'ITI_retract' if variables['motor_retract_waterport'] else 'ITI'},
             	output_actions = [])
 
             # Give the mouse a small amount of water for successful holding in the delay period
@@ -1413,9 +1413,9 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         	state_change_conditions={variables['WaterPort_L_ch_in']: 'Consume_reward_return_L',     # Lick L, continue to consume water at L
                                   # If the mouse switches to other lickports or no lick after variables['WaterPort_L_ch_in'],
                                   # retract both lickports!!!
-                                  variables['WaterPort_R_ch_in']: 'Double_dipped' if variables['double_dip_retract'] else 'Consume_reward_return_R',
-                                  variables['WaterPort_M_ch_in']: 'Double_dipped' if variables['double_dip_retract'] else 'Consume_reward_return_M',
-                                  EventName.Tup: 'ITI'},
+                                  variables['WaterPort_R_ch_in']: 'Double_dipped_to_R', # if variables['double_dip_retract'] else 'Consume_reward_return_R',
+                                  variables['WaterPort_M_ch_in']: 'Double_dipped_to_M', # if variables['double_dip_retract'] else 'Consume_reward_return_M',
+                                  EventName.Tup: 'ITI_retract' if variables['motor_retract_waterport'] else 'ITI'},
         	output_actions = [])
         # This dummy state is necessary to return to the Consume_reward_L state!
         # Is there any way to reset the state_timer? Then we don't need this.
@@ -1428,10 +1428,10 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         sma.add_state(
         	state_name='Consume_reward_R',
         	state_timer=variables['Reward_consume_time'],
-        	state_change_conditions={variables['WaterPort_L_ch_in']: 'Double_dipped' if variables['double_dip_retract'] else 'Consume_reward_return_L',
+        	state_change_conditions={variables['WaterPort_L_ch_in']: 'Double_dipped_to_L', # if variables['double_dip_retract'] else 'Consume_reward_return_L',
                                   variables['WaterPort_R_ch_in']: 'Consume_reward_return_R',
-                                  variables['WaterPort_M_ch_in']: 'Double_dipped' if variables['double_dip_retract'] else 'Consume_reward_return_M',
-                                  EventName.Tup: 'ITI'},
+                                  variables['WaterPort_M_ch_in']: 'Double_dipped_to_M', # if variables['double_dip_retract'] else 'Consume_reward_return_M',
+                                  EventName.Tup: 'ITI_retract' if variables['motor_retract_waterport'] else 'ITI'},
         	output_actions = [])
         sma.add_state(
         	state_name='Consume_reward_return_R',
@@ -1442,46 +1442,60 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
         sma.add_state(
         	state_name='Consume_reward_M',
         	state_timer=variables['Reward_consume_time'],
-        	state_change_conditions={variables['WaterPort_L_ch_in']: 'Double_dipped' if variables['double_dip_retract'] else 'Consume_reward_return_L',
-                                  variables['WaterPort_R_ch_in']: 'Double_dipped' if variables['double_dip_retract'] else 'Consume_reward_return_R',
+        	state_change_conditions={variables['WaterPort_L_ch_in']: 'Double_dipped_to_L', # if variables['double_dip_retract'] else 'Consume_reward_return_L',
+                                  variables['WaterPort_R_ch_in']: 'Double_dipped_to_R', # if variables['double_dip_retract'] else 'Consume_reward_return_R',
                                   variables['WaterPort_M_ch_in']: 'Consume_reward_return_M',
-                                  EventName.Tup: 'ITI'},
+                                  EventName.Tup: 'ITI_retract' if variables['motor_retract_waterport'] else 'ITI'},
         	output_actions = [])
         sma.add_state(
         	state_name='Consume_reward_return_M',
         	state_timer=0,
         	state_change_conditions={EventName.Tup: 'Consume_reward_M'},
             output_actions = [])
+        
+        # Now, if variables['double_dip_retract'] = False, we only detect double dipping but do nothing
+        # In this case, there could be more than one double-dippings in one trial
+        for side in ['L', 'R', 'M']:
+            sma.add_state(
+                state_name=f'Double_dipped_to_{side}',
+                state_timer=0,
+                state_change_conditions={EventName.Tup: 'Double_dipping_retract' if variables['double_dip_retract'] else f'Consume_reward_return_{side}'},
+                output_actions = [])
 
-        # Add a dummy state to signal there was a double dipping
-        sma.add_state(
-        	state_name='Double_dipped',
-        	state_timer=0,
-        	state_change_conditions={EventName.Tup: 'ITI'},
-            output_actions = [])
-
-        # Is this state redundant? Can we assign a state to its own targeted state,
-        # i.e., "variables['WaterPort_L_ch_in']: 'Consume_reward'" in the state 'Consume_reward' ?
-        # sma.add_state(
-        # 	state_name='Consume_reward_return',
-        # 	state_timer=.1,
-        # 	state_change_conditions={EventName.Tup: 'Consume_reward'},
-        # 	output_actions = [])
+        if variables['double_dip_retract']:
+            # This state retracts lickports on double dipping
+            sma.add_state(
+                state_name='Double_dipping_retract',  # 'Double_dipped'
+                state_timer=variables['Reward_consume_time'] * 2,  # Add a timeout here which is 2x no-lick-and-trial-end period (hard-coded for now)
+                # If we don't retract on ITI, we should protract after retraction on double-dipping; otherwise, wait to be protracted on the start of next trial
+                state_change_conditions={EventName.Tup: 'Double_dipping_protract' 
+                                         if not variables['motor_retract_waterport'] 
+                                         else 'ITI'},    # Won't retract twice at ITI even variables['motor_retract_waterport']=True
+                output_actions = [variables['retract_motor_signal']])
+            
+            # If retract on double-dipping but not on ITI
+            if not variables['motor_retract_waterport']:
+                sma.add_state(  
+                    state_name='Double_dipping_protract',
+                    state_timer=0,
+                    state_change_conditions={EventName.Tup: 'ITI'},
+                    output_actions = [variables['protract_motor_signal']])  
 
         # --- 4. ITI_after ----
-        # For backward compatibility,  "ITI" here retract motor and signal the ITI pulse
-        temp_action = []
         if variables['motor_retract_waterport']:
-            temp_action.append(variables['retract_motor_signal'])
-
-        if if_bit_code:
-            temp_action.append((variables['bitcode_channel'], 1))
-
+            sma.add_state(
+                state_name='ITI_retract',
+                state_timer=0.01,  # This is needed for reliable retraction by PWM signal
+                state_change_conditions={EventName.Tup: 'ITI'},
+                output_actions = [variables['retract_motor_signal']]
+                )
+            
+        # Keep the state 'ITI' here for backward-compatibility. It won't retract lickports, only send ITI bitcode if needed
         sma.add_state(
         	state_name='ITI',
         	state_timer=event_marker_dur['iti_start'],
         	state_change_conditions={EventName.Tup: 'End'},
-        	output_actions = temp_action
+        	output_actions = [(variables['bitcode_channel'], 1)] if if_bit_code else []
             )
             
         # --- 5. All ITI is now placed in the next bpod trial, before next trial start ---    
@@ -1489,7 +1503,8 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             state_name = 'End',
             state_timer = 0,
             state_change_conditions={EventName.Tup: 'exit'},
-            output_actions=[('GlobalTimerCancel', 3)] if if_camera_trig else [])     # Stop global timer #1 & #2 (cameras)
+            output_actions=[('GlobalTimerCancel', 3)] if if_camera_trig else []      # Stop global timer #1 & #2 (cameras)
+            )
 
 
         my_bpod.send_state_machine(sma)  # Send state machine description to Bpod device

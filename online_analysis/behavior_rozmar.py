@@ -589,7 +589,7 @@ def minethedata_online(data):
         times['ITI_start'] = data['PC-TIME'][idxes['ITI_start']]
         
         # HH20200811
-        idxes['Double_dipped'] = (data['MSG'] == 'Double_dipped') & (data['TYPE'] == 'TRANSITION')
+        idxes['Double_dipped'] = data['MSG'].str.contains('Double_dipped') & (data['TYPE'] == 'TRANSITION')
         times['Double_dipped'] = data['PC-TIME'][idxes['Double_dipped']]
         
         idxes['early_licks'] = (data['MSG'] == 'BackToBaseline') | (data['MSG'] == 'BackToDelayStart') & (data['TYPE'] == 'TRANSITION')
