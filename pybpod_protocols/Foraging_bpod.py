@@ -12,6 +12,11 @@ import json
 import numpy as np
 import os, sys
 
+###
+reload_wav_player =  False  # Only reload when neccessary to speed up protocol initialization
+###
+
+
 usedummyzaber = False # for testing without motor movement - only for debugging
 bias_check_auto_train_min_rewarded_trial_num = 1
 highest_probability_port_must_change = True
@@ -52,7 +57,6 @@ camera_trunk_fps = 100  # trunc camera
 camera_pulse = 0.001   # Use constant camera pulse width to minimize error due to bpod time resolution (0.1 ms)
 
 # --- photo stim ---
-reload_wav_player =  False  # Only reload when neccessary to speed up protocol initialization
 laser_power_mapper = [ #   mW , left V,  right V (calibrated @ 5/9/2022, 200um 0.39NA neurophotometrics fiber from Kenta)
                       [0.5, 0.14, 0.08],
                       [1.0, 0.25, 0.15],
@@ -252,7 +256,7 @@ for dirnow in pathlist:
 
 # ================ Define subejct-specific variables ===============
 # ----- Load previous used parameters fsrom json file -----
-subjectfile = os.path.join(subjectdir,'variables.json')
+subjectfile = os.path.join(subjectdir,f'variables_{experiment_name}.json')
 if os.path.exists(subjectfile):
     with open(subjectfile) as json_file:
         variables = json.load(json_file)

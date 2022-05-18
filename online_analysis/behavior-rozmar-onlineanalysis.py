@@ -122,26 +122,6 @@ class App(QDialog):
                                               'laser_min_non_stim_before': 'min non stim before',                                                                }
                                      }
         
-        # Map power of sine wave (mW) to amplitude (V); copyed from bpod code
-        self.laser_power_mapper = [    #  mW , left V, right V
-                                [0.0, 0.0, 0.0],
-                                [0.5, 0.14, 0.08],
-                                [1.0, 0.25, 0.15],
-                                [2.5, 0.75, 0.55],
-                                [5.0, 1.5, 1.1],
-                                [7.5, 2.2, 1.65],
-                                [10.0, 2.95, 2.25],
-                                [13.5, 4.8, 3.7],  
-                                # [0.0, 0.0],
-                                # [0.1, 0.05],
-                                # [1.0, 0.2],
-                                # [2.0, 0.5],
-                                # [3.0, 0.65],
-                                # [5.0, 1.0],
-                                # [10.0, 2.0],
-                                # [20.0, 4.5], 
-                            ] 
-        
         free_water = {
                       'difficulty_ratio_pair_num' : 0,
                       'response_time' : 2.,
@@ -346,8 +326,8 @@ class App(QDialog):
         else:
             self.timer.stop()
 
-    def filterthedata(self, lastselected = ' '):
         # if lastselected != ' ':
+    def filterthedata(self, lastselected = ' '):
         print('filterthedata...')
 
         if type(lastselected) == str and 'filter' in lastselected:
@@ -704,6 +684,11 @@ class App(QDialog):
             self.handles['filter_setup'].addItem('all setups')
             self.handles['filter_setup'].addItems(self.alldirs['setupnames'])
             self.handles['filter_setup'].currentIndexChanged.connect(lambda: self.filterthedata('filter_setup'))
+            
+        try:
+            self.load_parameters()
+        except:
+            pass
 
 
 
@@ -785,12 +770,22 @@ class App(QDialog):
         subject_now = self.handles['filter_subject'].currentText()
 
         if project_now != 'all projects' and experiment_now != 'all experiments' and setup_now != 'all setups' and subject_now != 'all subjects':
-            subject_var_file = os.path.join(defpath,project_now,'subjects',subject_now,'variables.json')
+            subject_var_file = os.path.join(defpath,project_now,'subjects',subject_now,f'variables_{experiment_now}.json')
             setup_var_file = os.path.join(defpath,project_now,'experiments',experiment_now,'setups',setup_now,'variables.json')
             with open(subject_var_file) as json_file:
                 variables_subject = json.load(json_file)
             with open(setup_var_file) as json_file:
                 variables_setup = json.load(json_file)
+                
+            # laser calibration curve
+            laser_calib_file = os.path.join(defpath, project_now, 'experiments', experiment_now, 'setups', setup_now,'laser_power_mapper.json')
+            if os.path.exists(laser_calib_file):
+                with open(laser_calib_file) as json_file:
+                    self.laser_power_mapper = json.load(json_file)['laser_power_mapper']
+                self.laser_power_mapper.insert(0, [0] * len(self.laser_power_mapper[0]))        
+            else:
+                self.laser_power_mapper = [[0, 0.0], [1, 1.0], [2, 2.0], [3, 3.0], [4, 4.0], [5, 5.0]]
+
 
             if self.variables is None:
                 layout = QGridLayout()
@@ -867,15 +862,8 @@ class App(QDialog):
                 # Laser power selector
                 self.handles['laser_power'] = QComboBox(self)
                 self.handles['laser_power'].setFocusPolicy(Qt.NoFocus)
-                self.handles['laser_power'].addItems([f'{pow:>6} mW : L = {L_v:>5} V, R = {R_v:>5} V' for pow, L_v, R_v in self.laser_power_mapper])
-                
-                if 'laser_power' in variables_subject:
-                     self.handles['laser_power'].setCurrentIndex(  # Should be placed BEFORE the next line!!
-                         [id for id, (pow, _, _) in enumerate(self.laser_power_mapper) 
-                          if pow == variables_subject['laser_power']][0])
-                                          
-                self.handles['laser_power'].currentIndexChanged.connect(self.save_parameters)
-                    
+                self.update_laser_power_selector(variables_subject)         
+                                                              
                 layout_subject.addWidget(QLabel('power (mW)'), 9, 10, alignment=Qt.AlignRight)
                 layout_subject.addWidget(self.handles['laser_power'], 9, 11, 1, 1)
 
@@ -908,6 +896,9 @@ class App(QDialog):
                 for key in self.handles['variables_setup'].keys():
                     self.handles['variables_setup'][key].setText(str(variables_setup[key]))
 
+                self.update_laser_power_selector(variables_subject)         
+
+
             self.show_actual_reward_prob()
             self.variables['subject'] = variables_subject
             self.variables['setup'] = variables_setup
@@ -916,7 +907,29 @@ class App(QDialog):
 
         self.enable_disable_fields()            
 
-            
+    def update_laser_power_selector(self, variables_subject):
+        try:
+            self.handles['laser_power'].currentIndexChanged.disconnect()
+        except:
+            pass
+        self.handles['laser_power'].clear()
+        
+        if len(self.laser_power_mapper[0]) == 3:
+            self.handles['laser_power'].addItems([f'{pow:>6} mW : L = {L_v:>5} V, R = {R_v:>5} V' for pow, L_v, R_v in self.laser_power_mapper])
+        else:
+            self.handles['laser_power'].addItems([f'{pow:>6} mW : {v:>5} V' for pow, v in self.laser_power_mapper])
+        
+        if 'laser_power' in variables_subject:
+            preset = [id for id, (pow, *_) in enumerate(self.laser_power_mapper) 
+                        if pow == variables_subject['laser_power']]
+            if len(preset):
+                self.handles['laser_power'].setCurrentIndex(preset[0])  # Should be placed BEFORE the next line!!
+            else:
+                self.handles['laser_power'].setCurrentIndex(0)  # Should be placed BEFORE the next line!!
+
+        self.handles['laser_power'].currentIndexChanged.connect(self.save_parameters)
+
+
     def load_parameters_from_file(self):
         project_now = self.handles['filter_project'].currentText()
         fname = QFileDialog.getOpenFileName(self, 'Open file',
@@ -938,7 +951,8 @@ class App(QDialog):
     def save_parameters_to_file(self):
         project_now = self.handles['filter_project'].currentText()
         subject_now = self.handles['filter_subject'].currentText()
-        subject_var_file = os.path.join(defpath,project_now,'subjects',subject_now,'variables.json')
+        experiment_now = self.handles['filter_experiment'].currentText()
+        subject_var_file = os.path.join(defpath,project_now,'subjects',subject_now,f'variables_{experiment_now}.json')
 
         # Copy the current variable file to a new file
         fname = QFileDialog.getSaveFileName(self, 'Open file',
@@ -953,7 +967,7 @@ class App(QDialog):
         experiment_now = self.handles['filter_experiment'].currentText()
         setup_now = self.handles['filter_setup'].currentText()
         subject_now = self.handles['filter_subject'].currentText()
-        subject_var_file = os.path.join(defpath,project_now,'subjects',subject_now,'variables.json')
+        subject_var_file = os.path.join(defpath,project_now,'subjects',subject_now,f'variables_{experiment_now}.json')  # Experiment-specific variables
         setup_var_file = os.path.join(defpath,project_now,'experiments',experiment_now,'setups',setup_now,'variables.json')
         with open(subject_var_file) as json_file:
             variables_subject = json.load(json_file)
@@ -1047,7 +1061,7 @@ class App(QDialog):
         experiment_now = self.handles['filter_experiment'].currentText()
         setup_now = self.handles['filter_setup'].currentText()
         subject_now = self.handles['filter_subject'].currentText()
-        subject_var_file = os.path.join(defpath,project_now,'subjects',subject_now,'variables.json')
+        subject_var_file = os.path.join(defpath,project_now,'subjects',subject_now,f'variables_{experiment_now}.json')
         setup_var_file = os.path.join(defpath,project_now,'experiments',experiment_now,'setups',setup_now,'variables.json')
         with open(subject_var_file) as json_file:
             variables_subject = json.load(json_file)
