@@ -13,7 +13,7 @@ import numpy as np
 import os, sys
 
 ###
-reload_wav_player =  False  # Only reload when neccessary to speed up protocol initialization
+reload_wav_player = 0  # Only reload when neccessary to speed up protocol initialization
 ###
 
 
@@ -66,7 +66,7 @@ laser_power_mapper = [ #   mW , left V,  right V (calibrated @ 5/9/2022, 200um 0
                       [10.0, 2.95, 2.25],
                       [13.5, 4.8, 3.7],           
                     ]  # Map power of sine wave (mW) to amplitude (V)
-laser_sin_ramp_down_dur = 0.2  # TODO: be flexible
+laser_sin_ramp_down_dur = 1
 mask_amp = 0.5  # Amplitude for masking flash
 
 
@@ -984,6 +984,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
 
                 print('laser power (mW, V):', laser_power_mapper[amp_id])
                 print('laser side (0:L, 1:R, 2:LR):', laser_side)
+                print('laser ramping down duration:', laser_sin_ramp_down_dur)
                 # print( min(variables['laser_early_ITI_dur'],
                 #                              iti_after - variables['laser_early_ITI_offset'] + 2 
                 #                              ) - laser_sin_ramp_down_dur, iti_before, iti_after)

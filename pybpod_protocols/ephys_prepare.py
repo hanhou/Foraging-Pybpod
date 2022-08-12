@@ -17,8 +17,8 @@ from pybpodgui_plugin_waveplayer.module_api import WavePlayerModule
 #############################################################
 # Auto reward
 water_ports = [1, 2]
-valvetime = 0.03
-iti = 30   # Reward per iti
+valvetime = 0.02
+iti = 60   # Reward per iti
 
 # Laser on
 laser_dur = 3000  # sec
@@ -92,8 +92,13 @@ while True:
         state_change_conditions={EventName.Tup: 'exit'},
         output_actions = [(SER_DEVICE, 1)] if i == 1 else [])
         
-    my_bpod.send_state_machine(sma)  # Send state machine description to Bpod device
-    my_bpod.run_state_machine(sma)  # Run state machine
+    while True:
+        try:
+            my_bpod.send_state_machine(sma)  # Send state machine description to Bpod device
+            my_bpod.run_state_machine(sma)  # Run state machine
+            break
+        except:
+            pass
 
     # If stopped, break
     try:
