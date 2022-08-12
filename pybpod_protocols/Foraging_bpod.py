@@ -13,7 +13,7 @@ import numpy as np
 import os, sys
 
 ###
-reload_wav_player = 0  # Only reload when neccessary to speed up protocol initialization
+reload_wav_player = 0x  # Only reload when neccessary to speed up protocol initialization
 ###
 
 
@@ -66,7 +66,7 @@ laser_power_mapper = [ #   mW , left V,  right V (calibrated @ 5/9/2022, 200um 0
                       [10.0, 2.95, 2.25],
                       [13.5, 4.8, 3.7],           
                     ]  # Map power of sine wave (mW) to amplitude (V)
-laser_sin_ramp_down_dur = 1
+laser_sin_ramp_down_dur = 0.2  # 1
 mask_amp = 0.5  # Amplitude for masking flash
 
 
@@ -1022,6 +1022,10 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                                     loop_mode=0, 
                                     send_events=0,
                                     )
+                
+                print('laser aligned to:', variables_subject['laser_align_to'])
+                print('laser timer duration:', laser_timer_duration)
+                print('laser timer offset:', laser_timer_offset)
                 
                 # # Global timer #5 (16): photostimulation, early ITI (ITI after the trial)
                 # sma.set_global_timer(timer_id=5, 
