@@ -13,7 +13,7 @@ import numpy as np
 import os, sys
 
 ###
-reload_wav_player = 0x  # Only reload when neccessary to speed up protocol initialization
+reload_wav_player = 0  # Only reload when neccessary to speed up protocol initialization
 ###
 
 
