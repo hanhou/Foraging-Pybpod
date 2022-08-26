@@ -996,9 +996,13 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                 
                 iti_to_go_cue = iti_this + bitcode_length + delay_this  # both iti_this and delay_this don't include bitcode length
                 
-                if variables_subject['laser_align_to'] == 'After ITI START':   # Left-aligned to ITI start, ramping down before Go Cue
-                    laser_timer_duration = min(variables['laser_duration'], iti_to_go_cue - variables['laser_offset']) - laser_sin_ramp_down_dur
-                    laser_timer_offset = variables['laser_offset']
+                if variables_subject['laser_align_to'] == 'After ITI START':   
+                    if variables['laser_duration'] >= 0:  # Left-aligned to ITI start, ramping down before Go Cue
+                        laser_timer_duration = min(variables['laser_duration'], iti_to_go_cue - variables['laser_offset']) - laser_sin_ramp_down_dur
+                        laser_timer_offset = variables['laser_offset']
+                    else:
+                        laser_timer_duration = 1000   # Left-aligned to ITI start, continues until a hard stop at ITI start (because we don't know a priori the exact duration)
+                        laser_timer_offset = variables['laser_offset']
                 elif variables_subject['laser_align_to'] == 'Before GO CUE':   # Right-aligned to Go Cue, start no earlier than last ITI start
                     laser_timer_duration = min(variables['laser_duration'], iti_to_go_cue - variables['laser_offset']) - laser_sin_ramp_down_dur
                     laser_timer_offset = iti_to_go_cue - laser_timer_duration - laser_sin_ramp_down_dur - variables['laser_offset']
