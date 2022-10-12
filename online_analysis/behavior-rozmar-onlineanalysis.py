@@ -68,6 +68,7 @@ class App(QDialog):
                                                          'ValveOpenTime_L': 'L',
                                                          'ValveOpenTime_R': 'R',
                                                          'ValveOpenTime_M': 'M',
+                                                         'accumulate_reward': 'Reward baiting prob.',
                                                         },
                                      'Base reward probability': {'difficulty_sum_reward_rate': 'sum',
                                                       'reward_rate_family': 'family',
@@ -770,7 +771,11 @@ class App(QDialog):
         subject_now = self.handles['filter_subject'].currentText()
 
         if project_now != 'all projects' and experiment_now != 'all experiments' and setup_now != 'all setups' and subject_now != 'all subjects':
+            
             subject_var_file = os.path.join(defpath,project_now,'subjects',subject_now,f'variables_{experiment_now}.json')
+            if not os.path.exists(subject_var_file):
+                subject_var_file = os.path.join(defpath,project_now,'subjects',subject_now,f'variables.json')  # Backward compatibility
+            
             setup_var_file = os.path.join(defpath,project_now,'experiments',experiment_now,'setups',setup_now,'variables.json')
             with open(subject_var_file) as json_file:
                 variables_subject = json.load(json_file)
@@ -952,7 +957,10 @@ class App(QDialog):
         project_now = self.handles['filter_project'].currentText()
         subject_now = self.handles['filter_subject'].currentText()
         experiment_now = self.handles['filter_experiment'].currentText()
+        
         subject_var_file = os.path.join(defpath,project_now,'subjects',subject_now,f'variables_{experiment_now}.json')
+        if not os.path.exists(subject_var_file):
+            subject_var_file = os.path.join(defpath,project_now,'subjects',subject_now,f'variables.json')  # Backward compatibility
 
         # Copy the current variable file to a new file
         fname = QFileDialog.getSaveFileName(self, 'Open file',
@@ -967,7 +975,12 @@ class App(QDialog):
         experiment_now = self.handles['filter_experiment'].currentText()
         setup_now = self.handles['filter_setup'].currentText()
         subject_now = self.handles['filter_subject'].currentText()
-        subject_var_file = os.path.join(defpath,project_now,'subjects',subject_now,f'variables_{experiment_now}.json')  # Experiment-specific variables
+        
+        subject_var_file = os.path.join(defpath,project_now,'subjects',subject_now,f'variables_{experiment_now}.json')
+        if not os.path.exists(subject_var_file):
+            subject_var_file = os.path.join(defpath,project_now,'subjects',subject_now,f'variables.json')  # Backward compatibility
+        
+        # Experiment-specific variables
         setup_var_file = os.path.join(defpath,project_now,'experiments',experiment_now,'setups',setup_now,'variables.json')
         with open(subject_var_file) as json_file:
             variables_subject = json.load(json_file)
@@ -1061,7 +1074,11 @@ class App(QDialog):
         experiment_now = self.handles['filter_experiment'].currentText()
         setup_now = self.handles['filter_setup'].currentText()
         subject_now = self.handles['filter_subject'].currentText()
+
         subject_var_file = os.path.join(defpath,project_now,'subjects',subject_now,f'variables_{experiment_now}.json')
+        if not os.path.exists(subject_var_file):
+            subject_var_file = os.path.join(defpath,project_now,'subjects',subject_now,f'variables.json')  # Backward compatibility
+
         setup_var_file = os.path.join(defpath,project_now,'experiments',experiment_now,'setups',setup_now,'variables.json')
         with open(subject_var_file) as json_file:
             variables_subject = json.load(json_file)
