@@ -13,7 +13,7 @@ from pybpodapi.bpod.hardware.events import EventName
 from pybpodapi.bpod.hardware.output_channels import OutputChannel
 from pybpodapi.com.messaging.trial import Trial
 
-variables = {'comport_motor' : 'COM7',
+variables = {'comport_motor' : 'COM4',
              'waittime': .01,
              }
 class App(QDialog):
@@ -27,11 +27,11 @@ class App(QDialog):
         self.width = 0
         self.height = 0
         self.initUI()
-        
+
     def initUI(self):
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
-        
+
         self.createGridLayout()
         self.setWindowFlag(Qt.WindowMinimizeButtonHint, True)
 
@@ -39,9 +39,9 @@ class App(QDialog):
         windowLayout.addWidget(self.Motorcontrol)
         windowLayout.addWidget(self.bpodcontrol)
         self.setLayout(windowLayout)
-        
+
         self.show()
-    
+
     def createGridLayout(self):
         self.Motorcontrol = QGroupBox("Motor Control")
         layout_motor = QGridLayout()
@@ -50,46 +50,46 @@ class App(QDialog):
 #         layout.setColumnStretch(2, 4)
 # =============================================================================
         self.handles['motor_refresh'] = QPushButton('Refresh')
-        self.handles['motor_refresh'].clicked.connect(self.zaber_refresh) 
+        self.handles['motor_refresh'].clicked.connect(self.zaber_refresh)
         layout_motor.addWidget(self.handles['motor_refresh'],0,0)
-        
+
         layout_motor.addWidget(QLabel('Rostro-caudal position:'),0,1)
 
         self.handles['motor_RC_edit'] = QLineEdit('')
         layout_motor.addWidget(self.handles['motor_RC_edit'],0,2)
         self.handles['motor_RC_edit'].returnPressed.connect(self.zaber_move_RC)
-        
+
         layout_motor.addWidget(QLabel('Lateral position:'),0,3)
-		
+
         self.handles['motor_LAT_edit'] = QLineEdit('')
         self.handles['motor_LAT_edit'].returnPressed.connect(self.zaber_move_Lat)
         layout_motor.addWidget(self.handles['motor_LAT_edit'],0,4)
-        
+
         layout_motor.addWidget(QLabel('COM port:'),1,0)
         self.handles['motor_COMport_edit'] = QLineEdit(variables['comport_motor'])
         layout_motor.addWidget(self.handles['motor_COMport_edit'],2,0)
         self.handles['motor_COMport_edit'].returnPressed.connect(self.zaber_update_comport)
-    
+
         layout_motor.addWidget(QLabel('Speed:'),1,1)
         self.handles['motor_RC_speed_edit'] = QLineEdit('')
         layout_motor.addWidget(self.handles['motor_RC_speed_edit'],1,2)
         self.handles['motor_RC_speed_edit'].returnPressed.connect(lambda: self.zaber_set_speed(1))
-        
+
         layout_motor.addWidget(QLabel('Acceleration:'),2,1)
         self.handles['motor_RC_acceleration_edit'] = QLineEdit('')
         layout_motor.addWidget(self.handles['motor_RC_acceleration_edit'],2,2)
         self.handles['motor_RC_acceleration_edit'].returnPressed.connect(lambda: self.zaber_set_acceleration(1))
-        
+
         layout_motor.addWidget(QLabel('Speed:'),1,3)
         self.handles['motor_LAT_speed_edit'] = QLineEdit('')
         layout_motor.addWidget(self.handles['motor_LAT_speed_edit'],1,4)
         self.handles['motor_LAT_speed_edit'].returnPressed.connect(lambda: self.zaber_set_speed(2))
-        
+
         layout_motor.addWidget(QLabel('Acceleration:'),2,3)
         self.handles['motor_LAT_acceleration_edit'] = QLineEdit('')
         layout_motor.addWidget(self.handles['motor_LAT_acceleration_edit'],2,4)
         self.handles['motor_LAT_acceleration_edit'].returnPressed.connect(lambda: self.zaber_set_acceleration(2))
-        
+
         self.handles['motor_step_edit'] = QLineEdit('5000')
         layout_motor.addWidget(self.handles['motor_step_edit'],1,6)
         self.handles['motor_forward'] = QPushButton('Forward')
@@ -104,7 +104,7 @@ class App(QDialog):
         self.handles['motor_left'] = QPushButton('Right')
         layout_motor.addWidget(self.handles['motor_left'] ,1,7)
         self.handles['motor_left'].clicked.connect(self.zaber_move_right)
-        
+
         self.Motorcontrol.setLayout(layout_motor)
 
         self.bpodcontrol = QGroupBox("bpod Control")
@@ -117,12 +117,12 @@ class App(QDialog):
             self.handles['bpod_Valve_'+ str(i)] = QPushButton('Valve-'+str(i))
             layout_bpod.addWidget(self.handles['bpod_Valve_'+ str(i)],1,i-1)
             self.handles['bpod_Valve_'+ str(i)].clicked.connect(lambda: self.bpod_sendcommand('Valve'+str(i)))
-            
+
             self.handles['bpod_PWM_'+ str(i)] = QPushButton('PWM-'+str(i))
             layout_bpod.addWidget(self.handles['bpod_PWM_'+ str(i)],2,i-1)
-            self.handles['bpod_PWM_'+ str(i)].clicked.connect(lambda: self.bpod_sendcommand('PWM'+str(i)))            
+            self.handles['bpod_PWM_'+ str(i)].clicked.connect(lambda: self.bpod_sendcommand('PWM'+str(i)))
         self.bpodcontrol.setLayout(layout_bpod)
-        
+
     def bpod_connect(self):
       if self.handles['bpod_Connect'].isChecked():
          self.handles['bpod_Connect'].setText('Disconnect from bpod')
@@ -141,7 +141,7 @@ class App(QDialog):
         except zaber_serial.binaryserial.serial.SerialException:
             print('motor not found on COM port')
             self.handles['motor_COMport_edit'].setText(variables['comport_motor'])
-            
+
     def zaber_refresh(self):
          for zabertry_i in range(0,1000): # when the COMport is occupied, it will try again
             try:
@@ -150,24 +150,24 @@ class App(QDialog):
                     Left_Right_device = zaber_serial.BinaryDevice(ser,2)
                     pos_Forward_Backward = Forward_Backward_device.get_position()
                     pos_Left_Right = Left_Right_device.get_position()
-                    
+
                     getspeed_cmd = zaber_serial.BinaryCommand(1,53,42)
                     ser.write(getspeed_cmd)
                     speed1 = ser.read()
                     getspeed_cmd = zaber_serial.BinaryCommand(2,53,42)
                     ser.write(getspeed_cmd)
                     speed2 = ser.read()
-                    
+
                     getacc_cmd = zaber_serial.BinaryCommand(1,53,43)
                     ser.write(getacc_cmd)
                     acc1 = ser.read()
                     getacc_cmd = zaber_serial.BinaryCommand(2,53,43)
                     ser.write(getacc_cmd)
                     acc2 = ser.read()
-                    
+
                     self.handles['motor_COMport_edit'].setText(variables['comport_motor'])
-                   
-                    
+
+
                 self.handles['motor_RC_edit'].setText(str(pos_Forward_Backward))
                 self.handles['motor_LAT_edit'].setText(str(pos_Left_Right))
                 self.handles['motor_RC_speed_edit'].setText(str(speed1.data))
@@ -191,8 +191,8 @@ class App(QDialog):
                     print('can''t access Zaber ' + str(zabertry_i))
                     time.sleep(.01)
         self.zaber_refresh()
-                
-		
+
+
     def zaber_move_RC(self):
         if 	self.handles['motor_RC_edit'].text().isnumeric():
             for zabertry_i in range(0,1000): # when the COMport is occupied, it will try again
@@ -206,7 +206,7 @@ class App(QDialog):
                     print('can''t access Zaber ' + str(zabertry_i))
                     time.sleep(.01)
         self.zaber_refresh()
-        
+
     def zaber_set_speed(self,ch):
         if 	self.handles['motor_RC_speed_edit'].text().isnumeric and self.handles['motor_LAT_speed_edit'].text().isnumeric():
             if ch == 1:
@@ -214,7 +214,7 @@ class App(QDialog):
             elif ch == 2:
                 data = int(self.handles['motor_LAT_speed_edit'].text())
             for zabertry_i in range(0,1000): # when the COMport is occupied, it will try again
-                try:    
+                try:
                     with zaber_serial.BinarySerial(variables['comport_motor']) as ser:
                         setspeed_cmd = zaber_serial.BinaryCommand(ch,42,data)
                         ser.write(setspeed_cmd)
@@ -224,7 +224,7 @@ class App(QDialog):
                     print('can''t access Zaber ' + str(zabertry_i))
                     time.sleep(.01)
         self.zaber_refresh()
-        
+
     def zaber_set_acceleration(self,ch):
         if 	self.handles['motor_RC_acceleration_edit'].text().isnumeric and self.handles['motor_LAT_acceleration_edit'].text().isnumeric():
             if ch == 1:
@@ -232,7 +232,7 @@ class App(QDialog):
             elif ch == 2:
                 data = int(self.handles['motor_LAT_acceleration_edit'].text())
             for zabertry_i in range(0,1000): # when the COMport is occupied, it will try again
-                try:     
+                try:
                     with zaber_serial.BinarySerial(variables['comport_motor']) as ser:
                         setacc_cmd = zaber_serial.BinaryCommand(ch,43,data)
                         ser.write(setacc_cmd)
@@ -242,7 +242,7 @@ class App(QDialog):
                     print('can''t access Zaber ' + str(zabertry_i))
                     time.sleep(.01)
         self.zaber_refresh()
-        
+
     def zaber_move_forward(self):
         if 	self.handles['motor_step_edit'].text().isnumeric():
             for zabertry_i in range(0,1000): # when the COMport is occupied, it will try again
@@ -299,7 +299,7 @@ class App(QDialog):
                     time.sleep(.01)
         self.zaber_refresh()
         print('right')
-        
+
 # =============================================================================
 #     def keyPressEvent(self, e):
 #         if e.key() == Qt.Key_Left:
@@ -310,7 +310,7 @@ class App(QDialog):
 #             self.zaber_move_forward()
 #         elif e.key() == Qt.Key_Down:
 #             self.zaber_move_back()
-#             
+#
 # =============================================================================
 if __name__ == '__main__':
     app = QApplication(sys.argv)
