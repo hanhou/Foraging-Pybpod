@@ -8,233 +8,103 @@ adapted from Cohen lab's Arduino code
 import numpy as np
 import matplotlib.pyplot as plt
 
-def generate_first_block():
-    pass
-  
-def generate_next_block():
-    pass
-  
+def generate_first_block():    
+    for side in ['L', 'R']:
+        generate_next_block(side)
+        
+    # Avoid both blocks have the lowest reward prob
+    while np.all([x[0] == np.min(rwd_prob_array) for x in block_rwd_prob.values()]):
+        block_rwd_prob[np.random.choice(['L', 'R'])][0] = np.random.choice(rwd_prob_array)  # Random change one side to another prob
+    
+    # Start with block stagger: the lower side makes the first block switch earlier
+    smaller_side = min(block_rwd_prob, key=lambda x: block_rwd_prob[x][0])
+    block_ends[smaller_side][0] -= block_stagger
+    
 
-choices = {'L', 'R'}
-reward_probs = [0.1, 0.5, 0.9]
+def generate_next_block(side):
+    other_side = list({'L', 'R'} - {side})[0]
+    random_block_len = np.random.randint(low=block_min, high=block_max + 1)
+    
+    if block_ind[side] == 0:  # The first block
+        block_ends[side].append(random_block_len)
+        block_rwd_prob[side].append(np.random.choice(rwd_prob_array))
+        
+    else:  # Not the first block
+        block_ends[side].append(random_block_len + block_ends[side][block_ind[side] - 1])       
+        
+        # If this side has higher prob for too long, force it to be the lowest
+        if block_ind[side] >= max_block_tally and block_ind[other_side] + 1 >= max_block_tally and \
+            np.all(np.array(block_rwd_prob[side][-max_block_tally : ])
+                >= np.array(block_rwd_prob[other_side][-max_block_tally : ])): 
+            block_rwd_prob[side].append(min(rwd_prob_array))
+            print(f'--- {side} is higher for too long, force {side} to lowest ---')
+            force_by_tally[side].append(trial_now)       
+        else:  # Otherwise, randomly choose one
+            block_rwd_prob[side].append(np.random.choice(rwd_prob_array))
+        
+        # Don't repeat the previous rwd prob 
+        # (this will not mess up with the "forced" case since the previous block cannot be the lowest prob in the first place)
+        while block_rwd_prob[side][-2] == block_rwd_prob[side][-1]:
+            block_rwd_prob[side][-1] = np.random.choice(rwd_prob_array)
+            
+        # If the other side is already at the lowest prob AND this side just generates the same
+        # (either through "forced" case or not), push the previous lowest side to a higher prob
+        if block_rwd_prob[side][-1] == block_rwd_prob[other_side][-1] == min(rwd_prob_array):
+            # Stagger this side
+            block_ends[side][-1] -= block_stagger
+            
+            # Force block switch of the other side
+            print(f'--- both side is the lowest, push {side} to higher ---')
+            force_by_both_lowest.append(trial_now)
+            block_ends[other_side][-1] = trial_now
+            block_ind[other_side] += 1
+            generate_next_block(other_side)
+            
+rwd_prob_array = [0.1, 0.5, 0.9]
 block_min = 20
 block_max = 35
-block_stagger = (round(block_max - block_min - 0.5) / 2 + block_min) / 2
-total_trial = 1000
+block_stagger = int((round(block_max - block_min - 0.5) / 2 + block_min) / 2)
+total_trial = 500
 
 perseve_add = True
 perseverative_limit = 4
 
-block_index_L = 0
-block_index_R = 0
-trial_now = 0
+max_block_tally = 3  # Max number of consecutive blocks in which one side has higher rwd prob than the other
+
+trial_now = 0  # Index of trial number, starting from 0
+
+block_ends = {'L': [], 'R': []} # Trial number on which each block ends
+block_rwd_prob = {'L':[], 'R':[]}  # Reward probability
+block_ind = {'L': 0, 'R': 0}  # Index of current block (= len(block_end_at_trial))
+
+trial_rwd_prob = {'L':[], 'R': []}  # Rwd prob per trial
+
+force_by_tally = {'L':[], 'R': []}
+force_by_both_lowest = []
 
 generate_first_block()
 
-while trial_now <= total_trial:
+while trial_now <= total_trial:    
     '''
     run protocol here
-    '''    
+    '''
+    
+    for side in ['L', 'R']:
+        trial_rwd_prob[side].append(block_rwd_prob[side][block_ind[side]])
+
+        if trial_now >= block_ends[side][block_ind[side]]:
+            block_ind[side] += 1
+            generate_next_block(side)
     
     trial_now += 1
+
+fig, ax = plt.subplots(1, figsize=[12, 4])
+for side, col in zip(['L', 'R'], ['r', 'b']):
+    ax.plot(trial_rwd_prob[side], col, marker='.', alpha=0.5, lw=2)
+    [ax.axvline(x + (0.1 if side=='R' else 0), 0, 1, color=col, ls='--', lw=0.5) for x in block_ends[side]]
+    [ax.plot(x, 1.1, marker='>', color=col) for x in force_by_tally[side]]
+    
+[ax.plot(x, 1.0, marker='v', color='k') for x in force_by_both_lowest]
+
+pass
   
-  
-
-
-
-
-
-Serial.println();
-task.generateFirstBlock(block_min, block_max, blockArray, block_index_L, block_index_R, block_stagger);
-}
-
-
-
-void loop() {
-if (running == false){
-  task.lickDetect();
-  task.deliverManualWater();
-  task.manualStartAndPause(running);
-  task.clearSerialCache();
-} else if (running == true) {
-  if ((task.CSplusTrialNumber > task.blockSwitchL[blockIndexL])){
-    blockIndexL++; 
-    Serial.println();
-    task.generateNextBlockL(block_min, block_max, blockArray, blockIndexL, blockIndexR, blockStagger);
-  }
-  if ((task.CSplusTrialNumber > task.blockSwitchR[blockIndexR])){
-    blockIndexR++; 
-    Serial.println();
-    task.generateNextBlockR(block_min, block_max, blockArray, blockIndexL, blockIndexR, blockStagger);
-    if ((task.CSplusTrialNumber > task.blockSwitchL[blockIndexL])){
-      blockIndexL++; 
-      Serial.println();
-      task.generateNextBlockL(block_min, block_max, blockArray, blockIndexL, blockIndexR, blockStagger);
-    }
-  }
-
-
-  trialNumber++;
-  
-  if (CSplusFlag) { // if previous trial was CSplus
-    if (task.anyLick_L || task.anyLick_R){
-      task.CSplusTrialNumber++; // iterate CS+ trial
-    }
-    if (persevAdd){
-      autoShapePerseverance();
-    }
-    if (autoPauseFlag){
-      autoPause();
-    }
-  }
-  task.manualStartAndPause(running);
-//    changeVariables();
-  task.clearSerialCache();
-
-
-  if (!running){
-    task.releaseSolenoid();
-    Serial.print("Total L Reward: "); Serial.print(task.totalRewardL); 
-    Serial.print(" / Total R Reward: "); Serial.println(task.totalRewardR);
-    Serial.print("Total Reward Volume: "); Serial.println((task.totalRewardL + task.totalRewardR)*waterVolume);
-    if (persevAdd) {
-      Serial.print("PersevAdd: "); Serial.println(numPersevAdd);
-    }
-    if (autoPauseFlag){
-      Serial.print("Auto Pauses: "); Serial.println(numAutoPauses);
-    }
-  }
-}
-}
-
-
-void taskSettings::generateFirstBlock(int block_min, int block_max, int blockArray[], int blockIndexL, int blockIndexR, int blockStagger, int sizeOfArray){
-  Serial.println("Enter L Port Probability");
-  while(Serial.available() == 0);{
-      if (Serial.peek() == 'r'){
-          randomBlockProbs = true;
-      }else{
-          waterContingency_L[0] =  Serial.parseInt();
-          Serial.println(waterContingency_L[0]);
-          Serial.println("Enter R Port Probability");
-          taskSettings::clearSerialCache();
-          waterContingency_R[0] = Serial.parseInt();
-          Serial.println(waterContingency_R[0]);
-      }
-  }
-  if (random(2) == 1){
-      taskSettings::generateNextBlockL(block_min, block_max, blockArray, blockIndexL, blockIndexR, blockStagger, sizeOfArray);
-      delay(5);
-      taskSettings::generateNextBlockR(block_min, block_max, blockArray, blockIndexL, blockIndexR, blockStagger, sizeOfArray);
-  }else{
-      taskSettings::generateNextBlockR(block_min, block_max, blockArray, blockIndexL, blockIndexR, blockStagger, sizeOfArray);
-      delay(5);
-      taskSettings::generateNextBlockL(block_min, block_max, blockArray, blockIndexL, blockIndexR, blockStagger, sizeOfArray);
-  }
-  if (waterContingency_L[0] <= waterContingency_R[0]){
-      blockSwitchL[blockIndexL] = blockSwitchL[blockIndexL] - blockStagger;  
-  }else{
-      blockSwitchR[blockIndexR] = blockSwitchR[blockIndexR] - blockStagger; 
-}
-}
-
-
-void taskSettings::generateNextBlockL(int block_min, int block_max, int blockArray[], int blockIndexL, int blockIndexR, int blockStagger, int sizeOfArray){
-  // generate new block 1 at a time; allows for flexibility in changing block_min/block_max
-  if (blockIndexL == 0){
-      blockSwitchL[blockIndexL] = random(block_max - block_min + 1) + block_min; // init first as rand
-      if (randomBlockProbs == true){
-          tempProbInd = random(sizeOfArray);
-          waterContingency_L[0] = blockArray[tempProbInd];
-          while (waterContingency_L[blockIndexL] == 10 && waterContingency_R[blockIndexR] == 10){
-              tempProbInd = random(sizeOfArray);
-              waterContingency_R[blockIndexR] = blockArray[tempProbInd];
-          }
-      }
-  } else {
-      blockSwitchL[blockIndexL] = random(block_max - block_min + 1) + block_min + blockSwitchL[blockIndexL-1];
-      if (blockIndexL > 0){
-          if (waterContingency_L[blockIndexL - 1] > waterContingency_R[blockIndexR]){
-              rwdContingencyTallyL++;
-              rwdContingencyTallyR = 0;
-          }else if (waterContingency_L[blockIndexL - 1] == waterContingency_R[blockIndexR]){
-              rwdContingencyTallyL++;
-              rwdContingencyTallyR++;
-          }else{
-              rwdContingencyTallyL = 0;
-              rwdContingencyTallyR++;
-          }
-      }
-      if (rwdContingencyTallyL > 3){
-          waterContingency_L[blockIndexL] = 10;
-          rwdContingencyTallyL = 0;
-          rwdContingencyTallyR = 0;
-          Serial.println("**************forced L probability contingency***************");
-      } else {
-          tempProbInd = random(sizeOfArray);
-          waterContingency_L[blockIndexL] = blockArray[tempProbInd];
-      }
-      while (waterContingency_L[blockIndexL] == waterContingency_L[blockIndexL-1]){
-          tempProbInd = random(sizeOfArray);
-          waterContingency_L[blockIndexL] = blockArray[tempProbInd];
-      }
-      if (waterContingency_L[blockIndexL] == 10 && waterContingency_R[blockIndexR] == 10){ 		//pushes previous 10 port to a higher prob to keep one port from maintaining the higher prob
-        blockSwitchL[blockIndexL] = blockSwitchL[blockIndexL] - blockStagger;                  //to keep blocks staggered when they both start new ones
-        blockSwitchR[blockIndexR] = CSplusTrialNumber - 1;
-        blockIndexR++;
-      }
-  }
-  Serial.print("L Block Switch at Trial "); Serial.print(blockSwitchL[blockIndexL]);
-  Serial.print(". Rewards (L/R) = "); Serial.print(waterContingency_L[blockIndexL]);
-  Serial.print("/"); Serial.println(waterContingency_R[blockIndexR]);
-}
-
-void taskSettings::generateNextBlockR(int block_min, int block_max, int blockArray[], int blockIndexL, int blockIndexR, int blockStagger, int sizeOfArray){
-  // generate new block 1 at a time; allows for flexibility in changing block_min/block_max
-  if (blockIndexR == 0){
-      blockSwitchR[blockIndexR] = random(block_max - block_min + 1) + block_min; // init first as rand
-      if (randomBlockProbs == true){
-          tempProbInd = random(sizeOfArray);
-          waterContingency_R[0] = blockArray[tempProbInd];
-          while (waterContingency_L[blockIndexL] == 10 && waterContingency_R[blockIndexR] == 10){
-              tempProbInd = random(sizeOfArray);
-              waterContingency_R[blockIndexR] = blockArray[tempProbInd];
-          }
-      }    
-  } else {
-      blockSwitchR[blockIndexR] = random(block_max - block_min + 1) + block_min + blockSwitchR[blockIndexR-1];
-      if (blockIndexR > 0){
-          if (waterContingency_R[blockIndexR - 1] > waterContingency_L[blockIndexL]){
-              rwdContingencyTallyR++;
-              rwdContingencyTallyL = 0;
-          }else if (waterContingency_R[blockIndexR - 1] == waterContingency_L[blockIndexL]){
-              rwdContingencyTallyR++;
-              rwdContingencyTallyL++;
-          }else{
-              rwdContingencyTallyR = 0;
-              rwdContingencyTallyL++;
-          }
-      }
-      if (rwdContingencyTallyR > 3){
-          waterContingency_R[blockIndexR] = 10;
-          rwdContingencyTallyR = 0;
-          rwdContingencyTallyL = 0;
-          Serial.println("**************forced R probability contingency***************");
-      } else {
-          tempProbInd = random(sizeOfArray);
-          waterContingency_R[blockIndexR] = blockArray[tempProbInd];
-      }
-      while (waterContingency_R[blockIndexR] == waterContingency_R[blockIndexR-1]){
-          tempProbInd = random(sizeOfArray);
-          waterContingency_R[blockIndexR] = blockArray[tempProbInd];
-      }
-      while (waterContingency_L[blockIndexL] == 10 && waterContingency_R[blockIndexR] == 10){        //pushes previous 10 port to a higher prob to keep one port from maintaining the higher prob
-        blockSwitchR[blockIndexR] = blockSwitchR[blockIndexR] - blockStagger;                     //to keep blocks staggered when they both start new ones
-        blockSwitchL[blockIndexL] = CSplusTrialNumber - 1;
-        blockIndexL++;
-      }
-  }
-  Serial.print("R Block Switch at Trial "); Serial.print(blockSwitchR[blockIndexR]);
-  Serial.print(". Rewards (L/R) = "); Serial.print(waterContingency_L[blockIndexL]);
-  Serial.print("/"); Serial.println(waterContingency_R[blockIndexR]);
-}
