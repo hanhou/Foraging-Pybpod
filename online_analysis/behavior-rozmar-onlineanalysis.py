@@ -1121,9 +1121,9 @@ class App(QDialog):
         self.variables['subject']['laser_align_to'] = self.handles['laser_align_to'].currentText()
 
         with open(self.variables['setup_file'], 'w') as outfile:
-            json.dump(self.variables['setup'], outfile)
+            json.dump(self.variables['setup'], outfile, indent=4)
         with open(self.variables['subject_file'], 'w') as outfile:
-            json.dump(self.variables['subject'], outfile)
+            json.dump(self.variables['subject'], outfile, indent=4)
 
         self.load_parameters()
         self.check_parameters()
