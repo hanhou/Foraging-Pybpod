@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use('Qt5Agg')
 
-np.random.seed(56)
+#  np.random.seed(56)
 
 class UncoupledBlocks:
     '''
@@ -23,22 +23,17 @@ class UncoupledBlocks:
         self.__dict__.update(locals())
         self.block_stagger = int((round(block_max - block_min - 0.5) / 2 + block_min) / 2)
         
-        self.__dict__.update(
-            dict(
-                rwd_tally = {'L': 0, 'R': 0},
+        self.rwd_tally = {'L': 0, 'R': 0}
+        self.trial_now = -1  # Index of trial number, starting from 0
 
-                trial_now = 0,  # Index of trial number, starting from 0
+        self.block_ends = {'L': [], 'R': []} # Trial number on which each block ends
+        self.block_rwd_prob = {'L':[], 'R':[]}  # Reward probability
+        self.block_ind = {'L': 0, 'R': 0}  # Index of current block (= len(block_end_at_trial))
 
-                block_ends = {'L': [], 'R': []}, # Trial number on which each block ends
-                block_rwd_prob = {'L':[], 'R':[]},  # Reward probability
-                block_ind = {'L': 0, 'R': 0},  # Index of current block (= len(block_end_at_trial))
+        self.trial_rwd_prob = {'L':[], 'R': []}  # Rwd prob per trial
 
-                trial_rwd_prob = {'L':[], 'R': []},  # Rwd prob per trial
-
-                force_by_tally = {'L':[], 'R': []},
-                force_by_both_lowest = {'L':[], 'R': []},
-                )
-            )
+        self.force_by_tally = {'L':[], 'R': []}
+        self.force_by_both_lowest = {'L':[], 'R': []}
         
         self.generate_first_block()
     
@@ -54,6 +49,8 @@ class UncoupledBlocks:
         smaller_side = min(self.block_rwd_prob, key=lambda x: self.block_rwd_prob[x][0])
         self.block_ends[smaller_side][0] -= self.block_stagger
         
+        self.block_effective_ind = 1  # Effective block ind
+
     def generate_next_block(self, side, check_higher_in_a_row=True, check_both_lowest=True):
         other_side = list({'L', 'R'} - {side})[0]
         random_block_len = np.random.randint(low=self.block_min, high=self.block_max + 1)
@@ -105,19 +102,28 @@ class UncoupledBlocks:
                 print(f'--- {self.trial_now}: both side is the lowest, push {side} to higher ---')
                 self.force_by_both_lowest[side].append(self.trial_now)
                 self.block_ends[other_side][-1] = self.trial_now
-                self.block_ind[other_side] += 1
+                self.block_ind[other_side] += 1  # Two sides change at the same time, no need to add block_effective_ind twice
                 self.generate_next_block(other_side, check_higher_in_a_row=False, check_both_lowest=False)  # Just generate new block, no need to do checks
         
     def next_trial(self):
-        for s in ['L', 'R']:
-            self.trial_rwd_prob[s].append(self.block_rwd_prob[s][self.block_ind[s]])
-       
+        self.trial_now += 1  # Starts from 0; initialized from -1
+        
+        # Block switch?
         for s in ['L', 'R']:
             if self.trial_now == self.block_ends[s][self.block_ind[s]]:
                 self.block_ind[s] += 1
+                self.block_effective_ind += 1
                 self.generate_next_block(s, check_higher_in_a_row=True, check_both_lowest=True)
                 
-        self.trial_now += 1
+        # Fill new value
+        for s in ['L', 'R']:
+            self.trial_rwd_prob[s].append(self.block_rwd_prob[s][self.block_ind[s]])
+        
+        assert (self.trial_now + 1) == len(self.trial_rwd_prob['L']) == len(self.trial_rwd_prob['R'])
+        assert all([self.block_ind['L'] + 1 == len(self.block_rwd_prob['L']) == len(self.block_ends['L']) for s in ['L', 'R']])
+
+        return ([self.trial_rwd_prob[s][-2] != self.trial_rwd_prob[s][-1] for s in ['L', 'R']]  # Whether block just switched
+                if self.trial_now > 0 else [0, 0])
     
     def plot_reward_schedule(self):
         fig, ax = plt.subplots(2, 1, figsize=[15, 7], sharex='col')
@@ -150,9 +156,10 @@ if __name__ == '__main__':
         '''
         run protocol here
         '''
-        reward_schedule.next_trial()
+        print(reward_schedule.next_trial())
 
     reward_schedule.plot_reward_schedule()
+    print(f'effective blocks = {reward_schedule.block_effective_ind}')
     
     pass
     # %%
