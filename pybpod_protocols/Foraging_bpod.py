@@ -80,7 +80,7 @@ def notify_experimenter(metadata,path):
         notificationssofar = list()
     notificationssofar.append(metadata)
     with open(filepath, 'w') as outfile:
-        json.dump(notificationssofar, outfile)
+        json.dump(notificationssofar, outfile, indent=4)
 
 def splitthepath(path):
     allparts = []
@@ -750,9 +750,9 @@ variables_subject['motor_retractedposition'] = variables_motor['LickPort_RostroC
 #generate json files
 
 with open(setupfile, 'w') as outfile:
-    json.dump(variables_setup, outfile)
+    json.dump(variables_setup, outfile, indent=4)
 with open(subjectfile, 'w') as outfile:
-    json.dump(variables_subject, outfile)
+    json.dump(variables_subject, outfile, indent=4)
 print('json files (re)generated')
 
 my_bpod.softcode_handler_function = my_softcode_handler   # Assign the SoftCode function
