@@ -1569,7 +1569,7 @@ class PlotCanvas(FigureCanvas):
             # Always show success switch
             # tmpstr= f'(cached {self.parent().parent().cache_auto_train_min_rewarded_trial_num})' if auto_block_switch_type == 1 else ''
             tmpstr= 'is on the correct side now' if auto_block_switch_type == 1 else 'has been on the correct side'
-            if not auto_block_switch_type or 'uncoupled' in self.handles['filter_experiment'].currentText():
+            if not auto_block_switch_type or 'uncoupled' in self.parent().parent().handles['filter_experiment'].currentText():
                 self.parent().parent().handles['success_switched'].setText('')
             else:
                 actual_sucess_flag = self.success_switch_now if auto_block_switch_type == 1 else self.success_switch_once
