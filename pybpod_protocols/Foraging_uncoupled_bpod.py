@@ -17,7 +17,7 @@ reload_wav_player = 0  # Only reload when neccessary to speed up protocol initia
 ###
 
 
-usedummyzaber = False # for testing without motor movement - only for debugging
+usedummyzaber = True # for testing without motor movement - only for debugging
 bias_check_auto_train_min_rewarded_trial_num = 1
 highest_probability_port_must_change = True
 
