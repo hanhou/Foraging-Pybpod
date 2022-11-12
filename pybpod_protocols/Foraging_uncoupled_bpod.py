@@ -296,9 +296,11 @@ else:
     "auto_stop_max_ignored_trials_in_a_row": 1000,
     "fixation_reward": 0.015,
     "change_to_go_next_block": 0,
+
     "auto_block_switch_type": 0,
-    "auto_block_switch_threshold": 0.5,
-    "auto_block_switch_points": 5,
+    "perseverative_limit": 4,
+    "hold_this_block": 0,
+
     "motor_forwardposition": 193286,
     "motor_retractedposition": 253286,
     "auto_block_s witch_type": 0,
@@ -652,7 +654,7 @@ from uncoupled_block import UncoupledBlocks
 reward_schedule = UncoupledBlocks(rwd_prob_array=variables['reward_prob_array'],
                                   block_min=variables['Trialnumber_in_block_min'],
                                   block_max=variables['Trialnumber_in_block_max'],
-                                  perseverative_limit=4,
+                                  perseverative_limit=variables['perseverative_limit'],
                                   max_block_tally=4)
 
 # previous for each block was here ======
@@ -693,10 +695,18 @@ while True:
         # Cache the old values for future variable updates
         variables_setup = variables_setup_new.copy()
         variables_subject = variables_subject_new.copy()
+
         print('Variables updated:',variables)  # Print to csv after each parameter update
         auto_train_min_rewarded_trial_num =  variables['auto_train_min_rewarded_trial_num']
         laser_baited = 0  # Reset baited laser trials (even other parameters are changed...)
-    
+
+        # Update reward_schedule during a session
+        reward_schedule.block_min = variables['Trialnumber_in_block_min']
+        reward_schedule.block_max = variables['Trialnumber_in_block_max']
+        reward_schedule.persev_add = variables['auto_block_switch_type']
+        reward_schedule.perseverative_limit = variables['perseverative_limit']
+        reward_schedule.hold_this_block = variables['hold_this_block']
+
     # # Manual override to go to the next block immediately if variables['change_to_go_next_block'] has changed from 0 to 1
     # if change_to_go_next_block_previous == 0 and variables['change_to_go_next_block'] == 1:
     #     change_to_go_next_block_previous = variables['change_to_go_next_block']
@@ -1393,6 +1403,9 @@ while True:
     else:
         print(f'ignored {ignore_trial_num_in_a_row}')
         ignore_trial_num_in_a_row += 1
+
+    # Send chosen side to reward_schedule
+    reward_schedule.add_choice('L' if L_chosen else 'R' if R_chosen else 'ignored')
 
     # Handle reward baiting
     if_baiting_this_trial = random_values_if_baiting.pop(0) < variables['accumulate_reward']

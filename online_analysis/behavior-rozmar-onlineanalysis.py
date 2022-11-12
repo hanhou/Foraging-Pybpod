@@ -161,10 +161,9 @@ class App(QDialog):
                                               'double_dip_retract': 'retract on double dipping?',
                                              },
                                      'Advanced block':{
-                                              'auto_block_switch_type': 'Auto (0:off;1:now;2:once)',
-                                              'auto_block_switch_threshold': 'auto switch threshold',
-                                              'auto_block_switch_points': 'points in a row',
-                                              'change_to_go_next_block': 'Next block NOW! (0->1)',
+                                              'auto_block_switch_type': 'Auto (0:off; 1:on)',
+                                              'perseverative_limit': 'perseverative limit',
+                                              'hold_this_block': 'hold this block',
                                              }, 
                                      'Photostimulation (time)':{
                                             #   'laser_early_ITI_dur': 'early ITI dur',
@@ -1021,8 +1020,10 @@ class App(QDialog):
         
         if 'uncoupled' in self.handles['filter_experiment'].currentText():
             # self.cache_auto_train_min_rewarded_trial_num = int(self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].text())
-            self.handles['variables_subject']['auto_block_switch_threshold'].setEnabled(False)
-            self.handles['variables_subject']['auto_block_switch_points'].setEnabled(False)
+            if self.handles['variables_subject']['auto_block_switch_type'].text() == 'NA' or not int(self.handles['variables_subject']['auto_block_switch_type'].text()):
+                self.handles['variables_subject']['perseverative_limit'].setEnabled(False)
+            else:
+                self.handles['variables_subject']['perseverative_limit'].setEnabled(True)
 
             if self.handles['variables_subject']['auto_water'].text() == 'True':
                 self.handles['variables_subject']['auto_water_time_multiplier'].setEnabled(True)
@@ -1125,10 +1126,11 @@ class App(QDialog):
                             print('not proper value')
   
                 else:   # If json file has missing parameters, we add this new parameter (backward compatibility). HH20200730
-                    if type(self.handles['variables_'+dicttext][key].text()) == int:
-                        self.variables[dicttext][key] = int(self.handles['variables_'+dicttext][key].text())   # Only consider int now
-                    else:
-                        self.variables[dicttext][key] = float(self.handles['variables_'+dicttext][key].text())   # Only consider int now
+                    content = self.handles['variables_'+dicttext][key].text()
+                    try:
+                        self.variables[dicttext][key] = json.loads(content.lower())
+                    except:
+                        print('not proper value')
         
         # Laser power
         self.variables['subject']['laser_power'] = float(self.handles['laser_power'].currentText().split('mW')[0])

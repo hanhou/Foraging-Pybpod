@@ -16,7 +16,7 @@ class UncoupledBlocks:
     def __init__(self,
                  rwd_prob_array=[0.1, 0.5, 0.9],
                  block_min=20, block_max=35,
-                 perserve_add=True, perseverative_limit=4,
+                 persev_add=True, perseverative_limit=4,
                  max_block_tally=4,  # Max number of consecutive blocks in which one side has higher rwd prob than the other
                  ) -> None:
         
@@ -34,6 +34,15 @@ class UncoupledBlocks:
 
         self.force_by_tally = {'L':[], 'R': []}
         self.force_by_both_lowest = {'L':[], 'R': []}
+
+        # Anti-persev
+        self.persev_add, self.perseverative_limit = persev_add, perseverative_limit
+        self.persev_consec_on_min_prob = {'L': 0, 'R': 0}
+        self.persev_add_at_trials = []
+        self.choice_history = []
+
+        # Manually block hold
+        self.hold_this_block = False
         
         self.generate_first_block()
     
@@ -104,20 +113,49 @@ class UncoupledBlocks:
                 self.block_ends[other_side][-1] = self.trial_now
                 self.block_ind[other_side] += 1  # Two sides change at the same time, no need to add block_effective_ind twice
                 self.generate_next_block(other_side, check_higher_in_a_row=False, check_both_lowest=False)  # Just generate new block, no need to do checks
-        
+
+    def auto_shape_perseverance(self):
+        for s in ['L', 'R']:
+            if self.choice_history[-1] == s:
+                self.persev_consec_on_min_prob[list({'L', 'R'} - {s})[0]] = 0  # Reset other side as soon as there is an opposite choice
+                if self.trial_rwd_prob[s][-2] == min(self.rwd_prob_array):   # If last choice is on side with min_prob (0.1), add counter
+                    self.persev_consec_on_min_prob[s] += 1  
+
+        for s in ['L', 'R']:
+            if self.persev_consec_on_min_prob[s] >= self.perseverative_limit:
+                for ss in ['L', 'R']:
+                    self.block_ends[ss][-1] += self.perseverative_limit   # Add 'perseverative_limit' trials to both blocks
+                    self.persev_consec_on_min_prob[ss] = 0
+                print(f'persev at side = {s}, added {self.perseverative_limit} trials to both sides')
+                self.persev_add_at_trials.append(self.trial_now)
+
+    def add_choice(self, this_choice):
+        self.choice_history.append(this_choice)
+
     def next_trial(self):
         self.trial_now += 1  # Starts from 0; initialized from -1
         
         # Block switch?
-        for s in ['L', 'R']:
-            if self.trial_now == self.block_ends[s][self.block_ind[s]]:
-                self.block_ind[s] += 1
-                self.block_effective_ind += 1
-                self.generate_next_block(s, check_higher_in_a_row=True, check_both_lowest=True)
-                
+        if not self.hold_this_block:
+            for s in ['L', 'R']:
+                if self.trial_now >= self.block_ends[s][self.block_ind[s]]:
+                    # In case a block is mannually 'held', update the actual block transition 
+                    self.block_ends[s][self.block_ind[s]] = self.trial_now  
+
+                    self.block_ind[s] += 1
+                    self.block_effective_ind += 1
+                    self.generate_next_block(s, check_higher_in_a_row=True, check_both_lowest=True)
+
         # Fill new value
         for s in ['L', 'R']:
             self.trial_rwd_prob[s].append(self.block_rwd_prob[s][self.block_ind[s]])
+
+        # Anti-persev
+        if not self.hold_this_block and self.persev_add and len(self.choice_history):
+            self.auto_shape_perseverance()
+        else:
+            for s in ['L', 'R']:
+                self.persev_consec_on_min_prob[s] = 0
         
         assert (self.trial_now + 1) == len(self.trial_rwd_prob['L']) == len(self.trial_rwd_prob['R'])
         assert all([self.block_ind['L'] + 1 == len(self.block_rwd_prob['L']) == len(self.block_ends['L']) for s in ['L', 'R']])
@@ -131,8 +169,14 @@ class UncoupledBlocks:
         def annotate_block(ax):
             for s, col in zip(['L', 'R'], ['r', 'b']):
                 [ax.axvline(x + (0.1 if s=='R' else 0), 0, 1, color=col, ls='--', lw=0.5) for x in self.block_ends[s]]
-                [ax.plot(x, 1.1, marker='>', color=col) for x in self.force_by_tally[s]]
-                [ax.plot(x, 1.0, marker='v', color=col) for x in self.force_by_both_lowest[s]]
+                [ax.plot(x, 1.2, marker='>', color=col) for x in self.force_by_tally[s]]
+                [ax.plot(x, 1.1, marker='v', color=col) for x in self.force_by_both_lowest[s]]
+     
+            for s, col, pos, m in zip(['L', 'R', 'ignored'], ['r', 'b', 'k'], [0, 1, 0.95], ['|', '|', 'x']):
+                this_choice = np.where(np.array(self.choice_history) == s)
+                ax.plot(this_choice, [pos] * len(this_choice), m, color=col)
+            
+            ax.plot(self.persev_add_at_trials, [1.05] * len(self.persev_add_at_trials), marker='+', ls='', color='c')
 
         for s, col in zip(['L', 'R'], ['r', 'b']):
             ax[0].plot(self.trial_rwd_prob[s], col, marker='.', alpha=0.5, lw=2)
@@ -149,14 +193,17 @@ class UncoupledBlocks:
 if __name__ == '__main__':
     total_trial = 1000
 
-    reward_schedule = UncoupledBlocks() 
+    reward_schedule = UncoupledBlocks(perseverative_limit=4) 
 
     while reward_schedule.trial_now <= total_trial:    
-            
+        reward_schedule.next_trial()
         '''
         run protocol here
         '''
-        print(reward_schedule.next_trial())
+        reward_schedule.add_choice(['L', 'R', 'ignored'][np.random.choice([0]*100 + [1]*20 + [2]*1)])
+
+        reward_schedule.hold_this_block = 500 < reward_schedule.trial_now < 700
+
 
     reward_schedule.plot_reward_schedule()
     print(f'effective blocks = {reward_schedule.block_effective_ind}')
