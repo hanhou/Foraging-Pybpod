@@ -266,9 +266,9 @@ else:
     "ValveOpenTime_L": 0.0,
     "ValveOpenTime_R": 0.0,
     "ValveOpenTime_M": 0.0,
-    "Trialnumber_in_block_min": 20,
-    "Trialnumber_in_block_max": 35,
-    'reward_prob_array': [0.1, 0.5, 0.9], 
+    "min_reward_prob": 0.0,
+    "max_reward_prob": 1.0,
+    "random_walk_sigma": 0.15,
     # "block_start_with_bias_check": 0.0,
     "block_number": 500,
     # "difficulty_sum_reward_rate": 0.45,
@@ -297,8 +297,6 @@ else:
     "fixation_reward": 0.015,
     "change_to_go_next_block": 0,
 
-    "auto_block_switch_type": 0,
-    "perseverative_limit": 4,
     "hold_this_block": 0,
 
     "motor_forwardposition": 193286,
@@ -650,12 +648,10 @@ laser_baited = 0  # Whether laser has been assigned previously but not delivered
                   # laser_number_of_trials_no_stim_before < min_non_stim_before 
 
 # ====== Uncoupled block testing ======
-from uncoupled_block import UncoupledBlocks
-reward_schedule = UncoupledBlocks(rwd_prob_array=variables['reward_prob_array'],
-                                  block_min=variables['Trialnumber_in_block_min'],
-                                  block_max=variables['Trialnumber_in_block_max'],
-                                  perseverative_limit=variables['perseverative_limit'],
-                                  max_block_tally=4)
+from random_walk import RandomWalkReward
+reward_schedule = RandomWalkReward(p_min=variables_subject['min_reward_prob'], 
+                                   p_max=variables_subject['max_reward_prob'],
+                                   sigma=variables_subject['random_walk_sigma'])
 
 # previous for each block was here ======
 
@@ -701,11 +697,11 @@ while True:
         laser_baited = 0  # Reset baited laser trials (even other parameters are changed...)
 
         # Update reward_schedule during a session
-        reward_schedule.block_min = variables['Trialnumber_in_block_min']
-        reward_schedule.block_max = variables['Trialnumber_in_block_max']
-        reward_schedule.persev_add = variables['auto_block_switch_type']
-        reward_schedule.perseverative_limit = variables['perseverative_limit']
         reward_schedule.hold_this_block = variables['hold_this_block']
+        reward_schedule.p_min = variables['min_reward_prob']
+        reward_schedule.p_max = variables['max_reward_prob']
+        reward_schedule.sigma = variables['random_walk_sigma']
+
 
     # # Manual override to go to the next block immediately if variables['change_to_go_next_block'] has changed from 0 to 1
     # if change_to_go_next_block_previous == 0 and variables['change_to_go_next_block'] == 1:
@@ -718,12 +714,10 @@ while True:
                  # By incrementing triali here, the trial number will include ignored trials.
     triali_in_session += 1
     
-    block_switched = reward_schedule.next_trial()
+    reward_schedule.next_trial()
     p_L, p_R = [reward_schedule.trial_rwd_prob[s][-1] for s in ['L', 'R']]
     p_M = 0
-    
-    if any(block_switched): triali = 0  # Reset trial number in this effective block
-    
+        
     # Generate NEW reward for each port based on the predetermined random sequences
     reward_L = random_values_L.pop(0) < p_L #np.random.uniform(0.,1.) < p_L
     reward_R = random_values_R.pop(0) < p_R # np.random.uniform(0.,1.) < p_R
@@ -764,7 +758,6 @@ while True:
             
     # ============= StateMachine ===========
     sma = StateMachine(my_bpod)
-    print('Blocknumber (effective):', reward_schedule.block_effective_ind)
     print('Trialnumber:', triali + 1)
     print('Trialnumber in session:', triali_in_session)
 

@@ -180,6 +180,57 @@ class App(QDialog):
                                               }
                                 }
         
+        self.variables_to_display_randomwalk = {'Valve Open Time': {'lickport_number': '# Lickport',
+                                                         'ValveOpenTime_L': 'L',
+                                                         'ValveOpenTime_R': 'R',
+                                                         'ValveOpenTime_M': 'M',
+                                                         'accumulate_reward': 'Reward baiting prob.',
+                                                        },
+                                     'Base reward probability': {'min_reward_prob': 'min reward prob',
+                                                                 'max_reward_prob': 'max reward prob',
+                                                                 'random_walk_sigma': 'random walk sigma',
+                                                      },
+                                     'Delay period': {'delay': 'beta',
+                                                      'delay_min': 'min',
+                                                      'delay_max': 'max',
+                                                      'early_lick_punishment': 'early lick punish (<0: retraction)',
+                                                      'fixation_reward': 'fixation reward',
+                                                      },
+                                     'ITI': {'iti': 'beta',
+                                             'iti_min': 'min',
+                                             'iti_max': 'max',
+                                             'increase_ITI_on_ignore_trials': 'increase ITI if ignored',
+                                             },
+                                     'Auto water': {'auto_water': 'ON',
+                                                    'auto_water_time_multiplier': 'multiplier',
+                                                    'auto_water_min_unrewarder_trials_in_a_row': 'if unrewarded in a row',
+                                                    'auto_water_min_ignored_trials_in_a_row': 'if ignored in a row',
+                                                    },
+                                     'Misc': {
+                                              'response_time': 'RT',
+                                              'auto_stop_max_ignored_trials_in_a_row': 'auto stop ignores >',
+                                              'motor_retract_waterport': 'retract on ITI?',
+                                              'double_dip_retract': 'retract on double dipping?',
+                                             },
+                                     'Advanced block':{
+                                              'auto_block_switch_type': 'Auto (0:off; 1:on)',
+                                              'hold_this_block': 'hold this block',
+                                             }, 
+                                     'Photostimulation (time)':{
+                                            #   'laser_early_ITI_dur': 'early ITI dur',
+                                            #   'laser_early_ITI_offset': 'early ITI offset',
+                                            #   'laser_late_ITI_dur': 'late ITI dur',
+                                            #   'laser_late_ITI_offset': 'late ITI offset (<0: right-aligned)',
+                                              'laser_offset': 'offset (sec)',
+                                              'laser_duration': 'duration (sec)',
+                                             },
+                                     '             (schedule)':{
+                                              'laser_side': 'side (0:L;1:R;2:LR)',
+                                              'laser_random_ratio': 'random ratio',
+                                              'laser_min_non_stim_before': 'min non stim before', 
+                                              }
+                                }
+        
  
 
         self.sliding_win_fix_width = True
@@ -745,8 +796,10 @@ class App(QDialog):
         setup_now = self.handles['filter_setup'].currentText()
         subject_now = self.handles['filter_subject'].currentText()
                 
-        if 'uncoupled' in experiment_now:
+        if 'uncoupled' in experiment_now.lower():
             self.variables_to_display = self.variables_to_display_uncoupled
+        elif 'randomwalk' in experiment_now.lower():
+            self.variables_to_display = self.variables_to_display_randomwalk
         else:
             self.variables_to_display = self.variables_to_display_old 
 
@@ -1018,34 +1071,16 @@ class App(QDialog):
 
     def enable_disable_fields(self):
         
-        if 'uncoupled' in self.handles['filter_experiment'].currentText():
+        if 'uncoupled' in self.handles['filter_experiment'].currentText().lower():
             # self.cache_auto_train_min_rewarded_trial_num = int(self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].text())
             if self.handles['variables_subject']['auto_block_switch_type'].text() == 'NA' or not int(self.handles['variables_subject']['auto_block_switch_type'].text()):
                 self.handles['variables_subject']['perseverative_limit'].setEnabled(False)
             else:
                 self.handles['variables_subject']['perseverative_limit'].setEnabled(True)
 
-            if self.handles['variables_subject']['auto_water'].text() == 'True':
-                self.handles['variables_subject']['auto_water_time_multiplier'].setEnabled(True)
-                self.handles['variables_subject']['auto_water_min_ignored_trials_in_a_row'].setEnabled(True)
-                self.handles['variables_subject']['auto_water_min_unrewarder_trials_in_a_row'].setEnabled(True)
-            else:
-                self.handles['variables_subject']['auto_water_time_multiplier'].setEnabled(False)
-                self.handles['variables_subject']['auto_water_min_ignored_trials_in_a_row'].setEnabled(False)
-                self.handles['variables_subject']['auto_water_min_unrewarder_trials_in_a_row'].setEnabled(False)
+        elif 'randomwalk' in self.handles['filter_experiment'].currentText().lower():
+            self.handles['variables_subject']['auto_block_switch_type'].setEnabled(False)            
 
-            if int(self.handles['variables_subject']['lickport_number'].text()) == 2:
-                self.handles['variables_subject']['ValveOpenTime_M'].setEnabled(False)
-            else:
-                self.handles['variables_subject']['ValveOpenTime_M'].setEnabled(True)
-                
-            try:
-                if float(self.handles['variables_subject']['laser_random_ratio'].text()) == -1:
-                    self.handles['variables_subject']['laser_min_non_stim_before'].setEnabled(False)
-                else:
-                    self.handles['variables_subject']['laser_min_non_stim_before'].setEnabled(True)
-            except:
-                pass
         else:
             # self.cache_auto_train_min_rewarded_trial_num = int(self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].text())
             if self.handles['variables_subject']['auto_block_switch_type'].text() == 'NA' or not int(self.handles['variables_subject']['auto_block_switch_type'].text()):
@@ -1059,27 +1094,27 @@ class App(QDialog):
                 self.handles['variables_subject']['auto_block_switch_threshold'].setEnabled(True)
                 self.handles['variables_subject']['auto_block_switch_points'].setEnabled(True)
 
-            if self.handles['variables_subject']['auto_water'].text() == 'True':
-                self.handles['variables_subject']['auto_water_time_multiplier'].setEnabled(True)
-                self.handles['variables_subject']['auto_water_min_ignored_trials_in_a_row'].setEnabled(True)
-                self.handles['variables_subject']['auto_water_min_unrewarder_trials_in_a_row'].setEnabled(True)
-            else:
-                self.handles['variables_subject']['auto_water_time_multiplier'].setEnabled(False)
-                self.handles['variables_subject']['auto_water_min_ignored_trials_in_a_row'].setEnabled(False)
-                self.handles['variables_subject']['auto_water_min_unrewarder_trials_in_a_row'].setEnabled(False)
+        if self.handles['variables_subject']['auto_water'].text() == 'True':
+            self.handles['variables_subject']['auto_water_time_multiplier'].setEnabled(True)
+            self.handles['variables_subject']['auto_water_min_ignored_trials_in_a_row'].setEnabled(True)
+            self.handles['variables_subject']['auto_water_min_unrewarder_trials_in_a_row'].setEnabled(True)
+        else:
+            self.handles['variables_subject']['auto_water_time_multiplier'].setEnabled(False)
+            self.handles['variables_subject']['auto_water_min_ignored_trials_in_a_row'].setEnabled(False)
+            self.handles['variables_subject']['auto_water_min_unrewarder_trials_in_a_row'].setEnabled(False)
 
-            if int(self.handles['variables_subject']['lickport_number'].text()) == 2:
-                self.handles['variables_subject']['ValveOpenTime_M'].setEnabled(False)
+        if int(self.handles['variables_subject']['lickport_number'].text()) == 2:
+            self.handles['variables_subject']['ValveOpenTime_M'].setEnabled(False)
+        else:
+            self.handles['variables_subject']['ValveOpenTime_M'].setEnabled(True)
+            
+        try:
+            if float(self.handles['variables_subject']['laser_random_ratio'].text()) == -1:
+                self.handles['variables_subject']['laser_min_non_stim_before'].setEnabled(False)
             else:
-                self.handles['variables_subject']['ValveOpenTime_M'].setEnabled(True)
-                
-            try:
-                if float(self.handles['variables_subject']['laser_random_ratio'].text()) == -1:
-                    self.handles['variables_subject']['laser_min_non_stim_before'].setEnabled(False)
-                else:
-                    self.handles['variables_subject']['laser_min_non_stim_before'].setEnabled(True)
-            except:
-                pass
+                self.handles['variables_subject']['laser_min_non_stim_before'].setEnabled(True)
+        except:
+            pass
             
     def save_parameters(self):
         project_now = self.handles['filter_project'].currentText()
@@ -1571,7 +1606,7 @@ class PlotCanvas(FigureCanvas):
             # Always show success switch
             # tmpstr= f'(cached {self.parent().parent().cache_auto_train_min_rewarded_trial_num})' if auto_block_switch_type == 1 else ''
             tmpstr= 'is on the correct side now' if auto_block_switch_type == 1 else 'has been on the correct side'
-            if not auto_block_switch_type or 'uncoupled' in self.parent().parent().handles['filter_experiment'].currentText():
+            if not auto_block_switch_type or any(x in self.parent().parent().handles['filter_experiment'].currentText() for x in ('uncoupled', 'randomwalk')):
                 self.parent().parent().handles['success_switched'].setText('')
             else:
                 actual_sucess_flag = self.success_switch_now if auto_block_switch_type == 1 else self.success_switch_once
@@ -1668,6 +1703,9 @@ class PlotCanvas(FigureCanvas):
     def _foraging_eff(self, reward_rate, p_Ls, p_Rs, random_number_L=None, random_number_R=None):  # Calculate foraging efficiency (only for 2lp)
         # Classic method (Corrado2005)
         for_eff_classic = reward_rate / (np.nanmean(p_Ls + p_Rs))
+
+        if any(x in self.parent().parent().handles['filter_experiment'].currentText() for x in ('uncoupled', 'randomwalk')):
+            return for_eff_classic, np.nan, np.nan
 
         # --- Optimal-aver (there is no simple way of only considering finished trials in the online script,
         # so here I assume all the trials are not ignored)
