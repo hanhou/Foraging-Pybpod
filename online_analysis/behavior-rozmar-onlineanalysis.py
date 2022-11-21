@@ -28,7 +28,7 @@ try:
 except:
     pass
 print('started')
-paths = ['C:\Users\labadmin\Documents\PyBpod',
+paths = ['C:\\Users\\labadmin\\Documents\\PyBpod',
          'C:\\Users\\labadmin\\My Documents\\Pybpod\\Projects',
          'C:\\Users\\labadmin\\Documents\\Pybpod\\Projectss',
          'C:\\Users\\labadmin\\Documents\\foraging_projects\\Projects',
@@ -164,7 +164,7 @@ class App(QDialog):
                                               'auto_block_switch_type': 'Auto (0:off; 1:on)',
                                               'perseverative_limit': 'perseverative limit',
                                               'hold_this_block': 'hold this block',
-                                             }, 
+                                             },
                                      'Photostimulation (time)':{
                                             #   'laser_early_ITI_dur': 'early ITI dur',
                                             #   'laser_early_ITI_offset': 'early ITI offset',
@@ -176,10 +176,10 @@ class App(QDialog):
                                      '             (schedule)':{
                                               'laser_side': 'side (0:L;1:R;2:LR)',
                                               'laser_random_ratio': 'random ratio',
-                                              'laser_min_non_stim_before': 'min non stim before', 
+                                              'laser_min_non_stim_before': 'min non stim before',
                                               }
                                 }
-        
+
         self.variables_to_display_randomwalk = {'Valve Open Time': {'lickport_number': '# Lickport',
                                                          'ValveOpenTime_L': 'L',
                                                          'ValveOpenTime_R': 'R',
@@ -215,7 +215,7 @@ class App(QDialog):
                                      'Advanced block':{
                                               'auto_block_switch_type': 'Auto (0:off; 1:on)',
                                               'hold_this_block': 'hold this block',
-                                             }, 
+                                             },
                                      'Photostimulation (time)':{
                                             #   'laser_early_ITI_dur': 'early ITI dur',
                                             #   'laser_early_ITI_offset': 'early ITI offset',
@@ -227,11 +227,11 @@ class App(QDialog):
                                      '             (schedule)':{
                                               'laser_side': 'side (0:L;1:R;2:LR)',
                                               'laser_random_ratio': 'random ratio',
-                                              'laser_min_non_stim_before': 'min non stim before', 
+                                              'laser_min_non_stim_before': 'min non stim before',
                                               }
                                 }
-        
- 
+
+
 
         self.sliding_win_fix_width = True
 
@@ -795,13 +795,13 @@ class App(QDialog):
         experiment_now = self.handles['filter_experiment'].currentText()
         setup_now = self.handles['filter_setup'].currentText()
         subject_now = self.handles['filter_subject'].currentText()
-                
+
         if 'uncoupled' in experiment_now.lower():
             self.variables_to_display = self.variables_to_display_uncoupled
         elif 'randomwalk' in experiment_now.lower():
             self.variables_to_display = self.variables_to_display_randomwalk
         else:
-            self.variables_to_display = self.variables_to_display_old 
+            self.variables_to_display = self.variables_to_display_old
 
         if project_now != 'all projects' and experiment_now != 'all experiments' and setup_now != 'all setups' and subject_now != 'all subjects':
 
@@ -825,7 +825,7 @@ class App(QDialog):
             else:
                 self.laser_power_mapper = [[0, 0.0], [1, 1.0], [2, 2.0], [3, 3.0], [4, 4.0], [5, 5.0]]
 
-            if self.variables is None or reload_varialbe_layout:                
+            if self.variables is None or reload_varialbe_layout:
                 layout = QGridLayout()
             #     self.horizontalGroupBox_preset_variables = QGroupBox("Preset variables")
                 self.horizontalGroupBox_variables_setup = QGroupBox("Setup: "+setup_now)
@@ -920,7 +920,7 @@ class App(QDialog):
 
                 self.horizontalGroupBox_variables_subject.setLayout(layout_subject)
                 self.variables=dict()
-                
+
             else:
                 self.horizontalGroupBox_variables_setup.setTitle("Setup: "+setup_now)
                 self.horizontalGroupBox_variables_subject.setTitle("Subject: "+subject_now)
@@ -1063,14 +1063,14 @@ class App(QDialog):
                     # self.handles['variables_subject'][key].setText("NA")
                     self.handles['variables_subject'][key].setStyleSheet('QLineEdit {background: grey;}')
         try:
-            self.enable_disable_fields()            
+            self.enable_disable_fields()
         except:
             print('Warning: "enable_disable_fields" failed...')
         self.show_actual_reward_prob()
         qApp.processEvents()
 
     def enable_disable_fields(self):
-        
+
         if 'uncoupled' in self.handles['filter_experiment'].currentText().lower():
             # self.cache_auto_train_min_rewarded_trial_num = int(self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].text())
             if self.handles['variables_subject']['auto_block_switch_type'].text() == 'NA' or not int(self.handles['variables_subject']['auto_block_switch_type'].text()):
@@ -1079,7 +1079,7 @@ class App(QDialog):
                 self.handles['variables_subject']['perseverative_limit'].setEnabled(True)
 
         elif 'randomwalk' in self.handles['filter_experiment'].currentText().lower():
-            self.handles['variables_subject']['auto_block_switch_type'].setEnabled(False)            
+            self.handles['variables_subject']['auto_block_switch_type'].setEnabled(False)
 
         else:
             # self.cache_auto_train_min_rewarded_trial_num = int(self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].text())
@@ -1107,7 +1107,7 @@ class App(QDialog):
             self.handles['variables_subject']['ValveOpenTime_M'].setEnabled(False)
         else:
             self.handles['variables_subject']['ValveOpenTime_M'].setEnabled(True)
-            
+
         try:
             if float(self.handles['variables_subject']['laser_random_ratio'].text()) == -1:
                 self.handles['variables_subject']['laser_min_non_stim_before'].setEnabled(False)
@@ -1115,7 +1115,7 @@ class App(QDialog):
                 self.handles['variables_subject']['laser_min_non_stim_before'].setEnabled(True)
         except:
             pass
-            
+
     def save_parameters(self):
         project_now = self.handles['filter_project'].currentText()
         experiment_now = self.handles['filter_experiment'].currentText()
@@ -1159,14 +1159,14 @@ class App(QDialog):
                             self.variables[dicttext][key] = json.loads(self.handles['variables_'+dicttext][key].text())
                         except:
                             print('not proper value')
-  
+
                 else:   # If json file has missing parameters, we add this new parameter (backward compatibility). HH20200730
                     content = self.handles['variables_'+dicttext][key].text()
                     try:
                         self.variables[dicttext][key] = json.loads(content.lower())
                     except:
                         print('not proper value')
-        
+
         # Laser power
         self.variables['subject']['laser_power'] = float(self.handles['laser_power'].currentText().split('mW')[0])
 
