@@ -1571,7 +1571,7 @@ class PlotCanvas(FigureCanvas):
         self.draw()
 
         # === Automatic block control using the current choice ratio ===
-        if not if_3lp:
+        if not if_3lp and not any(x in self.parent().parent().handles['filter_experiment'].currentText() for x in ('uncoupled', 'randomwalk')):
             subject_variables = self.parent().parent().variables['subject']
             subject_handles = self.parent().parent().handles['variables_subject']
             auto_block_switch_type = subject_variables['auto_block_switch_type']
