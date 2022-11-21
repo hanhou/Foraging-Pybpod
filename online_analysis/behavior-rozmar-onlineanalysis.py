@@ -28,7 +28,7 @@ try:
 except:
     pass
 print('started')
-paths = ['/home/rozmar/Data/Behavior/Behavior_rigs/Tower-2',
+paths = ['C:\Users\labadmin\Documents\PyBpod',
          'C:\\Users\\labadmin\\My Documents\\Pybpod\\Projects',
          'C:\\Users\\labadmin\\Documents\\Pybpod\\Projectss',
          'C:\\Users\\labadmin\\Documents\\foraging_projects\\Projects',
@@ -1161,20 +1161,12 @@ class App(QDialog):
                             print('not proper value')
   
                 else:   # If json file has missing parameters, we add this new parameter (backward compatibility). HH20200730
-<<<<<<< HEAD
-                    if type(self.handles['variables_'+dicttext][key].text()) == int:
-                        self.variables[dicttext][key] = int(self.handles['variables_'+dicttext][key].text())   # Only consider int now
-                    else:
-                        self.variables[dicttext][key] = float(self.handles['variables_'+dicttext][key].text())   # Only consider int now
-
-=======
                     content = self.handles['variables_'+dicttext][key].text()
                     try:
                         self.variables[dicttext][key] = json.loads(content.lower())
                     except:
                         print('not proper value')
         
->>>>>>> c7000a1bf6c590fc950a5e0ea8f13dfb64aef702
         # Laser power
         self.variables['subject']['laser_power'] = float(self.handles['laser_power'].currentText().split('mW')[0])
 
