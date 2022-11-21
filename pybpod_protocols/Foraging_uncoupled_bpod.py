@@ -370,7 +370,7 @@ elif setup_name =='Tower-2':
     variables['camera_face_trig'] = OutputChannel.Wire1    # Face camera trigger
     variables['camera_trunk_trig'] = OutputChannel.Wire2   # Trunk camera trigger
 
-elif setup_name == 'Tower-3':
+elif setup_name == 'AIND-Tower-7':
     # for setup: Tower - 3
     variables['GoCue_ch'] = OutputChannel.PWM3
     variables['WaterPort_L_ch_out'] = 7
