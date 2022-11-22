@@ -64,10 +64,11 @@ class App(QDialog):
         self.timer.setInterval(5000)          # Throw event timeout with an interval of 1000 milliseconds
         self.timer.timeout.connect(self.reloadthedata) # each time timer counts a second, call self.blink
         self.pickle_write_thread = None
-        self.variables_to_display = {'Valve Open Time': {'lickport_number': '# Lickport',
+        self.variables_to_display_old = {'Valve Open Time': {'lickport_number': '# Lickport',
                                                          'ValveOpenTime_L': 'L',
                                                          'ValveOpenTime_R': 'R',
                                                          'ValveOpenTime_M': 'M',
+                                                         'accumulate_reward': 'Reward baiting prob.',
                                                         },
                                      'Base reward probability': {'difficulty_sum_reward_rate': 'sum',
                                                       'reward_rate_family': 'family',
@@ -121,93 +122,116 @@ class App(QDialog):
                                               'laser_random_ratio': 'random ratio',
                                               'laser_min_non_stim_before': 'min non stim before',                                                                }
                                      }
-        
-        free_water = {
-                      'difficulty_ratio_pair_num' : 0,
-                      'response_time' : 2.,
-                      'increase_ITI_on_ignore_trials' : False,
-                      'block_start_with_bias_check' : False,
-                      'auto_water' : True,
-                      'auto_water_min_unrewarder_trials_in_a_row' : 3,
-                      'auto_water_min_ignored_trials_in_a_row' : 1,
-                      'early_lick_punishment' : False,
-                      }
-        pretraining = {
-                'Trialnumber_in_block' : 1,
-                'Trialnumber_in_block_min' : 0,
-                'Trialnumber_in_block_max' : 0,
-                'block_start_with_bias_check' : False,
-                'block_number' : 500,
-                'difficulty_sum_reward_rate' : 1,
-                'difficulty_ratio_pair_num' : 1,
-                'reward_rate_family' : 3,
-                'response_time' : 2.,
-                'auto_train_min_rewarded_trial_num' : 4,
-                'early_lick_punishment' : False,
-                }
-        pretraining_early_lick = {
-                'Trialnumber_in_block' : 1,
-                'Trialnumber_in_block_min' : 0,
-                'Trialnumber_in_block_max' : 0,
-                'block_start_with_bias_check' : False,
-                'block_number' : 500,
-                'difficulty_sum_reward_rate' : 1,
-                'difficulty_ratio_pair_num' : 1,
-                'delay' : 1,
-                'delay_min' : .5,
-                'delay_max' : 3.,
-                'reward_rate_family' : 3,
-                'response_time' : 1.,
-                'auto_train_min_rewarded_trial_num' : 4,
-                'early_lick_punishment' : True,
-                }
-        full_task_2_lickport = {
-                'Trialnumber_in_block' : 30,
-                'Trialnumber_in_block_min' : 50,
-                'Trialnumber_in_block_max' : 200,
-                'block_start_with_bias_check' : True,
-                'block_number' : 100,
-                'difficulty_sum_reward_rate' : .45,
-                'difficulty_ratio_pair_num' : 3,
-                'reward_rate_family' : 1,
-                'delay' : 1,
-                'delay_min' : .5,
-                'delay_max' : 3.,
-                'response_time' : .5,
-                'iti' : 3,
-                'iti_min' : .5, # minimum ITI
-                'iti_max': 10.,
-                'increase_ITI_on_ignore_trials' : True,
-                'auto_water' : False,
-                'early_lick_punishment' : True,
-                                     }
-        full_task_3_lickport = {
-                'Trialnumber_in_block' : 30,
-                'Trialnumber_in_block_min' : 80,
-                'Trialnumber_in_block_max' : 200,
-                'block_start_with_bias_check' : True,
-                'block_number' : 100,
-                'difficulty_sum_reward_rate' : .75,
-                'difficulty_ratio_pair_num' : 1,
-                'reward_rate_family' : 1,
-                'delay' : 1,
-                'delay_min' : .5,
-                'delay_max' : 3.,
-                'response_time' : .5,
-                'iti' : 3,
-                'iti_min' : .5, # minimum ITI
-                'iti_max': 10.,
-                'increase_ITI_on_ignore_trials' : True,
-                'auto_water' : False,
-                'early_lick_punishment' : True,
-                                     }
 
-        self.preset_variables = dict()
-        self.preset_variables['0 - free water'] = free_water
-        self.preset_variables['1 - pretraining'] = pretraining
-        self.preset_variables['2 - pretraining + early lick punishment'] = pretraining_early_lick
-        self.preset_variables['3 - full task (2 lickports)'] = full_task_2_lickport
-        self.preset_variables['4 - full task (3 lickports)'] = full_task_3_lickport
+
+        self.variables_to_display_uncoupled = {'Valve Open Time': {'lickport_number': '# Lickport',
+                                                         'ValveOpenTime_L': 'L',
+                                                         'ValveOpenTime_R': 'R',
+                                                         'ValveOpenTime_M': 'M',
+                                                         'accumulate_reward': 'Reward baiting prob.',
+                                                        },
+                                     'Base reward probability': {'reward_prob_array': 'reward prob. array',
+                                                      },
+                                     'Block': {
+                                               'Trialnumber_in_block_min': 'min',
+                                               'Trialnumber_in_block_max': 'max',
+                                            #    'auto_train_min_rewarded_trial_num': 'min reward each block',
+                                               # 'block_number',
+                                               },
+                                     'Delay period': {'delay': 'beta',
+                                                      'delay_min': 'min',
+                                                      'delay_max': 'max',
+                                                      'early_lick_punishment': 'early lick punish (<0: retraction)',
+                                                      'fixation_reward': 'fixation reward',
+                                                      },
+                                     'ITI': {'iti': 'beta',
+                                             'iti_min': 'min',
+                                             'iti_max': 'max',
+                                             'increase_ITI_on_ignore_trials': 'increase ITI if ignored',
+                                             },
+                                     'Auto water': {'auto_water': 'ON',
+                                                    'auto_water_time_multiplier': 'multiplier',
+                                                    'auto_water_min_unrewarder_trials_in_a_row': 'if unrewarded in a row',
+                                                    'auto_water_min_ignored_trials_in_a_row': 'if ignored in a row',
+                                                    },
+                                     'Misc': {
+                                              'response_time': 'RT',
+                                              'auto_stop_max_ignored_trials_in_a_row': 'auto stop ignores >',
+                                              'motor_retract_waterport': 'retract on ITI?',
+                                              'double_dip_retract': 'retract on double dipping?',
+                                             },
+                                     'Advanced block':{
+                                              'auto_block_switch_type': 'Auto (0:off; 1:on)',
+                                              'perseverative_limit': 'perseverative limit',
+                                              'hold_this_block': 'hold this block',
+                                             }, 
+                                     'Photostimulation (time)':{
+                                            #   'laser_early_ITI_dur': 'early ITI dur',
+                                            #   'laser_early_ITI_offset': 'early ITI offset',
+                                            #   'laser_late_ITI_dur': 'late ITI dur',
+                                            #   'laser_late_ITI_offset': 'late ITI offset (<0: right-aligned)',
+                                              'laser_offset': 'offset (sec)',
+                                              'laser_duration': 'duration (sec)',
+                                             },
+                                     '             (schedule)':{
+                                              'laser_side': 'side (0:L;1:R;2:LR)',
+                                              'laser_random_ratio': 'random ratio',
+                                              'laser_min_non_stim_before': 'min non stim before', 
+                                              }
+                                }
+        
+        self.variables_to_display_randomwalk = {'Valve Open Time': {'lickport_number': '# Lickport',
+                                                         'ValveOpenTime_L': 'L',
+                                                         'ValveOpenTime_R': 'R',
+                                                         'ValveOpenTime_M': 'M',
+                                                         'accumulate_reward': 'Reward baiting prob.',
+                                                        },
+                                     'Base reward probability': {'min_reward_prob': 'min reward prob',
+                                                                 'max_reward_prob': 'max reward prob',
+                                                                 'random_walk_sigma': 'random walk sigma',
+                                                      },
+                                     'Delay period': {'delay': 'beta',
+                                                      'delay_min': 'min',
+                                                      'delay_max': 'max',
+                                                      'early_lick_punishment': 'early lick punish (<0: retraction)',
+                                                      'fixation_reward': 'fixation reward',
+                                                      },
+                                     'ITI': {'iti': 'beta',
+                                             'iti_min': 'min',
+                                             'iti_max': 'max',
+                                             'increase_ITI_on_ignore_trials': 'increase ITI if ignored',
+                                             },
+                                     'Auto water': {'auto_water': 'ON',
+                                                    'auto_water_time_multiplier': 'multiplier',
+                                                    'auto_water_min_unrewarder_trials_in_a_row': 'if unrewarded in a row',
+                                                    'auto_water_min_ignored_trials_in_a_row': 'if ignored in a row',
+                                                    },
+                                     'Misc': {
+                                              'response_time': 'RT',
+                                              'auto_stop_max_ignored_trials_in_a_row': 'auto stop ignores >',
+                                              'motor_retract_waterport': 'retract on ITI?',
+                                              'double_dip_retract': 'retract on double dipping?',
+                                             },
+                                     'Advanced block':{
+                                              'auto_block_switch_type': 'Auto (0:off; 1:on)',
+                                              'hold_this_block': 'hold this block',
+                                             }, 
+                                     'Photostimulation (time)':{
+                                            #   'laser_early_ITI_dur': 'early ITI dur',
+                                            #   'laser_early_ITI_offset': 'early ITI offset',
+                                            #   'laser_late_ITI_dur': 'late ITI dur',
+                                            #   'laser_late_ITI_offset': 'late ITI offset (<0: right-aligned)',
+                                              'laser_offset': 'offset (sec)',
+                                              'laser_duration': 'duration (sec)',
+                                             },
+                                     '             (schedule)':{
+                                              'laser_side': 'side (0:L;1:R;2:LR)',
+                                              'laser_random_ratio': 'random ratio',
+                                              'laser_min_non_stim_before': 'min non stim before', 
+                                              }
+                                }
+        
+ 
 
         self.sliding_win_fix_width = True
 
@@ -686,8 +710,11 @@ class App(QDialog):
             self.handles['filter_setup'].currentIndexChanged.connect(lambda: self.filterthedata('filter_setup'))
             
         try:
-            self.load_parameters()
+            print('load parameters with reload_variable_layout=True')
+            self.load_parameters(reload_varialbe_layout=False)
         except:
+            import traceback
+            traceback.print_exc()
             pass
 
 
@@ -762,18 +789,30 @@ class App(QDialog):
                 print('zaber issue')
                 pass
 
-    def load_parameters(self):
+    def load_parameters(self, reload_varialbe_layout=False):
         maxcol = 4 # number of columns
         project_now = self.handles['filter_project'].currentText()
         experiment_now = self.handles['filter_experiment'].currentText()
         setup_now = self.handles['filter_setup'].currentText()
         subject_now = self.handles['filter_subject'].currentText()
+                
+        if 'uncoupled' in experiment_now.lower():
+            self.variables_to_display = self.variables_to_display_uncoupled
+        elif 'randomwalk' in experiment_now.lower():
+            self.variables_to_display = self.variables_to_display_randomwalk
+        else:
+            self.variables_to_display = self.variables_to_display_old 
 
         if project_now != 'all projects' and experiment_now != 'all experiments' and setup_now != 'all setups' and subject_now != 'all subjects':
+            
             subject_var_file = os.path.join(defpath,project_now,'subjects',subject_now,f'variables_{experiment_now}.json')
+            if not os.path.exists(subject_var_file):
+                subject_var_file = os.path.join(defpath,project_now,'subjects',subject_now,f'variables.json')  # Backward compatibility
+            
             setup_var_file = os.path.join(defpath,project_now,'experiments',experiment_now,'setups',setup_now,'variables.json')
             with open(subject_var_file) as json_file:
                 variables_subject = json.load(json_file)
+                print(f'load subject variables from {subject_var_file}')
             with open(setup_var_file) as json_file:
                 variables_setup = json.load(json_file)
                 
@@ -786,8 +825,7 @@ class App(QDialog):
             else:
                 self.laser_power_mapper = [[0, 0.0], [1, 1.0], [2, 2.0], [3, 3.0], [4, 4.0], [5, 5.0]]
 
-
-            if self.variables is None:
+            if self.variables is None or reload_varialbe_layout:                
                 layout = QGridLayout()
             #     self.horizontalGroupBox_preset_variables = QGroupBox("Preset variables")
                 self.horizontalGroupBox_variables_setup = QGroupBox("Setup: "+setup_now)
@@ -882,6 +920,7 @@ class App(QDialog):
         
                 self.horizontalGroupBox_variables_subject.setLayout(layout_subject)
                 self.variables=dict()
+                
             else:
                 self.horizontalGroupBox_variables_setup.setTitle("Setup: "+setup_now)
                 self.horizontalGroupBox_variables_subject.setTitle("Subject: "+subject_now)
@@ -952,7 +991,10 @@ class App(QDialog):
         project_now = self.handles['filter_project'].currentText()
         subject_now = self.handles['filter_subject'].currentText()
         experiment_now = self.handles['filter_experiment'].currentText()
+        
         subject_var_file = os.path.join(defpath,project_now,'subjects',subject_now,f'variables_{experiment_now}.json')
+        if not os.path.exists(subject_var_file):
+            subject_var_file = os.path.join(defpath,project_now,'subjects',subject_now,f'variables.json')  # Backward compatibility
 
         # Copy the current variable file to a new file
         fname = QFileDialog.getSaveFileName(self, 'Open file',
@@ -967,7 +1009,12 @@ class App(QDialog):
         experiment_now = self.handles['filter_experiment'].currentText()
         setup_now = self.handles['filter_setup'].currentText()
         subject_now = self.handles['filter_subject'].currentText()
-        subject_var_file = os.path.join(defpath,project_now,'subjects',subject_now,f'variables_{experiment_now}.json')  # Experiment-specific variables
+        
+        subject_var_file = os.path.join(defpath,project_now,'subjects',subject_now,f'variables_{experiment_now}.json')
+        if not os.path.exists(subject_var_file):
+            subject_var_file = os.path.join(defpath,project_now,'subjects',subject_now,f'variables.json')  # Backward compatibility
+        
+        # Experiment-specific variables
         setup_var_file = os.path.join(defpath,project_now,'experiments',experiment_now,'setups',setup_now,'variables.json')
         with open(subject_var_file) as json_file:
             variables_subject = json.load(json_file)
@@ -999,6 +1046,13 @@ class App(QDialog):
                         except:
                             print('not proper value')
                             valuenow = None
+                    else:  # string of list, etc
+                        try:
+                            valuenow = json.loads(self.handles['variables_'+dicttext][key].text())
+                        except:
+                            print('not proper value')
+                            valuenow = None
+
 
                     # Turn the newly changed parameters to red
                     if valuenow == self.variables[dicttext][key]:
@@ -1008,23 +1062,37 @@ class App(QDialog):
                 else:   # If json file has missing parameters (backward compatibility). HH20200730
                     # self.handles['variables_subject'][key].setText("NA")
                     self.handles['variables_subject'][key].setStyleSheet('QLineEdit {background: grey;}')
-
-        self.enable_disable_fields()            
+        try:
+            self.enable_disable_fields()            
+        except:
+            print('Warning: "enable_disable_fields" failed...')
         self.show_actual_reward_prob()
         qApp.processEvents()
 
     def enable_disable_fields(self):
-        # self.cache_auto_train_min_rewarded_trial_num = int(self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].text())
-        if self.handles['variables_subject']['auto_block_switch_type'].text() == 'NA' or not int(self.handles['variables_subject']['auto_block_switch_type'].text()):
-            self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].setEnabled(True)
-            self.handles['variables_subject']['auto_block_switch_threshold'].setEnabled(False)
-            self.handles['variables_subject']['auto_block_switch_points'].setEnabled(False)
-            if self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].text() == '999':
-                self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].setText('0')
+        
+        if 'uncoupled' in self.handles['filter_experiment'].currentText().lower():
+            # self.cache_auto_train_min_rewarded_trial_num = int(self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].text())
+            if self.handles['variables_subject']['auto_block_switch_type'].text() == 'NA' or not int(self.handles['variables_subject']['auto_block_switch_type'].text()):
+                self.handles['variables_subject']['perseverative_limit'].setEnabled(False)
+            else:
+                self.handles['variables_subject']['perseverative_limit'].setEnabled(True)
+
+        elif 'randomwalk' in self.handles['filter_experiment'].currentText().lower():
+            self.handles['variables_subject']['auto_block_switch_type'].setEnabled(False)            
+
         else:
-            self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].setEnabled(False)
-            self.handles['variables_subject']['auto_block_switch_threshold'].setEnabled(True)
-            self.handles['variables_subject']['auto_block_switch_points'].setEnabled(True)
+            # self.cache_auto_train_min_rewarded_trial_num = int(self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].text())
+            if self.handles['variables_subject']['auto_block_switch_type'].text() == 'NA' or not int(self.handles['variables_subject']['auto_block_switch_type'].text()):
+                self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].setEnabled(True)
+                self.handles['variables_subject']['auto_block_switch_threshold'].setEnabled(False)
+                self.handles['variables_subject']['auto_block_switch_points'].setEnabled(False)
+                if self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].text() == '999':
+                    self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].setText('0')
+            else:
+                self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].setEnabled(False)
+                self.handles['variables_subject']['auto_block_switch_threshold'].setEnabled(True)
+                self.handles['variables_subject']['auto_block_switch_points'].setEnabled(True)
 
         if self.handles['variables_subject']['auto_water'].text() == 'True':
             self.handles['variables_subject']['auto_water_time_multiplier'].setEnabled(True)
@@ -1045,14 +1113,6 @@ class App(QDialog):
                 self.handles['variables_subject']['laser_min_non_stim_before'].setEnabled(False)
             else:
                 self.handles['variables_subject']['laser_min_non_stim_before'].setEnabled(True)
-                
-            # if float(self.handles['variables_subject']['laser_late_ITI_offset'].text()) < 0:   # 'right-aligned'
-                # self.handles['variables_subject']['laser_early_ITI_dur'].setEnabled(False)
-                # self.handles['variables_subject']['laser_early_ITI_offset'].setEnabled(False)
-            # else:
-                # self.handles['variables_subject']['laser_early_ITI_dur'].setEnabled(True)
-                # self.handles['variables_subject']['laser_early_ITI_offset'].setEnabled(True)
-                
         except:
             pass
             
@@ -1061,7 +1121,11 @@ class App(QDialog):
         experiment_now = self.handles['filter_experiment'].currentText()
         setup_now = self.handles['filter_setup'].currentText()
         subject_now = self.handles['filter_subject'].currentText()
+
         subject_var_file = os.path.join(defpath,project_now,'subjects',subject_now,f'variables_{experiment_now}.json')
+        if not os.path.exists(subject_var_file):
+            subject_var_file = os.path.join(defpath,project_now,'subjects',subject_now,f'variables.json')  # Backward compatibility
+
         setup_var_file = os.path.join(defpath,project_now,'experiments',experiment_now,'setups',setup_now,'variables.json')
         with open(subject_var_file) as json_file:
             variables_subject = json.load(json_file)
@@ -1090,12 +1154,18 @@ class App(QDialog):
                             self.variables[dicttext][key] = int(round(float(self.handles['variables_'+dicttext][key].text())))
                         except:
                             print('not proper value')
-
+                    else:  # string of list, etc
+                        try:
+                            self.variables[dicttext][key] = json.loads(self.handles['variables_'+dicttext][key].text())
+                        except:
+                            print('not proper value')
+  
                 else:   # If json file has missing parameters, we add this new parameter (backward compatibility). HH20200730
-                    if type(self.handles['variables_'+dicttext][key].text()) == int:
-                        self.variables[dicttext][key] = int(self.handles['variables_'+dicttext][key].text())   # Only consider int now
-                    else:
-                        self.variables[dicttext][key] = float(self.handles['variables_'+dicttext][key].text())   # Only consider int now
+                    content = self.handles['variables_'+dicttext][key].text()
+                    try:
+                        self.variables[dicttext][key] = json.loads(content.lower())
+                    except:
+                        print('not proper value')
         
         # Laser power
         self.variables['subject']['laser_power'] = float(self.handles['laser_power'].currentText().split('mW')[0])
@@ -1104,9 +1174,9 @@ class App(QDialog):
         self.variables['subject']['laser_align_to'] = self.handles['laser_align_to'].currentText()
 
         with open(self.variables['setup_file'], 'w') as outfile:
-            json.dump(self.variables['setup'], outfile)
+            json.dump(self.variables['setup'], outfile, indent=4)
         with open(self.variables['subject_file'], 'w') as outfile:
-            json.dump(self.variables['subject'], outfile)
+            json.dump(self.variables['subject'], outfile, indent=4)
 
         self.load_parameters()
         self.check_parameters()
@@ -1501,7 +1571,7 @@ class PlotCanvas(FigureCanvas):
         self.draw()
 
         # === Automatic block control using the current choice ratio ===
-        if not if_3lp:
+        if not if_3lp and not any(x in self.parent().parent().handles['filter_experiment'].currentText() for x in ('uncoupled', 'randomwalk')):
             subject_variables = self.parent().parent().variables['subject']
             subject_handles = self.parent().parent().handles['variables_subject']
             auto_block_switch_type = subject_variables['auto_block_switch_type']
@@ -1536,7 +1606,7 @@ class PlotCanvas(FigureCanvas):
             # Always show success switch
             # tmpstr= f'(cached {self.parent().parent().cache_auto_train_min_rewarded_trial_num})' if auto_block_switch_type == 1 else ''
             tmpstr= 'is on the correct side now' if auto_block_switch_type == 1 else 'has been on the correct side'
-            if not auto_block_switch_type:
+            if not auto_block_switch_type or any(x in self.parent().parent().handles['filter_experiment'].currentText() for x in ('uncoupled', 'randomwalk')):
                 self.parent().parent().handles['success_switched'].setText('')
             else:
                 actual_sucess_flag = self.success_switch_now if auto_block_switch_type == 1 else self.success_switch_once
@@ -1633,6 +1703,9 @@ class PlotCanvas(FigureCanvas):
     def _foraging_eff(self, reward_rate, p_Ls, p_Rs, random_number_L=None, random_number_R=None):  # Calculate foraging efficiency (only for 2lp)
         # Classic method (Corrado2005)
         for_eff_classic = reward_rate / (np.nanmean(p_Ls + p_Rs))
+
+        if any(x in self.parent().parent().handles['filter_experiment'].currentText() for x in ('uncoupled', 'randomwalk')):
+            return for_eff_classic, np.nan, np.nan
 
         # --- Optimal-aver (there is no simple way of only considering finished trials in the online script,
         # so here I assume all the trials are not ignored)

@@ -80,7 +80,7 @@ def notify_experimenter(metadata,path):
         notificationssofar = list()
     notificationssofar.append(metadata)
     with open(filepath, 'w') as outfile:
-        json.dump(notificationssofar, outfile)
+        json.dump(notificationssofar, outfile, indent=4)
 
 def splitthepath(path):
     allparts = []
@@ -750,9 +750,9 @@ variables_subject['motor_retractedposition'] = variables_motor['LickPort_RostroC
 #generate json files
 
 with open(setupfile, 'w') as outfile:
-    json.dump(variables_setup, outfile)
+    json.dump(variables_setup, outfile, indent=4)
 with open(subjectfile, 'w') as outfile:
-    json.dump(variables_subject, outfile)
+    json.dump(variables_subject, outfile, indent=4)
 print('json files (re)generated')
 
 my_bpod.softcode_handler_function = my_softcode_handler   # Assign the SoftCode function
@@ -767,7 +767,8 @@ print('Variables:', variables)
 # ============== Final preparations ==============
 # ----> Start the task
 ignore_trial_num_in_a_row = 0
-if variables['accumulate_reward']:   # Always get a reward on the first trial
+
+if variables['accumulate_reward']:   # Always get a reward on the first trial if the baiting prob is larger than zero
     reward_L_accumulated = True
     reward_R_accumulated = True
     if lickportnum == 3:
@@ -784,9 +785,11 @@ set_motor_speed() # the motors should move FAST
 # Save the random seed for reproducibility
 randomseedvalue = int(time.time())  # datetime.now().timetuple().tm_yday
 np.random.seed(randomseedvalue)
-random_values_L = np.random.uniform(0.,1.,2000).tolist()
-random_values_R = np.random.uniform(0.,1.,2000).tolist()
-random_values_M = np.random.uniform(0.,1.,2000).tolist()
+random_values_L = np.random.uniform(0.,1.,3000).tolist()
+random_values_R = np.random.uniform(0.,1.,3000).tolist()
+random_values_M = np.random.uniform(0.,1.,3000).tolist()
+random_values_if_baiting = np.random.uniform(0.,1.,3000).tolist()
+
 print('Random seed:', str(randomseedvalue))
 
 # ===============  Session start ====================
@@ -1556,23 +1559,33 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             ignore_trial_num_in_a_row += 1
 
         # Handle reward baiting
-        if variables['accumulate_reward']:
-            if reward_L_consumed:
-                reward_L_accumulated = False
-            elif reward_L and not reward_L_consumed:
-                reward_L_accumulated = True
+        if_baiting_this_trial = random_values_if_baiting.pop(0) < variables['accumulate_reward']
+        
+        if if_baiting_this_trial:
+            reward_L_accumulated = (reward_L_accumulated or reward_L) and not reward_L_consumed
+            reward_R_accumulated = (reward_R_accumulated or reward_R) and not reward_R_consumed
+            reward_M_accumulated = (reward_M_accumulated or reward_M) and not reward_M_consumed
+            
+            # if reward_L_consumed:  
+            #     reward_L_accumulated = False
+            # elif reward_L and not reward_L_consumed:
+            #     reward_L_accumulated = True
 
-            if reward_R_consumed:
-                reward_R_accumulated = False
-            elif reward_R and not reward_R_consumed:
-                reward_R_accumulated = True
+            # if reward_R_consumed:
+            #     reward_R_accumulated = False
+            # elif reward_R and not reward_R_consumed:
+            #     reward_R_accumulated = True
 
-            if reward_M_consumed:
-                reward_M_accumulated = False
-            elif reward_M and not reward_M_consumed:
-                reward_M_accumulated = True
+            # if reward_M_consumed:
+            #     reward_M_accumulated = False
+            # elif reward_M and not reward_M_consumed:
+            #     reward_M_accumulated = True
+        else:
+            # if no baiting on this trial, all baited rewards are depleted
+            reward_L_accumulated = reward_R_accumulated = reward_M_accumulated = False
 
         print('Trialtype:', 'free choice')
+        print('Baiting this trial:', if_baiting_this_trial)
         print('reward_L_accumulated:',reward_L_accumulated)
         print('reward_R_accumulated:',reward_R_accumulated)
         print('reward_M_accumulated:',reward_M_accumulated)
