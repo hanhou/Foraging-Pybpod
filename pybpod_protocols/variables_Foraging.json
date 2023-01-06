@@ -30,7 +30,7 @@
     "reward_rate_family": 2,
     "lickport_number": 2,
     "auto_stop_max_ignored_trials_in_a_row": 1000,
-    "fixation_reward": 0.015,
+    "fixation_reward": 0.0,
     "change_to_go_next_block": 0,
     "auto_block_switch_type": 0,
     "auto_block_switch_threshold": 0.5,
