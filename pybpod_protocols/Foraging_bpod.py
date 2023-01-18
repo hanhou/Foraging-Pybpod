@@ -315,6 +315,9 @@ if 'lickport_number' not in variables.keys() or variables['lickport_number'] == 
             reward_ratio_pairs=[[1,0],[.9,.1],[.8,.2],[.7,.3],[.6,.4],[.5,.5]]#,
         elif variables['reward_rate_family'] == 4:       # Starting from 6:1, 3:1, 1:1 (Lau2005 = {6:1, 3:1})
             reward_ratio_pairs=[[6, 1],[3, 1],[1, 1]]
+        elif variables['reward_rate_family'] == 5:       # Starting from 6:1, 3:1, 1:1 (Lau2005 = {6:1, 3:1})
+            reward_ratio_pairs=[[4, 1]]
+
         # reward_ratio_pairs = (np.array(reward_ratio_pairs)/np.sum(reward_ratio_pairs[0])*variables['difficulty_sum_reward_rate']).tolist()
         reward_ratio_pairs = (np.array(reward_ratio_pairs).T/np.sum(reward_ratio_pairs, axis=1)*variables['difficulty_sum_reward_rate']).T.tolist()
         reward_ratio_pairs = reward_ratio_pairs[:variables['difficulty_ratio_pair_num']]
@@ -1560,13 +1563,13 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
 
         # Handle reward baiting
         if_baiting_this_trial = random_values_if_baiting.pop(0) < variables['accumulate_reward']
-        
+
         if if_baiting_this_trial:
             reward_L_accumulated = (reward_L_accumulated or reward_L) and not reward_L_consumed
             reward_R_accumulated = (reward_R_accumulated or reward_R) and not reward_R_consumed
             reward_M_accumulated = (reward_M_accumulated or reward_M) and not reward_M_consumed
-            
-            # if reward_L_consumed:  
+
+            # if reward_L_consumed:
             #     reward_L_accumulated = False
             # elif reward_L and not reward_L_consumed:
             #     reward_L_accumulated = True
