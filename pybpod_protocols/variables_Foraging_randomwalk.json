@@ -3,8 +3,8 @@
     "ValveOpenTime_R": 0.03,
     "ValveOpenTime_M": 0.0,
     
-    "min_reward_prob": 0.0,
-    "max_reward_prob": 1.0,
+    "min_reward_prob": [0.0, 0.0],
+    "max_reward_prob": [1.0, 1.0],
     "random_walk_sigma": [0.15, 0.15],
     "random_walk_mean": [0, 0], 
 
