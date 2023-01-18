@@ -268,7 +268,8 @@ else:
     "ValveOpenTime_M": 0.0,
     "min_reward_prob": 0.0,
     "max_reward_prob": 1.0,
-    "random_walk_sigma": 0.15,
+    "random_walk_sigma": [0.15, 0.15],
+    "random_walk_mean": [0, 0], 
     # "block_start_with_bias_check": 0.0,
     "block_number": 500,
     # "difficulty_sum_reward_rate": 0.45,
@@ -669,7 +670,8 @@ laser_baited = 0  # Whether laser has been assigned previously but not delivered
 from random_walk import RandomWalkReward
 reward_schedule = RandomWalkReward(p_min=variables_subject['min_reward_prob'],
                                    p_max=variables_subject['max_reward_prob'],
-                                   sigma=variables_subject['random_walk_sigma'])
+                                   sigma=variables_subject['random_walk_sigma'],
+                                   mean=variables_subject['random_walk_mean'])
 
 # previous for each block was here ======
 
@@ -719,6 +721,7 @@ while True:
         reward_schedule.p_min = variables['min_reward_prob']
         reward_schedule.p_max = variables['max_reward_prob']
         reward_schedule.sigma = variables['random_walk_sigma']
+        reward_schedule.mean = variables['random_walk_mean']
 
 
     # # Manual override to go to the next block immediately if variables['change_to_go_next_block'] has changed from 0 to 1
