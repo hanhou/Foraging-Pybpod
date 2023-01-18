@@ -32,7 +32,8 @@ paths = ['/home/rozmar/Data/Behavior/Behavior_rigs/Tower-2',
          'C:\\Users\\labadmin\\My Documents\\Pybpod\\Projects',
          'C:\\Users\\labadmin\\Documents\\Pybpod\\Projectss',
          'C:\\Users\\labadmin\\Documents\\foraging_projects\\Projects',
-         'C:\\Users\\Han2\\Documents\\Pybpod\\Projects']
+         'C:\\Users\\Han2\\Documents\\Pybpod\\Projects',
+         'C:\\Users\\aind_behavior\\Documents\\PyBpod']
 
 for defpath in paths:
     print(defpath)
@@ -108,7 +109,7 @@ class App(QDialog):
                                               'auto_block_switch_threshold': 'auto switch threshold',
                                               'auto_block_switch_points': 'points in a row',
                                               'change_to_go_next_block': 'Next block NOW! (0->1)',
-                                             }, 
+                                             },
                                      'Photostimulation (time)':{
                                             #   'laser_early_ITI_dur': 'early ITI dur',
                                             #   'laser_early_ITI_offset': 'early ITI offset',
@@ -164,7 +165,7 @@ class App(QDialog):
                                               'auto_block_switch_type': 'Auto (0:off; 1:on)',
                                               'perseverative_limit': 'perseverative limit',
                                               'hold_this_block': 'hold this block',
-                                             }, 
+                                             },
                                      'Photostimulation (time)':{
                                             #   'laser_early_ITI_dur': 'early ITI dur',
                                             #   'laser_early_ITI_offset': 'early ITI offset',
@@ -176,10 +177,10 @@ class App(QDialog):
                                      '             (schedule)':{
                                               'laser_side': 'side (0:L;1:R;2:LR)',
                                               'laser_random_ratio': 'random ratio',
-                                              'laser_min_non_stim_before': 'min non stim before', 
+                                              'laser_min_non_stim_before': 'min non stim before',
                                               }
                                 }
-        
+
         self.variables_to_display_randomwalk = {'Valve Open Time': {'lickport_number': '# Lickport',
                                                          'ValveOpenTime_L': 'L',
                                                          'ValveOpenTime_R': 'R',
@@ -216,7 +217,7 @@ class App(QDialog):
                                      'Advanced block':{
                                               'auto_block_switch_type': 'Auto (0:off; 1:on)',
                                               'hold_this_block': 'hold this block',
-                                             }, 
+                                             },
                                      'Photostimulation (time)':{
                                             #   'laser_early_ITI_dur': 'early ITI dur',
                                             #   'laser_early_ITI_offset': 'early ITI offset',
@@ -228,11 +229,11 @@ class App(QDialog):
                                      '             (schedule)':{
                                               'laser_side': 'side (0:L;1:R;2:LR)',
                                               'laser_random_ratio': 'random ratio',
-                                              'laser_min_non_stim_before': 'min non stim before', 
+                                              'laser_min_non_stim_before': 'min non stim before',
                                               }
                                 }
-        
- 
+
+
 
         self.sliding_win_fix_width = True
 
@@ -709,7 +710,7 @@ class App(QDialog):
             self.handles['filter_setup'].addItem('all setups')
             self.handles['filter_setup'].addItems(self.alldirs['setupnames'])
             self.handles['filter_setup'].currentIndexChanged.connect(lambda: self.filterthedata('filter_setup'))
-            
+
         try:
             print('load parameters with reload_variable_layout=True')
             self.load_parameters(reload_varialbe_layout=False)
@@ -796,37 +797,37 @@ class App(QDialog):
         experiment_now = self.handles['filter_experiment'].currentText()
         setup_now = self.handles['filter_setup'].currentText()
         subject_now = self.handles['filter_subject'].currentText()
-                
+
         if 'uncoupled' in experiment_now.lower():
             self.variables_to_display = self.variables_to_display_uncoupled
         elif 'randomwalk' in experiment_now.lower():
             self.variables_to_display = self.variables_to_display_randomwalk
         else:
-            self.variables_to_display = self.variables_to_display_old 
+            self.variables_to_display = self.variables_to_display_old
 
         if project_now != 'all projects' and experiment_now != 'all experiments' and setup_now != 'all setups' and subject_now != 'all subjects':
-            
+
             subject_var_file = os.path.join(defpath,project_now,'subjects',subject_now,f'variables_{experiment_now}.json')
             if not os.path.exists(subject_var_file):
                 subject_var_file = os.path.join(defpath,project_now,'subjects',subject_now,f'variables.json')  # Backward compatibility
-            
+
             setup_var_file = os.path.join(defpath,project_now,'experiments',experiment_now,'setups',setup_now,'variables.json')
             with open(subject_var_file) as json_file:
                 variables_subject = json.load(json_file)
                 print(f'load subject variables from {subject_var_file}')
             with open(setup_var_file) as json_file:
                 variables_setup = json.load(json_file)
-                
+
             # laser calibration curve
             laser_calib_file = os.path.join(defpath, project_now, 'experiments', experiment_now, 'setups', setup_now,'laser_power_mapper.json')
             if os.path.exists(laser_calib_file):
                 with open(laser_calib_file) as json_file:
                     self.laser_power_mapper = json.load(json_file)['laser_power_mapper']
-                self.laser_power_mapper.insert(0, [0] * len(self.laser_power_mapper[0]))        
+                self.laser_power_mapper.insert(0, [0] * len(self.laser_power_mapper[0]))
             else:
                 self.laser_power_mapper = [[0, 0.0], [1, 1.0], [2, 2.0], [3, 3.0], [4, 4.0], [5, 5.0]]
 
-            if self.variables is None or reload_varialbe_layout:                
+            if self.variables is None or reload_varialbe_layout:
                 layout = QGridLayout()
             #     self.horizontalGroupBox_preset_variables = QGroupBox("Preset variables")
                 self.horizontalGroupBox_variables_setup = QGroupBox("Setup: "+setup_now)
@@ -901,8 +902,8 @@ class App(QDialog):
                 # Laser power selector
                 self.handles['laser_power'] = QComboBox(self)
                 self.handles['laser_power'].setFocusPolicy(Qt.NoFocus)
-                self.update_laser_power_selector(variables_subject)         
-                                                              
+                self.update_laser_power_selector(variables_subject)
+
                 layout_subject.addWidget(QLabel('power (mW)'), 9, 10, alignment=Qt.AlignRight)
                 layout_subject.addWidget(self.handles['laser_power'], 9, 11, 1, 1)
 
@@ -910,18 +911,18 @@ class App(QDialog):
                 self.handles['laser_align_to'] = QComboBox(self)
                 self.handles['laser_align_to'].setFocusPolicy(Qt.NoFocus)
                 self.handles['laser_align_to'].addItems(['After ITI START', 'Before GO CUE', 'After GO CUE'])
-                
+
                 if 'laser_align_to' in variables_subject:
                      self.handles['laser_align_to'].setCurrentText(variables_subject['laser_align_to'])
-                                          
+
                 self.handles['laser_align_to'].currentIndexChanged.connect(self.save_parameters)
 
                 layout_subject.addWidget(QLabel('start aligned to'), 8, 6, alignment=Qt.AlignRight)
                 layout_subject.addWidget(self.handles['laser_align_to'], 8, 7, 1, 1)
-        
+
                 self.horizontalGroupBox_variables_subject.setLayout(layout_subject)
                 self.variables=dict()
-                
+
             else:
                 self.horizontalGroupBox_variables_setup.setTitle("Setup: "+setup_now)
                 self.horizontalGroupBox_variables_subject.setTitle("Subject: "+subject_now)
@@ -936,7 +937,7 @@ class App(QDialog):
                 for key in self.handles['variables_setup'].keys():
                     self.handles['variables_setup'][key].setText(str(variables_setup[key]))
 
-                self.update_laser_power_selector(variables_subject)         
+                self.update_laser_power_selector(variables_subject)
 
 
             self.show_actual_reward_prob()
@@ -945,7 +946,7 @@ class App(QDialog):
             self.variables['subject_file'] = subject_var_file
             self.variables['setup_file'] = setup_var_file
 
-        self.enable_disable_fields()            
+        self.enable_disable_fields()
 
     def update_laser_power_selector(self, variables_subject):
         try:
@@ -953,14 +954,14 @@ class App(QDialog):
         except:
             pass
         self.handles['laser_power'].clear()
-        
+
         if len(self.laser_power_mapper[0]) == 3:
             self.handles['laser_power'].addItems([f'{pow:>6} mW : L = {L_v:>5} V, R = {R_v:>5} V' for pow, L_v, R_v in self.laser_power_mapper])
         else:
             self.handles['laser_power'].addItems([f'{pow:>6} mW : {v:>5} V' for pow, v in self.laser_power_mapper])
-        
+
         if 'laser_power' in variables_subject:
-            preset = [id for id, (pow, *_) in enumerate(self.laser_power_mapper) 
+            preset = [id for id, (pow, *_) in enumerate(self.laser_power_mapper)
                         if pow == variables_subject['laser_power']]
             if len(preset):
                 self.handles['laser_power'].setCurrentIndex(preset[0])  # Should be placed BEFORE the next line!!
@@ -992,7 +993,7 @@ class App(QDialog):
         project_now = self.handles['filter_project'].currentText()
         subject_now = self.handles['filter_subject'].currentText()
         experiment_now = self.handles['filter_experiment'].currentText()
-        
+
         subject_var_file = os.path.join(defpath,project_now,'subjects',subject_now,f'variables_{experiment_now}.json')
         if not os.path.exists(subject_var_file):
             subject_var_file = os.path.join(defpath,project_now,'subjects',subject_now,f'variables.json')  # Backward compatibility
@@ -1010,11 +1011,11 @@ class App(QDialog):
         experiment_now = self.handles['filter_experiment'].currentText()
         setup_now = self.handles['filter_setup'].currentText()
         subject_now = self.handles['filter_subject'].currentText()
-        
+
         subject_var_file = os.path.join(defpath,project_now,'subjects',subject_now,f'variables_{experiment_now}.json')
         if not os.path.exists(subject_var_file):
             subject_var_file = os.path.join(defpath,project_now,'subjects',subject_now,f'variables.json')  # Backward compatibility
-        
+
         # Experiment-specific variables
         setup_var_file = os.path.join(defpath,project_now,'experiments',experiment_now,'setups',setup_now,'variables.json')
         with open(subject_var_file) as json_file:
@@ -1064,14 +1065,14 @@ class App(QDialog):
                     # self.handles['variables_subject'][key].setText("NA")
                     self.handles['variables_subject'][key].setStyleSheet('QLineEdit {background: grey;}')
         try:
-            self.enable_disable_fields()            
+            self.enable_disable_fields()
         except:
             print('Warning: "enable_disable_fields" failed...')
         self.show_actual_reward_prob()
         qApp.processEvents()
 
     def enable_disable_fields(self):
-        
+
         if 'uncoupled' in self.handles['filter_experiment'].currentText().lower():
             # self.cache_auto_train_min_rewarded_trial_num = int(self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].text())
             if self.handles['variables_subject']['auto_block_switch_type'].text() == 'NA' or not int(self.handles['variables_subject']['auto_block_switch_type'].text()):
@@ -1080,7 +1081,7 @@ class App(QDialog):
                 self.handles['variables_subject']['perseverative_limit'].setEnabled(True)
 
         elif 'randomwalk' in self.handles['filter_experiment'].currentText().lower():
-            self.handles['variables_subject']['auto_block_switch_type'].setEnabled(False)            
+            self.handles['variables_subject']['auto_block_switch_type'].setEnabled(False)
 
         else:
             # self.cache_auto_train_min_rewarded_trial_num = int(self.handles['variables_subject']['auto_train_min_rewarded_trial_num'].text())
@@ -1108,7 +1109,7 @@ class App(QDialog):
             self.handles['variables_subject']['ValveOpenTime_M'].setEnabled(False)
         else:
             self.handles['variables_subject']['ValveOpenTime_M'].setEnabled(True)
-            
+
         try:
             if float(self.handles['variables_subject']['laser_random_ratio'].text()) == -1:
                 self.handles['variables_subject']['laser_min_non_stim_before'].setEnabled(False)
@@ -1116,7 +1117,7 @@ class App(QDialog):
                 self.handles['variables_subject']['laser_min_non_stim_before'].setEnabled(True)
         except:
             pass
-            
+
     def save_parameters(self):
         project_now = self.handles['filter_project'].currentText()
         experiment_now = self.handles['filter_experiment'].currentText()
@@ -1160,17 +1161,17 @@ class App(QDialog):
                             self.variables[dicttext][key] = json.loads(self.handles['variables_'+dicttext][key].text())
                         except:
                             print('not proper value')
-  
+
                 else:   # If json file has missing parameters, we add this new parameter (backward compatibility). HH20200730
                     content = self.handles['variables_'+dicttext][key].text()
                     try:
                         self.variables[dicttext][key] = json.loads(content.lower())
                     except:
                         print('not proper value')
-        
+
         # Laser power
         self.variables['subject']['laser_power'] = float(self.handles['laser_power'].currentText().split('mW')[0])
-        
+
         # Laser alignment
         self.variables['subject']['laser_align_to'] = self.handles['laser_align_to'].currentText()
 
@@ -1208,6 +1209,8 @@ class App(QDialog):
                     reward_ratio_pairs=[[1,0],[.9,.1],[.8,.2],[.7,.3],[.6,.4],[.5,.5]]#,
                 elif reward_rate_family == 4:       # Starting from 6:1, 3:1, 1:1 (Lau2005 = {6:1, 3:1})
                     reward_ratio_pairs=[[6, 1],[3, 1],[1, 1]]
+                elif reward_rate_family == 5:       # Starting from 6:1, 3:1, 1:1 (Lau2005 = {6:1, 3:1})
+                    reward_ratio_pairs=[[4, 1]]
                 reward_ratio_pairs = (np.array(reward_ratio_pairs).T/np.sum(reward_ratio_pairs, axis=1)*difficulty_sum_reward_rate).T
                 reward_ratio_pairs = np.round(reward_ratio_pairs[:difficulty_ratio_pair_num], 2).tolist()
 
@@ -1377,8 +1380,8 @@ class PlotCanvas(FigureCanvas):
             ax.plot(times['laserGoCue'], np.zeros(len(times['laserGoCue']))+1.10, 'gs', markerfacecolor = 'g')
         except:
             pass
-        
-        
+
+
         #if  handles and handles['plot_timeback'].text().isnumeric():
             #ax.set_xlim(self.startime,endtime)
         self.draw()
