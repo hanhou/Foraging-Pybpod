@@ -1566,10 +1566,17 @@ class PlotCanvas(FigureCanvas):
         else:
             for_eff_classic, for_eff_optimal, for_eff_optimal_actual = [np.nan] * 3  # Not well-defined for 3lp (so far)
 
-        self.ax1.set_title(f'Total={num_total_trials}, finished={num_finished_trials}({num_finished_trials/num_total_trials:.1%}). '
-                     f'Rewarded={num_rewarded_trials}({num_rewarded_trials_L}+{num_rewarded_trials_R}, {reward_rate:.1%}). '
-                     f'Efficiency: classic = {for_eff_classic:.1%}, optimal(actual) = {for_eff_optimal:.1%}({for_eff_optimal_actual:.1%})\n'
-                     f'Early lick pulishment per finished trial = {early_licks_per_trial:.2f}. Double-dippings per finished trial = {double_dipping_per_trial:.2f}', fontsize=10)
+        if any(x in self.parent().parent().handles['filter_experiment'].currentText() for x in ('uncoupled', 'randomwalk')):
+            self.ax1.set_title(f'Total={num_total_trials}, finished={num_finished_trials}({num_finished_trials/num_total_trials:.1%}). '
+                        f'Rewarded={num_rewarded_trials}({num_rewarded_trials_L}+{num_rewarded_trials_R}, {reward_rate:.1%}). '
+                        f'Efficiency: actual / random = {for_eff_classic:.1%}, actual / optimal = {for_eff_optimal:.1%}\n'
+                        f'Early lick pulishment per finished trial = {early_licks_per_trial:.2f}. Double-dippings per finished trial = {double_dipping_per_trial:.2f}', fontsize=10)
+        else:
+            self.ax1.set_title(f'Total={num_total_trials}, finished={num_finished_trials}({num_finished_trials/num_total_trials:.1%}). '
+                        f'Rewarded={num_rewarded_trials}({num_rewarded_trials_L}+{num_rewarded_trials_R}, {reward_rate:.1%}). '
+                        f'Efficiency: classic = {for_eff_classic:.1%}, optimal(actual) = {for_eff_optimal:.1%}({for_eff_optimal_actual:.1%})\n'
+                        f'Early lick pulishment per finished trial = {early_licks_per_trial:.2f}. Double-dippings per finished trial = {double_dipping_per_trial:.2f}', fontsize=10)
+
 
         # ax.set_title('Lick and reward bias')
         self.draw()
@@ -1705,11 +1712,17 @@ class PlotCanvas(FigureCanvas):
 
 
     def _foraging_eff(self, reward_rate, p_Ls, p_Rs, random_number_L=None, random_number_R=None):  # Calculate foraging efficiency (only for 2lp)
-        # Classic method (Corrado2005)
-        for_eff_classic = reward_rate / (np.nanmean(p_Ls + p_Rs))
 
         if any(x in self.parent().parent().handles['filter_experiment'].currentText() for x in ('uncoupled', 'randomwalk')):
-            return for_eff_classic, np.nan, np.nan
+            # Non-baiting
+            for_eff_random = reward_rate / (np.nanmean((p_Ls + p_Rs))/2)
+            for_eff_optimal = reward_rate / np.nanmean(np.max([p_Ls, p_Rs], axis=0))
+           
+            return for_eff_random, for_eff_optimal, np.nan
+
+        # ======= Reward baiting starts here ===========
+        # Classic method (Corrado2005)
+        for_eff_classic = reward_rate / (np.nanmean(p_Ls + p_Rs))
 
         # --- Optimal-aver (there is no simple way of only considering finished trials in the online script,
         # so here I assume all the trials are not ignored)
