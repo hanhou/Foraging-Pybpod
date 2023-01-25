@@ -917,8 +917,8 @@ class App(QDialog):
 
                 self.handles['laser_align_to'].currentIndexChanged.connect(self.save_parameters)
 
-                layout_subject.addWidget(QLabel('start aligned to'), 8, 6, alignment=Qt.AlignRight)
-                layout_subject.addWidget(self.handles['laser_align_to'], 8, 7, 1, 1)
+                layout_subject.addWidget(QLabel('start aligned to'), 8, 8, alignment=Qt.AlignRight)
+                layout_subject.addWidget(self.handles['laser_align_to'], 8, 9, 1, 1)
 
                 self.horizontalGroupBox_variables_subject.setLayout(layout_subject)
                 self.variables=dict()
