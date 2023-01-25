@@ -320,136 +320,134 @@ variables_subject = variables.copy()
 # =================== Define rig-specific vSariables (ports, etc.) =========================
 variables = dict()
 setupfile = os.path.join(setuppath,'variables.json')
-# if os.path.exists(setupfile):
-#     with open(setupfile) as json_file:
-#         variables = json.load(json_file)
-#     print('setup variables loaded from Json file')
-# else:
+if os.path.exists(setupfile):
+    with open(setupfile) as json_file:
+        variables = json.load(json_file)
+    print('setup variables loaded from Json file')
+else:
+    if setup_name =='Tower-1':
+        # for setup: Tower - 1
+        variables['GoCue_ch'] = OutputChannel.PWM3
+        variables['WaterPort_L_ch_out'] = 7
+        variables['WaterPort_L_ch_in'] = EventName.Port7In
+        variables['WaterPort_R_ch_out'] = 8
+        variables['WaterPort_R_ch_in'] = EventName.Port8In
+        variables['WaterPort_M_ch_out'] = 3
+        variables['WaterPort_M_ch_in'] = EventName.Port3In
+    # =============================================================================
+    #         variables['Choice_cue_L_ch'] = OutputChannel.PWM1
+    #         variables['Choice_cue_R_ch'] = OutputChannel.PWM2
+    # =============================================================================
+        variables['comport_motor'] = 'COM4'
+        variables['retract_motor_signal'] = (OutputChannel.PWM1, 255)
+        variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
 
-# Always rewrite rig setup file
-if setup_name =='Tower-1':
-    # for setup: Tower - 1
-    variables['GoCue_ch'] = OutputChannel.PWM3
-    variables['WaterPort_L_ch_out'] = 7
-    variables['WaterPort_L_ch_in'] = EventName.Port7In
-    variables['WaterPort_R_ch_out'] = 8
-    variables['WaterPort_R_ch_in'] = EventName.Port8In
-    variables['WaterPort_M_ch_out'] = 3
-    variables['WaterPort_M_ch_in'] = EventName.Port3In
-# =============================================================================
-#         variables['Choice_cue_L_ch'] = OutputChannel.PWM1
-#         variables['Choice_cue_R_ch'] = OutputChannel.PWM2
-# =============================================================================
-    variables['comport_motor'] = 'COM4'
-    variables['retract_motor_signal'] = (OutputChannel.PWM1, 255)
-    variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
+        variables['bitcode_channel'] = OutputChannel.BNC1  # e.g., bitcode and go
+        variables['trial_indicator_channel'] = OutputChannel.BNC2  # e.g., trial indicator
+        variables['camera_face_trig'] = OutputChannel.Wire1    # Face camera trigger
+        variables['camera_trunk_trig'] = OutputChannel.Wire2   # Trunk camera trigger
 
-    variables['bitcode_channel'] = OutputChannel.BNC1  # e.g., bitcode and go
-    variables['trial_indicator_channel'] = OutputChannel.BNC2  # e.g., trial indicator
-    variables['camera_face_trig'] = OutputChannel.Wire1    # Face camera trigger
-    variables['camera_trunk_trig'] = OutputChannel.Wire2   # Trunk camera trigger
+    elif setup_name =='Tower-2':
+        # for setup: Tower - 2
+        variables['GoCue_ch'] = OutputChannel.PWM3
+        variables['WaterPort_L_ch_out'] = 7
+        variables['WaterPort_L_ch_in'] = EventName.Port7In
+        variables['WaterPort_R_ch_out'] = 8
+        variables['WaterPort_R_ch_in'] = EventName.Port8In
+        variables['WaterPort_M_ch_out'] = 3
+        variables['WaterPort_M_ch_in'] = EventName.Port4In
+    # =============================================================================
+    #         variables['Choice_cue_L_ch'] = OutputChannel.PWM1
+    #         variables['Choice_cue_R_ch'] = OutputChannel.PWM2
+    # =============================================================================
+        variables['comport_motor'] = 'COM5'
+        variables['retract_motor_signal'] = (OutputChannel.PWM1, 255)
+        variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
 
-elif setup_name =='Tower-2':
-    # for setup: Tower - 2
-    variables['GoCue_ch'] = OutputChannel.PWM3
-    variables['WaterPort_L_ch_out'] = 7
-    variables['WaterPort_L_ch_in'] = EventName.Port7In
-    variables['WaterPort_R_ch_out'] = 8
-    variables['WaterPort_R_ch_in'] = EventName.Port8In
-    variables['WaterPort_M_ch_out'] = 3
-    variables['WaterPort_M_ch_in'] = EventName.Port4In
-# =============================================================================
-#         variables['Choice_cue_L_ch'] = OutputChannel.PWM1
-#         variables['Choice_cue_R_ch'] = OutputChannel.PWM2
-# =============================================================================
-    variables['comport_motor'] = 'COM5'
-    variables['retract_motor_signal'] = (OutputChannel.PWM1, 255)
-    variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
+        variables['bitcode_channel'] = OutputChannel.BNC1  # e.g., bitcode and go
+        variables['trial_indicator_channel'] = OutputChannel.BNC2  # e.g., trial indicator
+        variables['camera_face_trig'] = OutputChannel.Wire1    # Face camera trigger
+        variables['camera_trunk_trig'] = OutputChannel.Wire2   # Trunk camera trigger
 
-    variables['bitcode_channel'] = OutputChannel.BNC1  # e.g., bitcode and go
-    variables['trial_indicator_channel'] = OutputChannel.BNC2  # e.g., trial indicator
-    variables['camera_face_trig'] = OutputChannel.Wire1    # Face camera trigger
-    variables['camera_trunk_trig'] = OutputChannel.Wire2   # Trunk camera trigger
+    elif setup_name == 'Tower-3':
+        # for setup: Tower - 3
+        variables['GoCue_ch'] = OutputChannel.PWM3
+        variables['WaterPort_L_ch_out'] = 7
+        variables['WaterPort_L_ch_in'] = EventName.Port7In
+        variables['WaterPort_R_ch_out'] = 8
+        variables['WaterPort_R_ch_in'] = EventName.Port8In
+        variables['WaterPort_M_ch_out'] = 3
+        variables['WaterPort_M_ch_in'] = EventName.Port3In
+    # =============================================================================
+    #         variables['Choice_cue_L_ch'] = OutputChannel.PWM1
+    #         variables['Choice_cue_R_ch'] = OutputChannel.PWM2
+    # =============================================================================
+        variables['comport_motor'] = 'COM9'
+        variables['retract_motor_signal'] = (OutputChannel.PWM1, 255)
+        variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
 
-elif setup_name == 'Tower-3':
-    # for setup: Tower - 3
-    variables['GoCue_ch'] = OutputChannel.PWM3
-    variables['WaterPort_L_ch_out'] = 7
-    variables['WaterPort_L_ch_in'] = EventName.Port7In
-    variables['WaterPort_R_ch_out'] = 8
-    variables['WaterPort_R_ch_in'] = EventName.Port8In
-    variables['WaterPort_M_ch_out'] = 3
-    variables['WaterPort_M_ch_in'] = EventName.Port3In
-# =============================================================================
-#         variables['Choice_cue_L_ch'] = OutputChannel.PWM1
-#         variables['Choice_cue_R_ch'] = OutputChannel.PWM2
-# =============================================================================
-    variables['comport_motor'] = 'COM9'
-    variables['retract_motor_signal'] = (OutputChannel.PWM1, 255)
-    variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
+        variables['bitcode_channel'] = OutputChannel.BNC1  # e.g., bitcode and go
+        variables['trial_indicator_channel'] = OutputChannel.BNC2  # e.g., trial indicator
+        variables['camera_face_trig'] = OutputChannel.Wire1    # Face camera trigger
+        variables['camera_trunk_trig'] = OutputChannel.Wire2   # Trunk camera trigger
 
-    variables['bitcode_channel'] = OutputChannel.BNC1  # e.g., bitcode and go
-    variables['trial_indicator_channel'] = OutputChannel.BNC2  # e.g., trial indicator
-    variables['camera_face_trig'] = OutputChannel.Wire1    # Face camera trigger
-    variables['camera_trunk_trig'] = OutputChannel.Wire2   # Trunk camera trigger
+    elif setup_name == 'Tower-4':
+        # for setup: Tower - 4
+        variables['GoCue_ch'] = OutputChannel.PWM5
+        variables['WaterPort_L_ch_out'] = 7
+        variables['WaterPort_L_ch_in'] = EventName.Port7In
+        variables['WaterPort_R_ch_out'] = 8
+        variables['WaterPort_R_ch_in'] = EventName.Port8In
+        variables['WaterPort_M_ch_out'] = 3
+        variables['WaterPort_M_ch_in'] = EventName.Port3In
+        variables['comport_motor'] = 'COM14'
+        # variables['retract_motor_signal'] = (OutputChannel.PWM2, 255)
+        variables['retract_motor_signal'] = (OutputChannel.SoftCode, 1)
+        variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
 
-elif setup_name == 'Tower-4':
-    # for setup: Tower - 4
-    variables['GoCue_ch'] = OutputChannel.PWM5
-    variables['WaterPort_L_ch_out'] = 7
-    variables['WaterPort_L_ch_in'] = EventName.Port7In
-    variables['WaterPort_R_ch_out'] = 8
-    variables['WaterPort_R_ch_in'] = EventName.Port8In
-    variables['WaterPort_M_ch_out'] = 3
-    variables['WaterPort_M_ch_in'] = EventName.Port3In
-    variables['comport_motor'] = 'COM14'
-    # variables['retract_motor_signal'] = (OutputChannel.PWM2, 255)
-    variables['retract_motor_signal'] = (OutputChannel.SoftCode, 1)
-    variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
+        variables['bitcode_channel'] = OutputChannel.BNC1  # e.g., bitcode and go
+        variables['trial_indicator_channel'] = OutputChannel.BNC2  # e.g., trial indicator
+        variables['camera_face_trig'] = OutputChannel.Wire1    # Face camera trigger
+        variables['camera_trunk_trig'] = OutputChannel.Wire2   # Trunk camera trigger
 
-    variables['bitcode_channel'] = OutputChannel.BNC1  # e.g., bitcode and go
-    variables['trial_indicator_channel'] = OutputChannel.BNC2  # e.g., trial indicator
-    variables['camera_face_trig'] = OutputChannel.Wire1    # Face camera trigger
-    variables['camera_trunk_trig'] = OutputChannel.Wire2   # Trunk camera trigger
+    elif setup_name == 'Ephys_Han':
+        # for setup: Ephys_Han
+        variables['if_recording_rig'] = True
+        variables['bitcode_channel'] = OutputChannel.BNC1  # e.g., bitcode and go
+        variables['trial_indicator_channel'] = OutputChannel.BNC2  # e.g., trial indicator
+        variables['camera_face_trig'] = OutputChannel.Wire1    # Face camera trigger
+        variables['camera_trunk_trig'] = OutputChannel.Wire2   # Trunk camera trigger
 
-elif setup_name == 'Ephys_Han':
-    # for setup: Ephys_Han
-    variables['if_recording_rig'] = True
-    variables['bitcode_channel'] = OutputChannel.BNC1  # e.g., bitcode and go
-    variables['trial_indicator_channel'] = OutputChannel.BNC2  # e.g., trial indicator
-    variables['camera_face_trig'] = OutputChannel.Wire1    # Face camera trigger
-    variables['camera_trunk_trig'] = OutputChannel.Wire2   # Trunk camera trigger
+        variables['GoCue_ch'] = OutputChannel.Serial1    # Use WavePlayer serial command #1 on ephys rig!!
+        variables['WaterPort_L_ch_out'] = 1
+        variables['WaterPort_L_ch_in'] = EventName.Port1In
+        variables['WaterPort_R_ch_out'] = 2
+        variables['WaterPort_R_ch_in'] = EventName.Port2In
+        variables['WaterPort_M_ch_out'] = 3
+        variables['WaterPort_M_ch_in'] = EventName.Port3In
+        variables['comport_motor'] = 'COM3'
+        variables['retract_motor_signal'] = (OutputChannel.PWM8, 255)  # Use direct trigger to Zaber motor
+        # variables['retract_motor_signal'] = (OutputChannel.SoftCode, 1)  # Use softcode (slightly slower)
+        variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
 
-    variables['GoCue_ch'] = OutputChannel.Serial1    # Use WavePlayer serial command #1 on ephys rig!!
-    variables['WaterPort_L_ch_out'] = 1
-    variables['WaterPort_L_ch_in'] = EventName.Port1In
-    variables['WaterPort_R_ch_out'] = 2
-    variables['WaterPort_R_ch_in'] = EventName.Port2In
-    variables['WaterPort_M_ch_out'] = 3
-    variables['WaterPort_M_ch_in'] = EventName.Port3In
-    variables['comport_motor'] = 'COM3'
-    variables['retract_motor_signal'] = (OutputChannel.PWM8, 255)  # Use direct trigger to Zaber motor
-    # variables['retract_motor_signal'] = (OutputChannel.SoftCode, 1)  # Use softcode (slightly slower)
-    variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
+    elif setup_name == 'AIND-Tower-7':
+        # for setup: Tower - 4
+        variables['GoCue_ch'] = OutputChannel.PWM3
+        variables['WaterPort_L_ch_out'] = 7
+        variables['WaterPort_L_ch_in'] = EventName.Port7In
+        variables['WaterPort_R_ch_out'] = 8
+        variables['WaterPort_R_ch_in'] = EventName.Port8In
+        variables['WaterPort_M_ch_out'] = 4
+        variables['WaterPort_M_ch_in'] = EventName.Port4In
+        variables['comport_motor'] = 'COM14'
+        variables['retract_motor_signal'] = (OutputChannel.PWM2, 255)
+        variables['retract_motor_signal'] = (OutputChannel.SoftCode, 1)
+        variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
 
-elif setup_name == 'AIND-Tower-7':
-    # for setup: Tower - 4
-    variables['GoCue_ch'] = OutputChannel.PWM3
-    variables['WaterPort_L_ch_out'] = 7
-    variables['WaterPort_L_ch_in'] = EventName.Port7In
-    variables['WaterPort_R_ch_out'] = 8
-    variables['WaterPort_R_ch_in'] = EventName.Port8In
-    variables['WaterPort_M_ch_out'] = 4
-    variables['WaterPort_M_ch_in'] = EventName.Port4In
-    variables['comport_motor'] = 'COM14'
-    variables['retract_motor_signal'] = (OutputChannel.PWM2, 255)
-    variables['retract_motor_signal'] = (OutputChannel.SoftCode, 1)
-    variables['protract_motor_signal'] = (OutputChannel.SoftCode, 2)
-
-    variables['bitcode_channel'] = OutputChannel.BNC1  # e.g., bitcode and go
-    variables['trial_indicator_channel'] = OutputChannel.BNC2  # e.g., trial indicator
-    variables['camera_face_trig'] = OutputChannel.Wire1    # Face camera trigger
-    variables['camera_trunk_trig'] = OutputChannel.Wire2   # Trunk camera trigger
+        variables['bitcode_channel'] = OutputChannel.BNC1  # e.g., bitcode and go
+        variables['trial_indicator_channel'] = OutputChannel.BNC2  # e.g., trial indicator
+        variables['camera_face_trig'] = OutputChannel.Wire1    # Face camera trigger
+        variables['camera_trunk_trig'] = OutputChannel.Wire2   # Trunk camera trigger
 
 if 'if_recording_rig' in variables.keys() and variables['if_recording_rig']:
     if_use_analog_module = True
