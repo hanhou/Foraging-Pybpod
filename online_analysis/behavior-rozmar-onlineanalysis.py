@@ -28,7 +28,7 @@ try:
 except:
     pass
 print('started')
-paths = ['C:\\Users\\labadmin\\Documents\\PyBpod',
+paths = ['C:\\Users\\labadmin\\Documents\\PyBpod\\Projects',
          'C:\\Users\\labadmin\\My Documents\\Pybpod\\Projects',
          'C:\\Users\\labadmin\\Documents\\Pybpod\\Projectss',
          'C:\\Users\\labadmin\\Documents\\foraging_projects\\Projects',
