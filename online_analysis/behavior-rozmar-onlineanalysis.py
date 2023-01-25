@@ -32,7 +32,8 @@ paths = ['C:\\Users\\labadmin\\Documents\\PyBpod\\Projects',
          'C:\\Users\\labadmin\\My Documents\\Pybpod\\Projects',
          'C:\\Users\\labadmin\\Documents\\Pybpod\\Projectss',
          'C:\\Users\\labadmin\\Documents\\foraging_projects\\Projects',
-         'C:\\Users\\Han2\\Documents\\Pybpod\\Projects']
+         'C:\\Users\\Han2\\Documents\\Pybpod\\Projects',
+         'C:\\Users\\aind_behavior\\Documents\\PyBpod']
 
 for defpath in paths:
     print(defpath)
@@ -186,9 +187,10 @@ class App(QDialog):
                                                          'ValveOpenTime_M': 'M',
                                                          'accumulate_reward': 'Reward baiting prob.',
                                                         },
-                                     'Base reward probability': {'min_reward_prob': 'min reward prob',
-                                                                 'max_reward_prob': 'max reward prob',
-                                                                 'random_walk_sigma': 'random walk sigma',
+                                     'Base reward probability': {'min_reward_prob': 'min reward prob [L, R]',
+                                                                 'max_reward_prob': 'max reward prob [L, R]',
+                                                                 'random_walk_sigma': 'random walk sigma [L, R]',
+                                                                 'random_walk_mean': 'random walk mean [L, R]',
                                                       },
                                      'Delay period': {'delay': 'beta',
                                                       'delay_min': 'min',
@@ -915,8 +917,8 @@ class App(QDialog):
 
                 self.handles['laser_align_to'].currentIndexChanged.connect(self.save_parameters)
 
-                layout_subject.addWidget(QLabel('start aligned to'), 8, 6, alignment=Qt.AlignRight)
-                layout_subject.addWidget(self.handles['laser_align_to'], 8, 7, 1, 1)
+                layout_subject.addWidget(QLabel('start aligned to'), 8, 8, alignment=Qt.AlignRight)
+                layout_subject.addWidget(self.handles['laser_align_to'], 8, 9, 1, 1)
 
                 self.horizontalGroupBox_variables_subject.setLayout(layout_subject)
                 self.variables=dict()
@@ -1207,6 +1209,8 @@ class App(QDialog):
                     reward_ratio_pairs=[[1,0],[.9,.1],[.8,.2],[.7,.3],[.6,.4],[.5,.5]]#,
                 elif reward_rate_family == 4:       # Starting from 6:1, 3:1, 1:1 (Lau2005 = {6:1, 3:1})
                     reward_ratio_pairs=[[6, 1],[3, 1],[1, 1]]
+                elif reward_rate_family == 5:       # Starting from 6:1, 3:1, 1:1 (Lau2005 = {6:1, 3:1})
+                    reward_ratio_pairs=[[4, 1]]
                 reward_ratio_pairs = (np.array(reward_ratio_pairs).T/np.sum(reward_ratio_pairs, axis=1)*difficulty_sum_reward_rate).T
                 reward_ratio_pairs = np.round(reward_ratio_pairs[:difficulty_ratio_pair_num], 2).tolist()
 
@@ -1562,16 +1566,23 @@ class PlotCanvas(FigureCanvas):
         else:
             for_eff_classic, for_eff_optimal, for_eff_optimal_actual = [np.nan] * 3  # Not well-defined for 3lp (so far)
 
-        self.ax1.set_title(f'Total={num_total_trials}, finished={num_finished_trials}({num_finished_trials/num_total_trials:.1%}). '
-                     f'Rewarded={num_rewarded_trials}({num_rewarded_trials_L}+{num_rewarded_trials_R}, {reward_rate:.1%}). '
-                     f'Efficiency: classic = {for_eff_classic:.1%}, optimal(actual) = {for_eff_optimal:.1%}({for_eff_optimal_actual:.1%})\n'
-                     f'Early lick pulishment per finished trial = {early_licks_per_trial:.2f}. Double-dippings per finished trial = {double_dipping_per_trial:.2f}', fontsize=10)
+        if any(x in self.parent().parent().handles['filter_experiment'].currentText() for x in ('uncoupled', 'randomwalk')):
+            self.ax1.set_title(f'Total={num_total_trials}, finished={num_finished_trials}({num_finished_trials/num_total_trials:.1%}). '
+                        f'Rewarded={num_rewarded_trials}({num_rewarded_trials_L}+{num_rewarded_trials_R}, {reward_rate:.1%}). '
+                        f'Efficiency: actual / random = {for_eff_classic:.1%}, actual / optimal = {for_eff_optimal:.1%}\n'
+                        f'Early lick pulishment per finished trial = {early_licks_per_trial:.2f}. Double-dippings per finished trial = {double_dipping_per_trial:.2f}', fontsize=10)
+        else:
+            self.ax1.set_title(f'Total={num_total_trials}, finished={num_finished_trials}({num_finished_trials/num_total_trials:.1%}). '
+                        f'Rewarded={num_rewarded_trials}({num_rewarded_trials_L}+{num_rewarded_trials_R}, {reward_rate:.1%}). '
+                        f'Efficiency: classic = {for_eff_classic:.1%}, optimal(actual) = {for_eff_optimal:.1%}({for_eff_optimal_actual:.1%})\n'
+                        f'Early lick pulishment per finished trial = {early_licks_per_trial:.2f}. Double-dippings per finished trial = {double_dipping_per_trial:.2f}', fontsize=10)
+
 
         # ax.set_title('Lick and reward bias')
         self.draw()
 
         # === Automatic block control using the current choice ratio ===
-        if not if_3lp:
+        if not if_3lp and not any(x in self.parent().parent().handles['filter_experiment'].currentText() for x in ('uncoupled', 'randomwalk')):
             subject_variables = self.parent().parent().variables['subject']
             subject_handles = self.parent().parent().handles['variables_subject']
             auto_block_switch_type = subject_variables['auto_block_switch_type']
@@ -1701,11 +1712,17 @@ class PlotCanvas(FigureCanvas):
 
 
     def _foraging_eff(self, reward_rate, p_Ls, p_Rs, random_number_L=None, random_number_R=None):  # Calculate foraging efficiency (only for 2lp)
-        # Classic method (Corrado2005)
-        for_eff_classic = reward_rate / (np.nanmean(p_Ls + p_Rs))
 
         if any(x in self.parent().parent().handles['filter_experiment'].currentText() for x in ('uncoupled', 'randomwalk')):
-            return for_eff_classic, np.nan, np.nan
+            # Non-baiting
+            for_eff_random = reward_rate / (np.nanmean((p_Ls + p_Rs))/2)
+            for_eff_optimal = reward_rate / np.nanmean(np.max([p_Ls, p_Rs], axis=0))
+           
+            return for_eff_random, for_eff_optimal, np.nan
+
+        # ======= Reward baiting starts here ===========
+        # Classic method (Corrado2005)
+        for_eff_classic = reward_rate / (np.nanmean(p_Ls + p_Rs))
 
         # --- Optimal-aver (there is no simple way of only considering finished trials in the online script,
         # so here I assume all the trials are not ignored)

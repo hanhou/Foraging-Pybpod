@@ -13,11 +13,24 @@ class RandomWalkReward:
     '''
 
     def __init__(self,
-                 p_min=0, p_max=1, sigma=0.15,
+                 p_min=[0, 0],  # L and R
+                 p_max=[1, 1], # L and R 
+                 sigma=[0.15, 0.15],  # L and R
+                 mean=[0, 0],         # L and R
                  ) -> None:
         
         self.__dict__.update(locals())
-        self.p_min, self.p_max, self.sigma = p_min, p_max, sigma
+        
+        if not type(sigma) == list:
+            sigma = [sigma, sigma]  # Backward compatibility
+            
+        if not type(p_min) == list:
+            p_min = [p_min, p_min]  # Backward compatibility
+
+        if not type(p_max) == list:
+            p_max = [p_max, p_max]  # Backward compatibility
+       
+        self.p_min, self.p_max, self.sigma, self.mean = p_min, p_max, sigma, mean
                    
         self.trial_rwd_prob = {'L':[], 'R': []}  # Rwd prob per trial
         self.choice_history = []
@@ -27,15 +40,15 @@ class RandomWalkReward:
     
     def first_trial(self): 
         self.trial_now = 0
-        for side in ['L', 'R']:
-            self.trial_rwd_prob[side].append(np.random.uniform(self.p_min, self.p_max))
+        for i, side in enumerate(['L', 'R']):
+            self.trial_rwd_prob[side].append(np.random.uniform(self.p_min[i], self.p_max[i]))
             
     def next_trial(self):
         self.trial_now += 1
-        for side in ['L', 'R']:
+        for i, side in enumerate(['L', 'R']):
             if not self.hold_this_block:
-                p = np.random.normal(self.trial_rwd_prob[side][-1], self.sigma)
-                p = min(self.p_max, max(self.p_min, p))
+                p = np.random.normal(self.trial_rwd_prob[side][-1] + self.mean[i], self.sigma[i])
+                p = min(self.p_max[i], max(self.p_min[i], p))
             else:
                 p = self.trial_rwd_prob[side][-1]
             self.trial_rwd_prob[side].append(p)
@@ -73,7 +86,7 @@ class RandomWalkReward:
 if __name__ == '__main__':
     total_trial = 1000
 
-    reward_schedule = RandomWalkReward(p_min=0.1, p_max=0.9, sigma=0.1) 
+    reward_schedule = RandomWalkReward(p_min=[0.1, 0.1], p_max=0.9, sigma=[0.1, 0.1], mean=[-0.0, 0.0]) 
 
     while reward_schedule.trial_now <= total_trial:    
         reward_schedule.next_trial()
