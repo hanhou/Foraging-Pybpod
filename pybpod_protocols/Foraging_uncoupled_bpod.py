@@ -460,17 +460,18 @@ if if_use_analog_module:
     WAV_ID_MASK = 63  # Max = 63
 
 
+    # Fetch laser calibration curve from json file
+    print(setuppath)
+    laser_calib_file = os.path.join(setuppath,'laser_power_mapper.json')
+    if os.path.exists(laser_calib_file):
+        with open(laser_calib_file) as json_file:
+            laser_power_mapper = json.load(json_file)['laser_power_mapper']
+        print('laser_power_mapper loaded from Json file')
+    else:
+        print('no laser mapping file found!')
+
     if reload_wav_player:  # Only reload when neccessary to speed up protocol initialization
 
-        # Fetch laser calibration curve from json file
-        print(setuppath)
-        laser_calib_file = os.path.join(setuppath,'laser_power_mapper.json')
-        if os.path.exists(laser_calib_file):
-            with open(laser_calib_file) as json_file:
-                laser_power_mapper = json.load(json_file)['laser_power_mapper']
-            print('laser_power_mapper loaded from Json file')
-        else:
-            print('no laser mapping file found!')
 
         # --- Waveforms ---
         # 1. go cue sound
