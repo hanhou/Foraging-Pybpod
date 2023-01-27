@@ -13,7 +13,7 @@ import numpy as np
 import os, sys
 
 ###
-reload_wav_player = 0  # Only reload when neccessary to speed up protocol initialization
+reload_wav_player =0  # Only reload when neccessary to speed up protocol initialization
 ###
 
 
@@ -57,16 +57,7 @@ camera_trunk_fps = 100  # trunc camera
 camera_pulse = 0.001   # Use constant camera pulse width to minimize error due to bpod time resolution (0.1 ms)
 
 # --- photo stim ---
-laser_power_mapper = [ #   mW , left V,  right V (calibrated @ 5/9/2022, 200um 0.39NA neurophotometrics fiber from Kenta)
-                      [0.5, 0.14, 0.08],
-                      [1.0, 0.25, 0.15],
-                      [2.5, 0.75, 0.55],
-                      [5.0, 1.5, 1.1],
-                      [7.5, 2.2, 1.65],
-                      [10.0, 2.95, 2.25],
-                      [13.5, 4.8, 3.7],           
-                    ]  # Map power of sine wave (mW) to amplitude (V)
-laser_sin_ramp_down_dur = 0.2  # 1
+laser_sin_ramp_down_dur = 1  # 1
 mask_amp = 0.5  # Amplitude for masking flash
 
 
@@ -632,6 +623,17 @@ if if_use_analog_module:
 
 
     if reload_wav_player:  # Only reload when neccessary to speed up protocol initialization
+
+        # Fetch laser calibration curve from json file
+        print(setuppath)
+        laser_calib_file = os.path.join(setuppath,'laser_power_mapper.json')
+        if os.path.exists(laser_calib_file):
+            with open(laser_calib_file) as json_file:
+                laser_power_mapper = json.load(json_file)['laser_power_mapper']
+            print('laser_power_mapper loaded from Json file')
+        else:
+            print('no laser mapping file found!')
+
         # --- Waveforms ---
         # 1. go cue sound
         go_cue_amp = 2
