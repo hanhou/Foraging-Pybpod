@@ -57,15 +57,17 @@ camera_trunk_fps = 100  # trunc camera
 camera_pulse = 0.001   # Use constant camera pulse width to minimize error due to bpod time resolution (0.1 ms)
 
 # --- photo stim ---
-laser_power_mapper = [ #   mW , left V,  right V (calibrated @ 5/9/2022, 200um 0.39NA neurophotometrics fiber from Kenta)
-                      [0.5, 0.14, 0.08],
-                      [1.0, 0.25, 0.15],
-                      [2.5, 0.75, 0.55],
-                      [5.0, 1.5, 1.1],
-                      [7.5, 2.2, 1.65],
-                      [10.0, 2.95, 2.25],
-                      [13.5, 4.8, 3.7],
-                    ]  # Map power of sine wave (mW) to amplitude (V)
+laser_power_mapper = [[1, 1.0, 1.0], [2, 2.0, 2.0], [3, 3.0, 3.0], [4, 4.0, 4.0], [5, 5.0, 5.0]]
+
+# [ #   mW , left V,  right V (calibrated @ 5/9/2022, 200um 0.39NA neurophotometrics fiber from Kenta)
+#                       [0.5, 0.14, 0.08],
+#                       [1.0, 0.25, 0.15],
+#                       [2.5, 0.75, 0.55],
+#                       [5.0, 1.5, 1.1],
+#                       [7.5, 2.2, 1.65],
+#                       [10.0, 2.95, 2.25],
+#                       [13.5, 4.8, 3.7],
+#                     ]  # Map power of sine wave (mW) to amplitude (V)
 laser_sin_ramp_down_dur = 0.2  # 1
 mask_amp = 0.5  # Amplitude for masking flash
 
@@ -599,10 +601,12 @@ else:
 
 if 'if_recording_rig' in variables.keys() and variables['if_recording_rig']:
     if_use_analog_module = True
+    if_use_analog_module_for_go_cue = True
     if_bit_code = True
     if_camera_trig = True
 else:
-    if_use_analog_module = False
+    if_use_analog_module = True
+    if_use_analog_module_for_go_cue = False
     if_bit_code = True
     if_camera_trig = True
 
@@ -620,9 +624,9 @@ if if_use_analog_module:
     wav_player.set_trigger_mode(wav_player.TRIGGER_MODE_MASTER)   # 'Master' - triggers can force-start a new wave during playback.
     wav_player.set_sampling_period(SAMPLING_RATE)
     wav_player.set_output_range(wav_player.RANGE_VOLTS_MINUS5_5)
-    wav_player.set_bpod_events([1, 1, 1, 1, 1, 1, 1, 1])  # Set event on Ch2 (L laser) and Ch3 (R laser)
-    wav_player.set_loop_duration([0, 0, 0, 100 * SAMPLING_RATE, 0, 0, 0, 0])  # loop chan4 (masking flash)
-    wav_player.set_loop_mode([0, 0, 0, 1, 0, 0, 0, 0])
+    wav_player.set_bpod_events([1, 1, 1, 1])  # Set event on Ch2 (L laser) and Ch3 (R laser)
+    wav_player.set_loop_duration([0, 0, 0, 0])  # loop chan4 (masking flash)
+    wav_player.set_loop_mode([0, 0, 0, 0])
 
     WAV_ID_GO_CUE = 0
     WAV_ID_LASER_LEFT_START = 10  # 10, 11, 12, 13, ... for different amps_left (assuming the length of amp_wrapper < 10)
@@ -686,26 +690,26 @@ if if_use_analog_module:
     # https://readthedocs.org/projects/pybpod-api/downloads/pdf/v1.8.1/
 
     # Waveform starts from 0
-    WAV_PORTS_SPEAKER = 1  # [0000 0001], Chan 1 only
-    WAV_PORTS_LASER_L = 2  # Chan 2
-    WAV_PORTS_LASER_R = 4  # Chan 3
-    WAV_PORTS_MASK = 8  # Chan 4
+    WAV_PORTS_SPEAKER = 4  # Don't need
+    WAV_PORTS_LASER_L = 0  # Chan 1
+    WAV_PORTS_LASER_R = 1  # Chan 2
+    WAV_PORTS_MASK = 8  # Don't need
 
     # serial command starts from 1... (max 254)
     SER_CMD_GO_CUE = 1
-    SER_CMD_MASK = 253
-    SER_CMD_STOP = 254
+    SER_CMD_MASK = 63 #253
+    SER_CMD_STOP = 64 #254
 
-    SER_CMD_LASER_L_START = 20
-    SER_CMD_LASER_R_START = 30
-    SER_CMD_LASER_LR_START = 40
-    SER_CMD_LASER_RAMP_L_START = 50
-    SER_CMD_LASER_RAMP_R_START = 60
-    SER_CMD_LASER_RAMP_LR_START = 70
+    SER_CMD_LASER_L_START = 5  # 10
+    SER_CMD_LASER_R_START = 14  # 20
+    SER_CMD_LASER_LR_START = 23  # 30
+    SER_CMD_LASER_RAMP_L_START = 32  # 40
+    SER_CMD_LASER_RAMP_R_START = 41  # 50
+    SER_CMD_LASER_RAMP_LR_START = 50  # 60
 
     # Load serial commands
-    my_bpod.load_serial_message(SER_PORT, SER_CMD_GO_CUE, [ord('P'), WAV_PORTS_SPEAKER, WAV_ID_GO_CUE])  # go cue
-    my_bpod.load_serial_message(SER_PORT, SER_CMD_MASK, [ord('P'), WAV_PORTS_MASK, WAV_ID_MASK])  # masking flash
+    # my_bpod.load_serial_message(SER_PORT, SER_CMD_GO_CUE, [ord('P'), WAV_PORTS_SPEAKER, WAV_ID_GO_CUE])  # go cue
+    # my_bpod.load_serial_message(SER_PORT, SER_CMD_MASK, [ord('P'), WAV_PORTS_MASK, WAV_ID_MASK])  # masking flash
     my_bpod.load_serial_message(SER_PORT, SER_CMD_STOP, [ord('X')])  # stop all waveform
 
     for amp_id, _ in enumerate(laser_power_mapper):
@@ -730,6 +734,8 @@ if if_use_analog_module:
                             [ord('P'), WAV_PORTS_LASER_R, WAV_ID_LASER_RAMP_RIGHT_START + amp_id])
 
     # Command shorthand for state machine
+    # goCue_command = (SER_DEVICE, SER_CMD_GO_CUE)    # Use Wav ePlayer serial command #SER_CMD_GO_CUE on ephys rig!!
+if if_use_analog_module_for_go_cue: 
     goCue_command = (SER_DEVICE, SER_CMD_GO_CUE)    # Use Wav ePlayer serial command #SER_CMD_GO_CUE on ephys rig!!
 else:
     goCue_command = (variables['GoCue_ch'], 200)  # Set PWM5 to 100% duty cycle (always on), which triggers the wav trigger board
@@ -983,6 +989,8 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                 laser_number_of_trials_no_stim_before += 1
             else:  # Do it
                 laser_number_of_trials_no_stim_before = 0
+                print(laser_power_mapper)
+
                 amp_id =  [id for id, (pow, _, _) in enumerate(laser_power_mapper) if pow == laser_power][0]
                 laser_side = variables_subject['laser_side'] if 'laser_side' in variables_subject.keys() else 2  # Default bilateral
 
@@ -1259,14 +1267,14 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             	state_name='GoCue_real',
                 state_timer=event_marker_dur['go_cue'],    # Now go_cue duration will always be event_marker_dur['go_cue']
             	state_change_conditions={EventName.Tup: 'AfterGoCue'
-                                         if if_use_analog_module else
+                                         if if_use_analog_module_for_go_cue else
                                         'GoCue_WavTrigBoard'},
             	output_actions = ([goCue_command, (variables['bitcode_channel'], 1)]  # Go cue command & bitcode
                                   if if_bit_code else
                                   [goCue_command])   # Go cue command only
                                )
 
-            if not if_use_analog_module:
+            if not if_use_analog_module_for_go_cue:
                 sma.add_state(
                    	state_name='GoCue_WavTrigBoard',
                     state_timer=0.01,   # WAV trigger board need longer durtion to trigger
@@ -1299,7 +1307,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                                           'AfterGoCueLaserTimerStart'
                                           if laser_this_trial and variables_subject['laser_align_to'] in ['After GO CUE']
                                           else 'AfterGoCue'
-										  if if_use_analog_module else
+										  if if_use_analog_module_for_go_cue else
                                           'GoCue_WavTrigBoard'},
             	output_actions = ([goCue_command, (variables['bitcode_channel'], 1)]
                                   if if_bit_code else
@@ -1314,10 +1322,10 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                     output_actions = [('GlobalTimerTrig', 8)]   # Start photostim timer (#4)
                 )
 
-            if not if_use_analog_module:
+            if not if_use_analog_module_for_go_cue:
                 sma.add_state(
                    	state_name='GoCue_WavTrigBoard',
-                    state_timer=0.01,   # WAV trigger board need longer durtion to trigger
+                    state_timer=0.1,   # WAV trigger board need longer durtion to trigger
                    	state_change_conditions={EventName.Tup: 'AfterGoCue'},
                    	output_actions = [goCue_command])
 
