@@ -22,7 +22,7 @@ import numpy as np
 import os, sys
 
 ### ---------------------------------------
-reload_wav_player = 0 # Only reload when neccessary to speed up protocol initialization
+reload_wav_player = 1 # Only reload when neccessary to speed up protocol initialization
 
 # Sinusoid laser
 if_sinusoid = 1  # Else, constant
@@ -32,7 +32,7 @@ laser_sin_ramp_down_dur = 0.2  # TODO: be flexible
 # if_sinusoid = 0
 # laser_sin_ramp_down_dur = 0.00001
 
-if_GoCue_sound = 0
+if_GoCue_sound = 1
 ### ----------------------------------------
 
 usedummyzaber = False # for testing without motor movement - only for debugging
