@@ -22,7 +22,7 @@ import numpy as np
 import os, sys
 
 ### ---------------------------------------
-reload_wav_player = 1 # Only reload when neccessary to speed up protocol initialization
+reload_wav_player = 0 # Only reload when neccessary to speed up protocol initialization
 
 # Sinusoid laser
 if_sinusoid = 1  # Else, constant
@@ -614,10 +614,12 @@ elif setup_name == 'Ephys_Han':
     
 if 'if_recording_rig' in variables.keys() and variables['if_recording_rig']:
     if_use_analog_module = True
+    if_use_analog_module_for_go_cue = True
     if_bit_code = True
     if_camera_trig = True
 else:
-    if_use_analog_module = False
+    if_use_analog_module = True
+    if_use_analog_module_for_go_cue = False
     if_bit_code = True
     if_camera_trig = True
 
@@ -631,6 +633,7 @@ if os.path.exists(laser_calib_file):
 else:
     laser_power_mapper = [[1, 1.0], [2, 2.0], [3, 3.0], [4, 4.0], [5, 5.0]]
 
+print(laser_power_mapper)
 if_use_different_laser_voltages = len(laser_power_mapper[0]) == 3  # Different voltages for left and right lasers
 
 if if_use_analog_module:
@@ -642,13 +645,19 @@ if if_use_analog_module:
     # --- Settings ---
     # https://sites.google.com/site/bpoddocumentation/user-guide/function-reference/bpodwaveplayer
     # https://sites.google.com/site/bpoddocumentation/user-guide/function-reference/waveplayerserialinterface
-    wav_player = WavePlayerModule('COM5')   # "Teensy USB" in device manager
+    wav_player = WavePlayerModule('COM6')   # "Teensy USB" in device manager
     wav_player.set_trigger_mode(wav_player.TRIGGER_MODE_MASTER)   # 'Master' - triggers can force-start a new wave during playback.
     wav_player.set_sampling_period(SAMPLING_RATE)
     wav_player.set_output_range(wav_player.RANGE_VOLTS_MINUS5_5) 
-    wav_player.set_bpod_events([1, 1, 1, 1, 1, 1, 1, 1])  # Set event on Ch2 (L laser) and Ch3 (R laser)
-    wav_player.set_loop_duration([0, 0, 0, 100 * SAMPLING_RATE, 0, 0, 0, 0])  # loop chan4 (masking flash)
-    wav_player.set_loop_mode([0, 0, 0, 1, 0, 0, 0, 0])
+
+    try: 
+        wav_player.set_bpod_events([1, 1, 1, 1, 1, 1, 1, 1])  # Set event on Ch2 (L laser) and Ch3 (R laser)
+        wav_player.set_loop_duration([0, 0, 0, 100 * SAMPLING_RATE, 0, 0, 0, 0])  # loop chan4 (masking flash)
+        wav_player.set_loop_mode([0, 0, 0, 1, 0, 0, 0, 0])
+    except:
+        wav_player.set_bpod_events([1, 1, 1, 1])  # Set event on Ch2 (L laser) and Ch3 (R laser)
+        wav_player.set_loop_duration([0, 0, 0, 100 * SAMPLING_RATE])  # loop chan4 (masking flash)
+        wav_player.set_loop_mode([0, 0, 0, 1])
         
     WAV_ID_GO_CUE = 0
     WAV_ID_LASER_LEFT_START = 1
@@ -795,9 +804,11 @@ if if_use_analog_module:
                                             [ord('P'), laser_wav_port, laser_wav_id + amp_id])
     
     # Command shorthand for state machine
-    goCue_command = (SER_DEVICE, SER_CMD_GO_CUE)    # Use Wav ePlayer serial command #SER_CMD_GO_CUE on ephys rig!! 
+    # goCue_command = (SER_DEVICE, SER_CMD_GO_CUE)    # Use Wav ePlayer serial command #SER_CMD_GO_CUE on ephys rig!!
+if if_use_analog_module_for_go_cue: 
+    goCue_command = (SER_DEVICE, SER_CMD_GO_CUE)    # Use Wav ePlayer serial command #SER_CMD_GO_CUE on ephys rig!!
 else:
-    goCue_command = (variables['GoCue_ch'], 255)  # Set PWM5 to 100% duty cycle (always on), which triggers the wav trigger board
+    goCue_command = (variables['GoCue_ch'], 200)  # Set PWM5 to 100% duty cycle (always on), which triggers the wav trigger board
 
 
 variables_setup = variables.copy()
@@ -1317,17 +1328,17 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
             	state_name='GoCue_real',
                 state_timer=event_marker_dur['go_cue'],    # Now go_cue duration will always be event_marker_dur['go_cue']
             	state_change_conditions={EventName.Tup: 'AfterGoCue'
-                                         if if_use_analog_module else
+                                         if if_use_analog_module_for_go_cue else
                                         'GoCue_WavTrigBoard'},
-            	output_actions = (([(variables['bitcode_channel'], 1)] if if_bit_code else []) +
-                                  ([goCue_command] if if_GoCue_sound else [])
-                                  )   # Go cue command only
+            	output_actions = ([goCue_command, (variables['bitcode_channel'], 1)]  # Go cue command & bitcode
+                                  if if_bit_code else
+                                  [goCue_command])   # Go cue command only
                                )
 
-            if not if_use_analog_module:
+            if not if_use_analog_module_for_go_cue:
                 sma.add_state(
                    	state_name='GoCue_WavTrigBoard',
-                    state_timer=0.01,   # WAV trigger board need longer durtion to trigger
+                    state_timer=0.1,   # WAV trigger board need longer durtion to trigger
                    	state_change_conditions={EventName.Tup: 'AfterGoCue'},
                    	output_actions = [goCue_command] if if_GoCue_sound else [])
 
@@ -1357,7 +1368,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                                           'AfterGoCueLaserTimerStart'
                                           if laser_this_trial and variables_subject['laser_align_to'] in ['After GO CUE']
                                           else 'AfterGoCue'
-										  if if_use_analog_module else
+										  if if_use_analog_module_for_go_cue else
                                           'GoCue_WavTrigBoard'},
             	output_actions = (([(variables['bitcode_channel'], 1)] if if_bit_code else []) +
                                   ([goCue_command] if if_GoCue_sound else []) 
@@ -1372,10 +1383,10 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                     output_actions = [('GlobalTimerTrig', 8)]   # Start photostim timer (#4)
                 )
 
-            if not if_use_analog_module:
+            if not if_use_analog_module_for_go_cue:
                 sma.add_state(
                    	state_name='GoCue_WavTrigBoard',
-                    state_timer=0.01,   # WAV trigger board need longer durtion to trigger
+                    state_timer=0.1,   # WAV trigger board need longer durtion to trigger
                    	state_change_conditions={EventName.Tup: 'AfterGoCue'},
                    	output_actions = [goCue_command] if if_GoCue_sound else [])
 

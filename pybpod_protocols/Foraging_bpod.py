@@ -609,7 +609,7 @@ if if_use_analog_module:
     # --- Settings ---
     # https://sites.google.com/site/bpoddocumentation/user-guide/function-reference/bpodwaveplayer
     # https://sites.google.com/site/bpoddocumentation/user-guide/function-reference/waveplayerserialinterface
-    wav_player = WavePlayerModule('COM5')   # "Teensy USB" in device manager
+    wav_player = WavePlayerModule('COM6')   # "Teensy USB" in device manager
     wav_player.set_trigger_mode(wav_player.TRIGGER_MODE_MASTER)   # 'Master' - triggers can force-start a new wave during playback.
     wav_player.set_sampling_period(SAMPLING_RATE)
     wav_player.set_output_range(wav_player.RANGE_VOLTS_MINUS5_5) 
