@@ -22,7 +22,7 @@ import numpy as np
 import os, sys
 
 ### ---------------------------------------
-reload_wav_player = 0 # Only reload when neccessary to speed up protocol initialization
+reload_wav_player = 1 # Only reload when neccessary to speed up protocol initialization
 
 # Sinusoid laser
 if_sinusoid = 1  # Else, constant
@@ -719,10 +719,12 @@ if if_use_analog_module:
         
         # --- Load waveform to WavePlayer ---
         # Clear all waveforms
+
+        load_success = []
         for i in range(64):
             wav_player.load_waveform(i, [0])    
 
-        wav_player.load_waveform(WAV_ID_GO_CUE, go_cue_waveform)
+        load_success.append(wav_player.load_waveform(WAV_ID_GO_CUE, go_cue_waveform))
         
         for amp_id, _ in enumerate(laser_power_mapper):  # Add a series of laser waveform with different amps
             if if_use_different_laser_voltages:
@@ -732,9 +734,11 @@ if if_use_analog_module:
                 wav_player.load_waveform(WAV_ID_LASER_RAMP_LEFT_START + amp_id, laser_sin_ramp_down_waveform_left[amp_id])
                 wav_player.load_waveform(WAV_ID_LASER_RAMP_RIGHT_START + amp_id, laser_sin_ramp_down_waveform_right[amp_id])
             else:
-                wav_player.load_waveform(WAV_ID_LASER_LEFT_START + amp_id, laser_sin_waveform[amp_id])
-                wav_player.load_waveform(WAV_ID_LASER_RAMP_LEFT_START + amp_id, laser_sin_ramp_down_waveform[amp_id])
+                load_success.append(wav_player.load_waveform(WAV_ID_LASER_LEFT_START + amp_id, laser_sin_waveform[amp_id]))
+                load_success.append(wav_player.load_waveform(WAV_ID_LASER_RAMP_LEFT_START + amp_id, laser_sin_ramp_down_waveform[amp_id]))
         
+        print(f'load waveform {load_success}')
+
         wav_player.load_waveform(WAV_ID_MASK, mask_sin_waveform)
    
     wav_player.disconnect()
