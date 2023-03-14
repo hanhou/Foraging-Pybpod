@@ -111,7 +111,7 @@ class WavePlayerModuleGUI(WavePlayerModule, BaseWidget):
         
         self._load_json = ControlButton('Reload json', default=self.__load_json, enabled=False)
         self._open_json = ControlButton('Open json', default=self.__open_json, enabled=False)
-        self._laser_setting = ControlCombo('Laser setting', changed_event=self.__set_laser_setting, enabled=False)
+        self._laser_setting = ControlCombo('Select laser profile', changed_event=self.__set_laser_setting, enabled=False)
 
         
         self._triggermode.add_item('Normal',0)

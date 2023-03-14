@@ -819,13 +819,14 @@ class App(QDialog):
                 variables_setup = json.load(json_file)
 
             # laser calibration curve
-            laser_calib_file = os.path.join(defpath, project_now, 'experiments', experiment_now, 'setups', setup_now,'laser_power_mapper.json')
+            laser_calib_file ='C:\\laser_setting.json'
             if os.path.exists(laser_calib_file):
                 with open(laser_calib_file) as json_file:
-                    self.laser_power_mapper = json.load(json_file)['laser_power_mapper']
-                self.laser_power_mapper.insert(0, [0] * len(self.laser_power_mapper[0]))
+                    self.laser_settings = json.load(json_file)
+                print('laser_power_mapper loaded from Json file')
+                print(self.laser_settings)
             else:
-                self.laser_power_mapper = [[0, 0.0], [1, 1.0], [2, 2.0], [3, 3.0], [4, 4.0], [5, 5.0]]
+                print('no laser mapping file found!')
 
             if self.variables is None or reload_varialbe_layout:
                 layout = QGridLayout()
@@ -900,9 +901,15 @@ class App(QDialog):
                 layout_subject.addWidget(self.handles['success_switched'], 7, 10, 1, 2)
 
                 # Laser power selector
+                self.handles['laser_setting_name'] = QComboBox(self)
+                self.handles['laser_setting_name'].setFocusPolicy(Qt.NoFocus)
+
                 self.handles['laser_power'] = QComboBox(self)
                 self.handles['laser_power'].setFocusPolicy(Qt.NoFocus)
                 self.update_laser_power_selector(variables_subject)
+
+                layout_subject.addWidget(QLabel('laser profile'), 8, 10, alignment=Qt.AlignRight)
+                layout_subject.addWidget(self.handles['laser_setting_name'], 8, 11, 1, 1)
 
                 layout_subject.addWidget(QLabel('power (mW)'), 9, 10, alignment=Qt.AlignRight)
                 layout_subject.addWidget(self.handles['laser_power'], 9, 11, 1, 1)
@@ -950,10 +957,31 @@ class App(QDialog):
 
     def update_laser_power_selector(self, variables_subject):
         try:
+            self.handles['laser_setting_name'].currentIndexChanged.disconnect()
             self.handles['laser_power'].currentIndexChanged.disconnect()
         except:
             pass
+
+        self.handles['laser_setting_name'].clear()
         self.handles['laser_power'].clear()
+
+        # Load profile names
+        laser_setting_names = [profile_name for profile_name in self.laser_settings]
+        self.handles['laser_setting_name'].addItems(laser_setting_names)
+
+        preset = 0
+        if 'laser_setting_name' in variables_subject:
+            preset = [id for id, name in enumerate(self.laser_settings)
+                                     if name == variables_subject['laser_setting_name']]
+            if len(preset):
+                preset = preset[0]                
+
+        self.handles['laser_setting_name'].setCurrentIndex(preset)
+
+        # Get laser_power_mapper and always add 0
+        self.laser_power_mapper = self.laser_settings[laser_setting_names[preset]]['laser_power_mapper']
+        self.laser_power_mapper.insert(0, [0] * len(self.laser_power_mapper[0]))
+
 
         if len(self.laser_power_mapper[0]) == 3:
             self.handles['laser_power'].addItems([f'{pow:>6} mW : L = {L_v:>5} V, R = {R_v:>5} V' for pow, L_v, R_v in self.laser_power_mapper])
@@ -968,7 +996,12 @@ class App(QDialog):
             else:
                 self.handles['laser_power'].setCurrentIndex(0)  # Should be placed BEFORE the next line!!
 
+        self.handles['laser_setting_name'].currentIndexChanged.connect(self.__laser_setting_changed)
         self.handles['laser_power'].currentIndexChanged.connect(self.save_parameters)
+
+    def __laser_setting_changed(self):
+        self.handles['laser_power'].setCurrentIndex(0)  # Reset power to 0
+        self.save_parameters()
 
 
     def load_parameters_from_file(self):
@@ -1170,6 +1203,7 @@ class App(QDialog):
                         print('not proper value')
 
         # Laser power
+        self.variables['subject']['laser_setting_name'] = self.handles['laser_setting_name'].currentText()
         self.variables['subject']['laser_power'] = float(self.handles['laser_power'].currentText().split('mW')[0])
 
         # Laser alignment
