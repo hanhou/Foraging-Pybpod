@@ -26,14 +26,8 @@ WAV_ID_LASER_RAMP_LEFT_START = 30 # left ramp starts from 30
 WAV_ID_LASER_RAMP_RIGHT_START = 40  # Right ramp starts from 40
 WAV_ID_MASK = 63  # Max = 63
 
-laser_calib_file ='C:\\laser_setting.json'
-if os.path.exists(laser_calib_file):
-    with open(laser_calib_file) as json_file:
-        laser_settings = json.load(json_file)
-    print('laser_power_mapper loaded from Json file')
-    print(laser_settings)
-else:
-    print('no laser mapping file found!')
+laser_setting_file ='C:\\laser_setting.json'
+
 
 
 def gen_sin_wave(sampling_rate, freq, duration, phy=0):
@@ -114,10 +108,11 @@ class WavePlayerModuleGUI(WavePlayerModule, BaseWidget):
 
         self._triggermode = ControlCombo('Channel Select', changed_event=self.__set_trigger_mode_evt, enabled=False)
         self._outputrange = ControlCombo('Output range', changed_event=self.__set_output_range_evt, enabled=False)
+        
+        self._load_json = ControlButton('Reload json', default=self.__load_json, enabled=False)
+        self._open_json = ControlButton('Open json', default=self.__open_json, enabled=False)
         self._laser_setting = ControlCombo('Laser setting', changed_event=self.__set_laser_setting, enabled=False)
 
-        for idx, setting_name in enumerate(laser_settings):
-            self._laser_setting.add_item(setting_name, idx)
         
         self._triggermode.add_item('Normal',0)
         self._triggermode.add_item('Master',1)
@@ -148,7 +143,8 @@ class WavePlayerModuleGUI(WavePlayerModule, BaseWidget):
                     ('_port','_connect_btn'), 
                     # ('_triggermode', '_outputrange'),
                     ('_duration', '_frequency', '_samplerate'),
-                    ('_laser_setting', '_load_waveform_btn'),
+                    ('_open_json', '_load_json', '_laser_setting'),
+                    '_load_waveform_btn',
                     '_wavegraph',
                     ('_wave_index', '_channel_index', '_play_waveform_btn', '_stop_waveform_btn')
                 ],
@@ -160,8 +156,10 @@ class WavePlayerModuleGUI(WavePlayerModule, BaseWidget):
 
     def _gen_waveform(self):
         
+        if self._laser_setting.value is None: return
+
         self.laser_setting_name = [key for key, value in self._laser_setting._items.items() if value == self._laser_setting.value][0]
-        self.laser_setting = laser_settings[self.laser_setting_name]
+        self.laser_setting = self.laser_settings[self.laser_setting_name]
         laser_power_mapper = self.laser_setting['laser_power_mapper']
         laser_sin_ramp_down_dur = self.laser_setting['laser_sin_ramp_down_time']
         laser_sin_freq = self._frequency.value
@@ -220,6 +218,28 @@ class WavePlayerModuleGUI(WavePlayerModule, BaseWidget):
     ## EVENTS ################################################################
     ##########################################################################
 
+    def __load_json(self):
+        if not self.form_has_loaded: return
+
+        if os.path.exists(laser_setting_file):
+            with open(laser_setting_file) as json_file:
+                self.laser_settings = json.load(json_file)
+
+            self._laser_setting.clear()
+            for idx, setting_name in enumerate(self.laser_settings):
+                self._laser_setting.add_item(setting_name, idx)
+                print(self._laser_setting._items)
+            self._laser_setting.value = 0
+
+        else:
+            self.alert(f'{laser_setting_file} file not found!')
+
+    def __open_json(self):
+        try:
+            os.startfile(laser_setting_file)
+        except:
+            self.alert(f'{laser_setting_file} file not found!')
+
     def __set_output_range_evt(self):
         if not self.form_has_loaded: return
         self.set_output_range(self._outputrange.value)
@@ -265,7 +285,6 @@ class WavePlayerModuleGUI(WavePlayerModule, BaseWidget):
             # axes.set_xlim(0, x/(1/self._samplerate.value)*8 )
             # axes.set_ylim( np.min(wave), np.max(wave) )
 
-            axes.set_xlim(0, 5)
             axes.set_xlabel('second')
             self._wavegraph.repaint()
         except:
@@ -274,6 +293,8 @@ class WavePlayerModuleGUI(WavePlayerModule, BaseWidget):
     def __connect_btn_evt(self):
         if self._connect_btn.checked:
             self.open(self._port.value)
+
+            self.__load_json()
             self._gen_waveform()
         else:
             self.disconnect()
@@ -331,6 +352,8 @@ class WavePlayerModuleGUI(WavePlayerModule, BaseWidget):
             self._frequency.enabled = True
             self._samplerate.enabled = True
 
+            self._load_json.enabled = True
+            self._open_json.enabled = True
             self._laser_setting.enabled = True
 
             self._wave_index.enabled = True
@@ -376,6 +399,9 @@ class WavePlayerModuleGUI(WavePlayerModule, BaseWidget):
         self._duration.enabled = False
         self._frequency.enabled = False
         self._samplerate.enabled = False
+
+        self._load_json.enabled = False
+        self._open_json.enabled = False
         self._laser_setting.enabled = False
         
         self._wave_index.enabled = False
