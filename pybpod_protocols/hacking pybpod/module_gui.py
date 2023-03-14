@@ -15,6 +15,26 @@ from pyforms.controls import ControlMatplotlib
 from .module_api import WavePlayerModule
 
 
+laser_sin_ramp_down_dur = 1  # 1
+mask_amp = 0.5  # Amplitude for masking flash
+
+# batch load waveform
+laser_power_mapper = [[0, 0.0, 0.0], [1, 1.0, 1.0], [2, 2.0, 2.0], [3, 3.0, 3.0], [4, 4.0, 4.0], [5, 5.0, 5.0]]
+
+WAV_ID_GO_CUE = 0
+WAV_ID_LASER_LEFT_START = 10  # 10, 11, 12, 13, ... for different amps_left (assuming the length of amp_wrapper < 10)
+WAV_ID_LASER_RIGHT_START = 20  # right sinosoid
+WAV_ID_LASER_RAMP_LEFT_START = 30 # left ramp starts from 30
+WAV_ID_LASER_RAMP_RIGHT_START = 40  # Right ramp starts from 40
+WAV_ID_MASK = 63  # Max = 63
+
+
+
+def gen_sin_wave(sampling_rate, freq, duration, phy=0):
+    # Duration in seconds
+    t = np.arange(0, duration, 1 / sampling_rate)
+    return np.sin(2 * np.pi * freq * t + phy)
+
 class OutputChannelGUI(BaseWidget):
 
     def __init__(self, *args, **kwargs):
@@ -79,7 +99,7 @@ class WavePlayerModuleGUI(WavePlayerModule, BaseWidget):
 
         self.set_margin(10)
 
-        self._port 			= ControlText('Serial port', default = '/dev/ttyACM0')
+        self._port 			= ControlText('Serial port', default = 'COM6')
         self._connect_btn   = ControlButton('Connect', checkable=True, default = self.__connect_btn_evt)
         self._getparams_btn = ControlButton('Get Parameters', default=self.get_parameters, enabled=False)
         self._info          = ControlTextArea('Information', enabled=False)
@@ -102,9 +122,9 @@ class WavePlayerModuleGUI(WavePlayerModule, BaseWidget):
         
         self._wavegraph  = ControlMatplotlib('Waveform', on_draw=self.__on_draw_evt)
         self._amplitude  = ControlNumber('Amplitude',   default=1.0, minimum=0, maximum=1000, changed_event=self._wavegraph.draw, enabled=False)
-        self._duration   = ControlNumber('Duration',    default=3.0, minimum=0, maximum=100, changed_event=self._wavegraph.draw, enabled=False)
-        self._frequency  = ControlNumber('Frequency',   default=1000.0, minimum=1, maximum=10000, changed_event=self._wavegraph.draw, enabled=False)
-        self._samplerate = ControlNumber('Sample rate', default=96000,  minimum=1, maximum=100000, changed_event=self._wavegraph.draw, enabled=False)
+        self._duration   = ControlNumber('Duration',    default=20.0, minimum=0, maximum=100, changed_event=self._wavegraph.draw, enabled=False)
+        self._frequency  = ControlNumber('Frequency',   default=40.0, minimum=1, maximum=10000, changed_event=self._wavegraph.draw, enabled=False)
+        self._samplerate = ControlNumber('Sample rate', default=50000,  minimum=1, maximum=100000, changed_event=self._wavegraph.draw, enabled=False)
         
         self._wave_index        = ControlNumber('Waveform', enabled=False)
         self._channel_index     = ControlNumber('Channel', minimum=1, default=1, enabled=False)
@@ -126,7 +146,57 @@ class WavePlayerModuleGUI(WavePlayerModule, BaseWidget):
             }
         ]
 
+        # Generate waveform
+        self._gen_waveform()
 
+    def _gen_waveform(self):
+
+        # --- Waveforms ---
+        # 1. go cue sound
+        go_cue_amp = 2
+        go_cue_freq  = 3000  # of cycles per second (Hz) (frequency of the sine waves)
+        go_cue_dur = 0.1
+        go_cue_waveform = go_cue_amp * gen_sin_wave(self._samplerate.value, go_cue_freq, go_cue_dur)
+
+        # 2. photostim constant power
+        laser_sin_freq = 40  # 40 Hz
+        laser_sin_dur = 20  # Actual duration (stop time) is controled by GlobalTimer
+        laser_sin_waveform_left = []
+        laser_sin_waveform_right = []
+        for _, amp_left, amp_right in laser_power_mapper:
+            laser_sin_waveform_left.append(amp_left *   (gen_sin_wave(self._samplerate.value, laser_sin_freq, laser_sin_dur, phy=np.pi * 3/2) + 1) / 2)
+            laser_sin_waveform_right.append(amp_right * (gen_sin_wave(self._samplerate.value, laser_sin_freq, laser_sin_dur, phy=np.pi * 3/2) + 1) / 2)
+
+        # 3. photostim ramping down
+        laser_sin_ramp_down_waveform_left = []
+        laser_sin_ramp_down_waveform_right = []
+        for _, amp_left, amp_right in laser_power_mapper:
+            laser_sin_ramp_down_waveform_left.append(amp_left * (gen_sin_wave(self._samplerate.value, laser_sin_freq, laser_sin_ramp_down_dur, phy=np.pi * 1/2) + 1) / 2)
+            laser_sin_ramp_down_waveform_left[-1] *= np.linspace(1, 0, len(laser_sin_ramp_down_waveform_left[-1]))
+
+            laser_sin_ramp_down_waveform_right.append(amp_right * (gen_sin_wave(self._samplerate.value, laser_sin_freq, laser_sin_ramp_down_dur, phy=np.pi * 1/2) + 1) / 2)
+            laser_sin_ramp_down_waveform_right[-1] *= np.linspace(1, 0, len(laser_sin_ramp_down_waveform_right[-1]))
+
+        # 4. masking flash
+        # Same frequency as laser. Use loop on this channel, so only one circle is enough
+        mask_sin_waveform = mask_amp * (gen_sin_wave(self._samplerate.value, laser_sin_freq, 1 / laser_sin_freq, phy=np.pi * 3/2) + 1) / 2
+
+        self.id_and_waveform = []
+
+        self.id_and_waveform.append([WAV_ID_GO_CUE, go_cue_waveform])
+        # import pdb; pdb.set_trace()
+
+        # self.load_waveform(WAV_ID_GO_CUE, go_cue_waveform)
+
+        for amp_id, _ in enumerate(laser_power_mapper):  # Add a series of laser waveform with different amps
+
+            self.id_and_waveform.append([WAV_ID_LASER_LEFT_START + amp_id, laser_sin_waveform_left[amp_id]])
+            self.id_and_waveform.append([WAV_ID_LASER_RIGHT_START + amp_id, laser_sin_waveform_right[amp_id]])
+
+            self.id_and_waveform.append([WAV_ID_LASER_RAMP_LEFT_START + amp_id, laser_sin_ramp_down_waveform_left[amp_id]])
+            self.id_and_waveform.append([WAV_ID_LASER_RAMP_RIGHT_START + amp_id, laser_sin_ramp_down_waveform_right[amp_id]])
+
+        self.id_and_waveform.append([WAV_ID_MASK, mask_sin_waveform])
 
     ##########################################################################
     ## EVENTS ################################################################
@@ -156,16 +226,19 @@ class WavePlayerModuleGUI(WavePlayerModule, BaseWidget):
             axes = figure.add_subplot(111)
             axes.clear()
 
-            samples = np.arange(0.0, self._duration.value, 1.0/self._samplerate.value)
-            wave    = self._amplitude.value * np.sin(2.0*math.pi*self._frequency.value*samples)
+            # samples = np.arange(0.0, self._duration.value, 1.0/self._samplerate.value)
+            # wave    = self._amplitude.value * np.sin(2.0*math.pi*self._frequency.value*samples)
 
-            axes.plot(wave)
+            # axes.plot(wave)
 
-            y = self._amplitude.value
-            x = math.asin( y/self._amplitude.value )/(2.0*math.pi*self._frequency.value)
+            # y = self._amplitude.value
+            # x = math.asin( y/self._amplitude.value )/(2.0*math.pi*self._frequency.value)
+
+            for id, wave in self.id_and_waveform:
+                axes.plot(wave + 5 * id)
             
-            axes.set_xlim(0, x/(1/self._samplerate.value)*8 )
-            axes.set_ylim( np.min(wave), np.max(wave) )
+            # axes.set_xlim(0, x/(1/self._samplerate.value)*8 )
+            # axes.set_ylim( np.min(wave), np.max(wave) )
     
             self._wavegraph.repaint()
         except:
@@ -178,12 +251,27 @@ class WavePlayerModuleGUI(WavePlayerModule, BaseWidget):
             self.disconnect()
 
     def __load_waveform_btn_evt(self):
-        samples = np.arange(0.0, self._duration.value, 1.0/self._samplerate.value)
-        wave    = self._amplitude.value * np.sin(2.0*math.pi*self._frequency.value*samples)
-        self.set_sampling_period(self._samplerate.value)
-        res = self.load_waveform( int(self._wave_index.value) , wave)
-        if not res:
-            self.alert('Failed to load the waveform')
+
+        # --- Load waveform to WavePlayer ---
+        # Clear all waveforms
+        for i in range(64):
+            self.load_waveform(i, [0])
+
+        for id, wave in self.id_and_waveform:
+            res = self.load_waveform(id, wave)    
+            if not res:
+                self.alert(f'Failed to load the waveform: id = {id}')
+            else:
+                print(f'#{id} loaded')
+
+
+
+        # samples = np.arange(0.0, self._duration.value, 1.0/self._samplerate.value)
+        # wave    = self._amplitude.value * np.sin(2.0*math.pi*self._frequency.value*samples)
+        # self.set_sampling_period(self._samplerate.value)
+        # res = self.load_waveform( int(self._wave_index.value) , wave)
+
+
     
 
     ##########################################################################
@@ -275,7 +363,7 @@ class WavePlayerModuleGUI(WavePlayerModule, BaseWidget):
         text += 'Output range: {0}\n'.format(self.output_range)
         text += 'Bpod events: {0}\n'.format(self.bpod_events)
         text += 'Loop mode {0}\n'.format(self.loop_mode)
-        text += 'Sampling rates: {0}\n'.format(self.sampling_rate)
+        text += 'Sampling rates: {0}\n'.format(self._samplerate.value)
         text += 'Loop durations: {0}\n'.format(self.loop_duration)
 
         self._info.value = text

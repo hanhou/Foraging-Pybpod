@@ -12,9 +12,6 @@ import json
 import numpy as np
 import os, sys
 
-###
-reload_wav_player = 1  # Only reload when neccessary to speed up protocol initialization
-###
 
 
 usedummyzaber = True # for testing without motor movement - only for debugging
@@ -57,7 +54,6 @@ camera_trunk_fps = 100  # trunc camera
 camera_pulse = 0.001   # Use constant camera pulse width to minimize error due to bpod time resolution (0.1 ms)
 
 # --- photo stim ---
-laser_sin_ramp_down_dur = 1  # 1
 mask_amp = 0.5  # Amplitude for masking flash
 
 
@@ -632,64 +628,16 @@ if if_use_analog_module:
     WAV_ID_MASK = 63  # Max = 63
 
     # Fetch laser calibration curve from json file
-    print(setuppath)
-    laser_calib_file = os.path.join(setuppath,'laser_power_mapper.json')
+    # print(setuppath)
+    # laser_calib_file = os.path.join(setuppath,'laser_power_mapper.json')
+    laser_calib_file ='C:\\laser_setting.json'
     if os.path.exists(laser_calib_file):
         with open(laser_calib_file) as json_file:
-            laser_power_mapper = json.load(json_file)['laser_power_mapper']
+            laser_settings = json.load(json_file)
         print('laser_power_mapper loaded from Json file')
+        print(laser_settings)
     else:
         print('no laser mapping file found!')
-
-    if reload_wav_player:  # Only reload when neccessary to speed up protocol initialization
-
-        # --- Waveforms ---
-        # 1. go cue sound
-        go_cue_amp = 2
-        go_cue_freq  = 3000  # of cycles per second (Hz) (frequency of the sine waves)
-        go_cue_dur = 0.1
-        go_cue_waveform = go_cue_amp * gen_sin_wave(SAMPLING_RATE, go_cue_freq, go_cue_dur)
-
-        # 2. photostim constant power
-        laser_sin_freq = 40  # 40 Hz
-        laser_sin_dur = 20  # Actual duration (stop time) is controled by GlobalTimer
-        laser_sin_waveform_left = []
-        laser_sin_waveform_right = []
-        for _, amp_left, amp_right in laser_power_mapper:
-            laser_sin_waveform_left.append(amp_left *   (gen_sin_wave(SAMPLING_RATE, laser_sin_freq, laser_sin_dur, phy=np.pi * 3/2) + 1) / 2)
-            laser_sin_waveform_right.append(amp_right * (gen_sin_wave(SAMPLING_RATE, laser_sin_freq, laser_sin_dur, phy=np.pi * 3/2) + 1) / 2)
-
-        # 3. photostim ramping down
-        laser_sin_ramp_down_waveform_left = []
-        laser_sin_ramp_down_waveform_right = []
-        for _, amp_left, amp_right in laser_power_mapper:
-            laser_sin_ramp_down_waveform_left.append(amp_left * (gen_sin_wave(SAMPLING_RATE, laser_sin_freq, laser_sin_ramp_down_dur, phy=np.pi * 1/2) + 1) / 2)
-            laser_sin_ramp_down_waveform_left[-1] *= np.linspace(1, 0, len(laser_sin_ramp_down_waveform_left[-1]))
-
-            laser_sin_ramp_down_waveform_right.append(amp_right * (gen_sin_wave(SAMPLING_RATE, laser_sin_freq, laser_sin_ramp_down_dur, phy=np.pi * 1/2) + 1) / 2)
-            laser_sin_ramp_down_waveform_right[-1] *= np.linspace(1, 0, len(laser_sin_ramp_down_waveform_right[-1]))
-
-        # 4. masking flash
-        # Same frequency as laser. Use loop on this channel, so only one circle is enough
-        mask_sin_waveform = mask_amp * (gen_sin_wave(SAMPLING_RATE, laser_sin_freq, 1 / laser_sin_freq, phy=np.pi * 3/2) + 1) / 2
-
-        # --- Load waveform to WavePlayer ---
-        # Clear all waveforms
-        for i in range(64):
-            wav_player.load_waveform(i, [0])
-
-        wav_player.load_waveform(WAV_ID_GO_CUE, go_cue_waveform)
-
-        for amp_id, _ in enumerate(laser_power_mapper):  # Add a series of laser waveform with different amps
-            wav_player.load_waveform(WAV_ID_LASER_LEFT_START + amp_id, laser_sin_waveform_left[amp_id])
-            wav_player.load_waveform(WAV_ID_LASER_RIGHT_START + amp_id, laser_sin_waveform_right[amp_id])
-
-            wav_player.load_waveform(WAV_ID_LASER_RAMP_LEFT_START + amp_id, laser_sin_ramp_down_waveform_left[amp_id])
-            wav_player.load_waveform(WAV_ID_LASER_RAMP_RIGHT_START + amp_id, laser_sin_ramp_down_waveform_right[amp_id])
-
-        wav_player.load_waveform(WAV_ID_MASK, mask_sin_waveform)
-
-    wav_player.disconnect()
 
     # --- Load serial messages to Bpod ---
     # https://sites.google.com/site/bpoddocumentation/user-guide/function-reference/loadserialmessages
@@ -697,8 +645,8 @@ if if_use_analog_module:
 
     # Waveform starts from 0
     WAV_PORTS_SPEAKER = 4  # Don't need
-    WAV_PORTS_LASER_L = 0  # Chan 1
-    WAV_PORTS_LASER_R = 1  # Chan 2
+    WAV_PORTS_LASER_L = 1  # Chan 1
+    WAV_PORTS_LASER_R = 2  # Chan 2
     WAV_PORTS_MASK = 8  # Don't need
 
     # serial command starts from 1... (max 254)
@@ -718,7 +666,8 @@ if if_use_analog_module:
     # my_bpod.load_serial_message(SER_PORT, SER_CMD_MASK, [ord('P'), WAV_PORTS_MASK, WAV_ID_MASK])  # masking flash
     my_bpod.load_serial_message(SER_PORT, SER_CMD_STOP, [ord('X')])  # stop all waveform
 
-    for amp_id, _ in enumerate(laser_power_mapper):
+    # for amp_id, _ in enumerate(laser_power_mapper):
+    for amp_id in range(9):
         # To send out different voltages according to the calibration curves of the two laseres,
         # one serial message should play two different waveform to two wave ports.
         #!!! To let this line work, I changed Line 481 of pybpodapi\bpod\bpod_com_protocol.py
@@ -979,6 +928,11 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
 
         if if_use_analog_module:
             # -- Prepare photostim --
+            laser_setting_name = variables_subject['laser_setting_name'] if 'laser_setting_name' in variables_subject.keys() else 'calibration'
+            laser_setting = laser_settings[laser_setting_name]
+            laser_power_mapper = laser_setting['laser_power_mapper']
+            laser_sin_ramp_down_dur = laser_setting['laser_sin_ramp_down_time']
+
             laser_power = variables_subject['laser_power'] if 'laser_power' in variables_subject.keys() else 0
 
             # Assign laser to this trial
@@ -995,6 +949,7 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
                 laser_number_of_trials_no_stim_before += 1
             else:  # Do it
                 laser_number_of_trials_no_stim_before = 0
+                print('laser setting name:', laser_setting_name)
                 print(laser_power_mapper)
 
                 amp_id =  [id for id, (pow, _, _) in enumerate(laser_power_mapper) if pow == laser_power][0]
