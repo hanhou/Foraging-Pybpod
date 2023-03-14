@@ -13,13 +13,11 @@ from pyforms.controls import ControlMatplotlib
 
 
 from .module_api import WavePlayerModule
+import json
+import os
 
 
-laser_sin_ramp_down_dur = 1  # 1
 mask_amp = 0.5  # Amplitude for masking flash
-
-# batch load waveform
-laser_power_mapper = [[0, 0.0, 0.0], [1, 1.0, 1.0], [2, 2.0, 2.0], [3, 3.0, 3.0], [4, 4.0, 4.0], [5, 5.0, 5.0]]
 
 WAV_ID_GO_CUE = 0
 WAV_ID_LASER_LEFT_START = 10  # 10, 11, 12, 13, ... for different amps_left (assuming the length of amp_wrapper < 10)
@@ -28,6 +26,14 @@ WAV_ID_LASER_RAMP_LEFT_START = 30 # left ramp starts from 30
 WAV_ID_LASER_RAMP_RIGHT_START = 40  # Right ramp starts from 40
 WAV_ID_MASK = 63  # Max = 63
 
+laser_calib_file ='C:\\laser_setting.json'
+if os.path.exists(laser_calib_file):
+    with open(laser_calib_file) as json_file:
+        laser_settings = json.load(json_file)
+    print('laser_power_mapper loaded from Json file')
+    print(laser_settings)
+else:
+    print('no laser mapping file found!')
 
 
 def gen_sin_wave(sampling_rate, freq, duration, phy=0):
@@ -108,6 +114,10 @@ class WavePlayerModuleGUI(WavePlayerModule, BaseWidget):
 
         self._triggermode = ControlCombo('Channel Select', changed_event=self.__set_trigger_mode_evt, enabled=False)
         self._outputrange = ControlCombo('Output range', changed_event=self.__set_output_range_evt, enabled=False)
+        self._laser_setting = ControlCombo('Laser setting', changed_event=self.__set_laser_setting, enabled=False)
+
+        for idx, setting_name in enumerate(laser_settings):
+            self._laser_setting.add_item(setting_name, idx)
         
         self._triggermode.add_item('Normal',0)
         self._triggermode.add_item('Master',1)
@@ -121,10 +131,10 @@ class WavePlayerModuleGUI(WavePlayerModule, BaseWidget):
         self._outputrange.add_item('-12V to +12V',5)
         
         self._wavegraph  = ControlMatplotlib('Waveform', on_draw=self.__on_draw_evt)
-        self._amplitude  = ControlNumber('Amplitude',   default=1.0, minimum=0, maximum=1000, changed_event=self._wavegraph.draw, enabled=False)
-        self._duration   = ControlNumber('Duration',    default=20.0, minimum=0, maximum=100, changed_event=self._wavegraph.draw, enabled=False)
-        self._frequency  = ControlNumber('Frequency',   default=40.0, minimum=1, maximum=10000, changed_event=self._wavegraph.draw, enabled=False)
-        self._samplerate = ControlNumber('Sample rate', default=50000,  minimum=1, maximum=100000, changed_event=self._wavegraph.draw, enabled=False)
+        self._amplitude  = ControlNumber('Amplitude',   default=1.0, minimum=0, maximum=1000, changed_event=self._gen_waveform, enabled=False)
+        self._duration   = ControlNumber('Duration',    default=20.0, minimum=0, maximum=100, changed_event=self._gen_waveform, enabled=False)
+        self._frequency  = ControlNumber('Frequency',   default=40.0, minimum=1, maximum=10000, changed_event=self._gen_waveform, enabled=False)
+        self._samplerate = ControlNumber('Sample rate', default=50000,  minimum=1, maximum=100000, changed_event=self._gen_waveform, enabled=False)
         
         self._wave_index        = ControlNumber('Waveform', enabled=False)
         self._channel_index     = ControlNumber('Channel', minimum=1, default=1, enabled=False)
@@ -136,20 +146,26 @@ class WavePlayerModuleGUI(WavePlayerModule, BaseWidget):
             {
                 'a:Connection' :[
                     ('_port','_connect_btn'), 
-                    ('_triggermode', '_outputrange'),
-                    ('_amplitude', '_duration', '_frequency', '_samplerate'),
+                    # ('_triggermode', '_outputrange'),
+                    ('_duration', '_frequency', '_samplerate'),
+                    ('_laser_setting', '_load_waveform_btn'),
                     '_wavegraph',
-                    ('_wave_index','_load_waveform_btn', '_channel_index', '_play_waveform_btn', '_stop_waveform_btn')
+                    ('_wave_index', '_channel_index', '_play_waveform_btn', '_stop_waveform_btn')
                 ],
                 'c: Channels': ['_channels'],
                 'd:Information': ['_getparams_btn','_info']
             }
         ]
 
-        # Generate waveform
-        self._gen_waveform()
 
     def _gen_waveform(self):
+        
+        self.laser_setting_name = [key for key, value in self._laser_setting._items.items() if value == self._laser_setting.value][0]
+        self.laser_setting = laser_settings[self.laser_setting_name]
+        laser_power_mapper = self.laser_setting['laser_power_mapper']
+        laser_sin_ramp_down_dur = self.laser_setting['laser_sin_ramp_down_time']
+        laser_sin_freq = self._frequency.value
+        laser_sin_dur = self._duration.value
 
         # --- Waveforms ---
         # 1. go cue sound
@@ -159,8 +175,6 @@ class WavePlayerModuleGUI(WavePlayerModule, BaseWidget):
         go_cue_waveform = go_cue_amp * gen_sin_wave(self._samplerate.value, go_cue_freq, go_cue_dur)
 
         # 2. photostim constant power
-        laser_sin_freq = 40  # 40 Hz
-        laser_sin_dur = 20  # Actual duration (stop time) is controled by GlobalTimer
         laser_sin_waveform_left = []
         laser_sin_waveform_right = []
         for _, amp_left, amp_right in laser_power_mapper:
@@ -198,6 +212,10 @@ class WavePlayerModuleGUI(WavePlayerModule, BaseWidget):
 
         self.id_and_waveform.append([WAV_ID_MASK, mask_sin_waveform])
 
+        print(f'waveform regenerated using\n{laser_power_mapper}')
+
+        self._wavegraph.draw()
+
     ##########################################################################
     ## EVENTS ################################################################
     ##########################################################################
@@ -205,6 +223,11 @@ class WavePlayerModuleGUI(WavePlayerModule, BaseWidget):
     def __set_output_range_evt(self):
         if not self.form_has_loaded: return
         self.set_output_range(self._outputrange.value)
+
+    def __set_laser_setting(self):
+        if not self.form_has_loaded: return
+        self._gen_waveform()
+
 
     def __set_trigger_mode_evt(self):
         if not self.form_has_loaded: return
@@ -222,6 +245,8 @@ class WavePlayerModuleGUI(WavePlayerModule, BaseWidget):
         self.stop()
 
     def __on_draw_evt(self, figure):
+        if not hasattr(self, 'id_and_waveform'): return
+
         try:
             axes = figure.add_subplot(111)
             axes.clear()
@@ -235,11 +260,13 @@ class WavePlayerModuleGUI(WavePlayerModule, BaseWidget):
             # x = math.asin( y/self._amplitude.value )/(2.0*math.pi*self._frequency.value)
 
             for id, wave in self.id_and_waveform:
-                axes.plot(wave + 5 * id)
+                axes.plot(np.arange(len(wave)) / self._samplerate.value, wave / 5 + id)
             
             # axes.set_xlim(0, x/(1/self._samplerate.value)*8 )
             # axes.set_ylim( np.min(wave), np.max(wave) )
-    
+
+            axes.set_xlim(0, 5)
+            axes.set_xlabel('second')
             self._wavegraph.repaint()
         except:
             self.critical( traceback.format_exc(), 'An error occurred')
@@ -247,6 +274,7 @@ class WavePlayerModuleGUI(WavePlayerModule, BaseWidget):
     def __connect_btn_evt(self):
         if self._connect_btn.checked:
             self.open(self._port.value)
+            self._gen_waveform()
         else:
             self.disconnect()
 
@@ -257,12 +285,18 @@ class WavePlayerModuleGUI(WavePlayerModule, BaseWidget):
         for i in range(64):
             self.load_waveform(i, [0])
 
+        all_done = True
         for id, wave in self.id_and_waveform:
             res = self.load_waveform(id, wave)    
             if not res:
                 self.alert(f'Failed to load the waveform: id = {id}')
+                all_done = False
             else:
                 print(f'#{id} loaded')
+
+        if all_done:
+            self.success(f'Successfully loaded the waveforms!\n{self.laser_setting_name}\n{self.laser_setting}')
+
 
 
 
@@ -296,7 +330,9 @@ class WavePlayerModuleGUI(WavePlayerModule, BaseWidget):
             self._duration.enabled = True
             self._frequency.enabled = True
             self._samplerate.enabled = True
-            
+
+            self._laser_setting.enabled = True
+
             self._wave_index.enabled = True
             self._channel_index.enabled = True
             self._load_waveform_btn.enabled = True
@@ -340,6 +376,7 @@ class WavePlayerModuleGUI(WavePlayerModule, BaseWidget):
         self._duration.enabled = False
         self._frequency.enabled = False
         self._samplerate.enabled = False
+        self._laser_setting.enabled = False
         
         self._wave_index.enabled = False
         self._channel_index.enabled = False
