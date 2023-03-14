@@ -458,19 +458,19 @@ if if_use_analog_module:
     # --- Settings ---
     # https://sites.google.com/site/bpoddocumentation/user-guide/function-reference/bpodwaveplayer
     # https://sites.google.com/site/bpoddocumentation/user-guide/function-reference/waveplayerserialinterface
-    wav_player = WavePlayerModule('COM6')   # "Teensy USB" in device manager
-    wav_player.set_trigger_mode(wav_player.TRIGGER_MODE_MASTER)   # 'Master' - triggers can force-start a new wave during playback.
-    wav_player.set_sampling_period(SAMPLING_RATE)
-    wav_player.set_output_range(wav_player.RANGE_VOLTS_MINUS5_5)
+    # wav_player = WavePlayerModule('COM6')   # "Teensy USB" in device manager
+    # wav_player.set_trigger_mode(wav_player.TRIGGER_MODE_MASTER)   # 'Master' - triggers can force-start a new wave during playback.
+    # wav_player.set_sampling_period(SAMPLING_RATE)
+    # wav_player.set_output_range(wav_player.RANGE_VOLTS_MINUS5_5)
     
-    try: 
-        wav_player.set_bpod_events([1, 1, 1, 1, 1, 1, 1, 1])  # Set event on Ch2 (L laser) and Ch3 (R laser)
-        wav_player.set_loop_duration([0, 0, 0, 100 * SAMPLING_RATE, 0, 0, 0, 0])  # loop chan4 (masking flash)
-        wav_player.set_loop_mode([0, 0, 0, 1, 0, 0, 0, 0])
-    except:
-        wav_player.set_bpod_events([1, 1, 1, 1])  # Set event on Ch2 (L laser) and Ch3 (R laser)
-        wav_player.set_loop_duration([0, 0, 0, 100 * SAMPLING_RATE])  # loop chan4 (masking flash)
-        wav_player.set_loop_mode([0, 0, 0, 1])
+    # try: 
+    #     wav_player.set_bpod_events([1, 1, 1, 1, 1, 1, 1, 1])  # Set event on Ch2 (L laser) and Ch3 (R laser)
+    #     wav_player.set_loop_duration([0, 0, 0, 100 * SAMPLING_RATE, 0, 0, 0, 0])  # loop chan4 (masking flash)
+    #     wav_player.set_loop_mode([0, 0, 0, 1, 0, 0, 0, 0])
+    # except:
+    #     wav_player.set_bpod_events([1, 1, 1, 1])  # Set event on Ch2 (L laser) and Ch3 (R laser)
+    #     wav_player.set_loop_duration([0, 0, 0, 100 * SAMPLING_RATE])  # loop chan4 (masking flash)
+    #     wav_player.set_loop_mode([0, 0, 0, 1])
 
     WAV_ID_GO_CUE = 0
     WAV_ID_LASER_LEFT_START = 10  # 10, 11, 12, 13, ... for different amps_left (assuming the length of amp_wrapper < 10)
