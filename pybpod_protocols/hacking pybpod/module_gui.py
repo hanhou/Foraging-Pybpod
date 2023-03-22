@@ -189,7 +189,7 @@ class WavePlayerModuleGUI(WavePlayerModule, BaseWidget):
 
         # 4. masking flash
         # Same frequency as laser. Use loop on this channel, so only one circle is enough
-        mask_sin_waveform = mask_amp * (gen_sin_wave(self._samplerate.value, laser_sin_freq, 1 / laser_sin_freq, phy=np.pi * 3/2) + 1) / 2
+        mask_sin_waveform = mask_amp * (gen_sin_wave(self._samplerate.value, 40, 1 / 40, phy=np.pi * 3/2) + 1) / 2
 
         self.id_and_waveform = []
 

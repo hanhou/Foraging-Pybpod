@@ -974,7 +974,9 @@ class App(QDialog):
             preset = [id for id, name in enumerate(self.laser_settings)
                                      if name == variables_subject['laser_setting_name']]
             if len(preset):
-                preset = preset[0]                
+                preset = preset[0]
+            else:
+                preset = 0
 
         self.handles['laser_setting_name'].setCurrentIndex(preset)
 
