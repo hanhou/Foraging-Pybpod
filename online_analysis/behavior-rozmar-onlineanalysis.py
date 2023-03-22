@@ -100,6 +100,7 @@ class App(QDialog):
                                                     },
                                      'Misc': {
                                               'response_time': 'RT',
+                                              'Reward_consume_time': 'no-lick-time before ITI',
                                               'auto_stop_max_ignored_trials_in_a_row': 'auto stop ignores >',
                                               'motor_retract_waterport': 'retract on ITI?',
                                               'double_dip_retract': 'retract on double dipping?',
@@ -157,6 +158,7 @@ class App(QDialog):
                                                     },
                                      'Misc': {
                                               'response_time': 'RT',
+                                              'Reward_consume_time': 'no-lick-time before ITI',
                                               'auto_stop_max_ignored_trials_in_a_row': 'auto stop ignores >',
                                               'motor_retract_waterport': 'retract on ITI?',
                                               'double_dip_retract': 'retract on double dipping?',
@@ -210,6 +212,7 @@ class App(QDialog):
                                                     },
                                      'Misc': {
                                               'response_time': 'RT',
+                                              'Reward_consume_time': 'no-lick-time before ITI',
                                               'auto_stop_max_ignored_trials_in_a_row': 'auto stop ignores >',
                                               'motor_retract_waterport': 'retract on ITI?',
                                               'double_dip_retract': 'retract on double dipping?',
