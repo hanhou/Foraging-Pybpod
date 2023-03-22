@@ -28,12 +28,10 @@ WAV_ID_MASK = 63  # Max = 63
 
 laser_setting_file ='C:\\laser_setting.json'
 
-
-
 def gen_sin_wave(sampling_rate, freq, duration, phy=0):
-    # Duration in seconds
     t = np.arange(0, duration, 1 / sampling_rate)
-    return np.sin(2 * np.pi * freq * t + phy)
+    return np.sin(2 * np.pi * freq * t + (np.pi/2 if freq == 0   # Constant
+                                          else phy))
 
 class OutputChannelGUI(BaseWidget):
 
@@ -142,7 +140,7 @@ class WavePlayerModuleGUI(WavePlayerModule, BaseWidget):
                 'a:Connection' :[
                     ('_port','_connect_btn'), 
                     # ('_triggermode', '_outputrange'),
-                    ('_duration', '_frequency', '_samplerate'),
+                    ('_duration', '_samplerate'),
                     ('_open_json', '_load_json', '_laser_setting'),
                     '_load_waveform_btn',
                     '_wavegraph',
@@ -162,7 +160,7 @@ class WavePlayerModuleGUI(WavePlayerModule, BaseWidget):
         self.laser_setting = self.laser_settings[self.laser_setting_name]
         laser_power_mapper = self.laser_setting['laser_power_mapper']
         laser_sin_ramp_down_dur = self.laser_setting['laser_sin_ramp_down_time']
-        laser_sin_freq = self._frequency.value
+        laser_sin_freq = self.laser_setting['laser_freq'] # self._frequency.value
         laser_sin_dur = self._duration.value
 
         # --- Waveforms ---
