@@ -932,7 +932,10 @@ for blocki , (p_R , p_L, p_M) in enumerate(zip(variables['reward_probabilities_R
 
         if if_use_analog_module:
             # -- Prepare photostim --
-            laser_setting_name = variables_subject['laser_setting_name'] if 'laser_setting_name' in variables_subject.keys() else 'calibration'
+            laser_setting_name = variables_subject['laser_setting_name'] if 'laser_setting_name' in variables_subject.keys() else 'calibration_sin'
+            if laser_setting_name not in laser_settings:
+                laser_setting_name = list(laser_settings.keys())[-1]
+
             laser_setting = laser_settings[laser_setting_name]
             laser_power_mapper = laser_setting['laser_power_mapper']
             laser_sin_ramp_down_dur = laser_setting['laser_sin_ramp_down_time']
