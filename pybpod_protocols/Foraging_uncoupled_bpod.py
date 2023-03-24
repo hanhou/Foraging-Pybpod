@@ -546,7 +546,7 @@ if if_use_analog_module:
 if if_use_analog_module_for_go_cue: 
     goCue_command = (SER_DEVICE, SER_CMD_GO_CUE)    # Use Wav ePlayer serial command #SER_CMD_GO_CUE on ephys rig!!
 else:
-    goCue_command = (variables['GoCue_ch'], 200)  # Set PWM5 to 100% duty cycle (always on), which triggers the wav trigger board
+    goCue_command = (variables['GoCue_ch'], 255)  # Set PWM5 to 100% duty cycle (always on), which triggers the wav trigger board
 
 
 
@@ -792,7 +792,7 @@ while True:
         laser_setting_name = variables_subject['laser_setting_name'] if 'laser_setting_name' in variables_subject.keys() else 'calibration_sin'
         if laser_setting_name not in laser_settings:
             laser_setting_name = list(laser_settings.keys())[-1]
-            
+
         laser_setting = laser_settings[laser_setting_name]
         laser_power_mapper = laser_setting['laser_power_mapper']
         laser_sin_ramp_down_dur = laser_setting['laser_sin_ramp_down_time']
@@ -1103,8 +1103,10 @@ while True:
         if not if_use_analog_module_for_go_cue:
             sma.add_state(
                 state_name='GoCue_WavTrigBoard',
-                state_timer=0.1,   # WAV trigger board need longer durtion to trigger
-                state_change_conditions={EventName.Tup: 'AfterGoCue'},
+                state_timer=0.01,   # WAV trigger board need longer durtion to trigger
+                state_change_conditions={EventName.Tup: 'AfterGoCue'
+										     if if_use_analog_module_for_go_cue else
+                                             'GoCue_WavTrigBoard'},
                 output_actions = [goCue_command])
 
         sma.add_state(
@@ -1144,14 +1146,16 @@ while True:
             sma.add_state(
                 state_name='AfterGoCueLaserTimerStart',  # I keep the name for backward compatibility
                 state_timer=0,
-                state_change_conditions={EventName.Tup: 'AfterGoCue'},
+                state_change_conditions={EventName.Tup: 'AfterGoCue'
+										     if if_use_analog_module_for_go_cue else
+                                             'GoCue_WavTrigBoard'},
                 output_actions = [('GlobalTimerTrig', 8)]   # Start photostim timer (#4)
             )
 
         if not if_use_analog_module_for_go_cue:
             sma.add_state(
                 state_name='GoCue_WavTrigBoard',
-                state_timer=0.1,   # WAV trigger board need longer durtion to trigger
+                state_timer=0.01,   # WAV trigger board need longer durtion to trigger
                 state_change_conditions={EventName.Tup: 'AfterGoCue'},
                 output_actions = [goCue_command])
 
