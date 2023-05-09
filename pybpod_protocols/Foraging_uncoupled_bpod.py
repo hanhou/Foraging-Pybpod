@@ -1225,7 +1225,7 @@ while True:
         state_name='Choice_L',
         state_timer=event_marker_dur['choice_L'],  # Send a event marker to BNC1
         state_change_conditions={EventName.Tup:
-                                    'Reward_L'  if reward_L or reward_L_accumulated  # reward_L: reward generated in the current trial
+                                    'Reward_L_fixed_delay_start'  if reward_L or reward_L_accumulated  # reward_L: reward generated in the current trial
                                                                                     # reward_L_accumulated: reward baited from the last trial
                                     else 'Consume_reward_L'},         # No reward
         output_actions = [(variables['bitcode_channel'], 1)] if if_bit_code else [])  #(variables['Choice_cue_L_ch'],255)   # Not to confuse the mice with too many sounds.
@@ -1234,7 +1234,7 @@ while True:
         state_name='Choice_R',
         state_timer=event_marker_dur['choice_R'],  # Send a event marker to BNC1
         state_change_conditions={EventName.Tup:
-                                    'Reward_R'  if reward_R or reward_R_accumulated
+                                    'Reward_R_fixed_delay_start'  if reward_R or reward_R_accumulated
                                     else 'Consume_reward_R'},
         output_actions = [(variables['bitcode_channel'], 1)] if if_bit_code else [])  #(variables['Choice_cue_L_ch'],255)   # Not to confuse the mice with too many sounds.
 
@@ -1242,12 +1242,20 @@ while True:
         state_name='Choice_M',
         state_timer=event_marker_dur['choice_M'],  # Send a event marker to BNC1
         state_change_conditions={EventName.Tup:
-                                    'Reward_M'  if reward_M or reward_M_accumulated
+                                    'Reward_M_fixed_delay_start'  if reward_M or reward_M_accumulated
                                     else 'Consume_reward_M'},
         output_actions = [(variables['bitcode_channel'], 1)] if if_bit_code else [])  #(variables['Choice_cue_L_ch'],255)   # Not to confuse the mice with too many sounds.
 
 
     for lickport in ('L', 'R', 'M'):
+        # Add a fixed delay between choice and reward
+        sma.add_state(
+            state_name=f'Reward_{lickport}_fixed_delay_start',
+            state_timer=variables[f'reward_delay'] if 'reward_delay' in variables else 0,  # reward_delay
+            state_change_conditions={EventName.Tup: f'Reward_{lickport}'},
+            output_actions = [])
+
+        # This is still the actual reward
         sma.add_state(
             state_name=f'Reward_{lickport}',
             state_timer=variables[f'ValveOpenTime_{lickport}'],
