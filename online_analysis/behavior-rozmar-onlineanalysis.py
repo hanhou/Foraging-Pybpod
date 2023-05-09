@@ -65,10 +65,11 @@ class App(QDialog):
         self.timer.setInterval(5000)          # Throw event timeout with an interval of 1000 milliseconds
         self.timer.timeout.connect(self.reloadthedata) # each time timer counts a second, call self.blink
         self.pickle_write_thread = None
-        self.variables_to_display_old = {'Valve Open Time': {'lickport_number': '# Lickport',
+        self.variables_to_display_old = {'Valve Open Time': {#'lickport_number': '# Lickport',
                                                          'ValveOpenTime_L': 'L',
                                                          'ValveOpenTime_R': 'R',
-                                                         'ValveOpenTime_M': 'M',
+                                                         #'ValveOpenTime_M': 'M',
+                                                         'reward_delay': 'Reward delay (sec)',
                                                          'accumulate_reward': 'Reward baiting prob.',
                                                         },
                                      'Base reward probability': {'difficulty_sum_reward_rate': 'sum',
@@ -126,10 +127,11 @@ class App(QDialog):
                                      }
 
 
-        self.variables_to_display_uncoupled = {'Valve Open Time': {'lickport_number': '# Lickport',
+        self.variables_to_display_uncoupled = {'Valve Open Time': {#'lickport_number': '# Lickport',
                                                          'ValveOpenTime_L': 'L',
                                                          'ValveOpenTime_R': 'R',
-                                                         'ValveOpenTime_M': 'M',
+                                                         'reward_delay': 'Reward delay (sec)',
+                                                         #'ValveOpenTime_M': 'M',
                                                          'accumulate_reward': 'Reward baiting prob.',
                                                         },
                                      'Base reward probability': {'reward_prob_array': 'reward prob. array',
@@ -183,10 +185,11 @@ class App(QDialog):
                                               }
                                 }
 
-        self.variables_to_display_randomwalk = {'Valve Open Time': {'lickport_number': '# Lickport',
+        self.variables_to_display_randomwalk = {'Valve Open Time': {#'lickport_number': '# Lickport',
                                                          'ValveOpenTime_L': 'L',
                                                          'ValveOpenTime_R': 'R',
-                                                         'ValveOpenTime_M': 'M',
+                                                         'reward_delay': 'Reward delay (sec)',
+                                                         #'ValveOpenTime_M': 'M',
                                                          'accumulate_reward': 'Reward baiting prob.',
                                                         },
                                      'Base reward probability': {'min_reward_prob': 'min reward prob [L, R]',
@@ -1143,10 +1146,10 @@ class App(QDialog):
             self.handles['variables_subject']['auto_water_min_ignored_trials_in_a_row'].setEnabled(False)
             self.handles['variables_subject']['auto_water_min_unrewarder_trials_in_a_row'].setEnabled(False)
 
-        if int(self.handles['variables_subject']['lickport_number'].text()) == 2:
-            self.handles['variables_subject']['ValveOpenTime_M'].setEnabled(False)
-        else:
-            self.handles['variables_subject']['ValveOpenTime_M'].setEnabled(True)
+        # if int(self.handles['variables_subject']['lickport_number'].text()) == 2:
+        #     self.handles['variables_subject']['ValveOpenTime_M'].setEnabled(False)
+        # else:
+        #     self.handles['variables_subject']['ValveOpenTime_M'].setEnabled(True)
 
         try:
             if float(self.handles['variables_subject']['laser_random_ratio'].text()) == -1:
